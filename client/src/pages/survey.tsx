@@ -25,8 +25,16 @@ export default function Survey() {
     enabled: !!inviteCode,
   });
 
-  // Use actual survey questions or default SyncShift questions
-  const questions = surveyData?.surveyQuestions || [
+
+
+  // Use actual survey questions if available, otherwise use default SyncShift questions
+  const questions = surveyData?.surveyQuestions?.map((q: any) => ({
+    id: q.id,
+    type: q.type,
+    question: q.text || q.question,
+    scale: q.scale?.max || 7,
+    category: q.category
+  })) || [
     // SyncShift 360 Rating Questions (26 questions)
     { id: '1', type: 'rating', question: 'Communicates a clear vision and direction for the team/organization', scale: 7, category: 'Leadership' },
     { id: '2', type: 'rating', question: 'Makes sense of complex situations and provides clarity', scale: 7, category: 'Leadership' },
@@ -66,6 +74,8 @@ export default function Survey() {
     { id: '28', type: 'text', question: 'What are some small shifts this leader could make to create better alignment with team/organizational goals?' },
     { id: '29', type: 'text', question: 'Any additional feedback or comments?' }
   ];
+
+
 
   const handleRatingChange = (questionId: string, value: number) => {
     setResponses(prev => ({
@@ -151,11 +161,12 @@ export default function Survey() {
               Your feedback is completely anonymous and will help improve leadership effectiveness.
             </p>
             <p className="text-sm text-gray-500">
-              26 rating questions + 3 open feedback questions (29 total)
+              {questions.length} questions total
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
+
               {questions.map((question, index) => (
                 <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                   {question.category && (
@@ -171,7 +182,7 @@ export default function Survey() {
                     <div className="flex items-center space-x-4">
                       <span className="text-sm text-gray-500">Strongly Disagree</span>
                       <div className="flex space-x-2">
-                        {[1, 2, 3, 4, 5, 6, 7].map((rating) => (
+                        {Array.from({length: question.scale || 7}, (_, i) => i + 1).map((rating) => (
                           <button
                             key={rating}
                             type="button"
