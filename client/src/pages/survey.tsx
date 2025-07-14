@@ -102,12 +102,11 @@ export default function Survey() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          inviteToken: inviteCode,
+          inviteCode: inviteCode,
           responses: Object.entries(responses).map(([questionId, answer]) => ({
             questionId,
             ...answer
-          })),
-          email: 'anonymous@feedback.com' // This would come from the invitation
+          }))
         }),
       });
 

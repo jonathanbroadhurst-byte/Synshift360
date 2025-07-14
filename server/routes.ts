@@ -406,36 +406,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Survey response routes
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
-      const { invitationId, responses, email } = req.body;
+      const { inviteCode, responses } = req.body;
       
-      const invitation = await storage.getSurveyInvitationByToken(req.body.inviteToken);
-      if (!invitation) {
-        return res.status(404).json({ message: "Invalid invitation" });
+      console.log('Survey response submission:', { inviteCode, responseCount: responses?.length });
+      
+      // Get survey cycle by invite code
+      const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
+      if (!cycle) {
+        return res.status(404).json({ message: "Invalid survey code" });
       }
 
-      if (invitation.status === "completed") {
-        return res.status(400).json({ message: "Survey already completed" });
+      if (cycle.status !== "active") {
+        return res.status(400).json({ message: "Survey is no longer active" });
       }
 
-      // Generate anonymous hash
-      const responseHash = generateResponseHash(email, invitation.cycleId!);
+      // Generate anonymous hash for this response
+      const timestamp = new Date().toISOString();
+      const responseHash = generateResponseHash(`anonymous-${timestamp}`, cycle.id);
 
       const response = await storage.createSurveyResponse({
-        cycleId: invitation.cycleId,
-        invitationId: invitation.id,
+        cycleId: cycle.id,
+        invitationId: null, // Anonymous response, no specific invitation
         responses,
         responseHash,
       });
 
-      // Update invitation status
-      await storage.updateInvitationStatus(invitation.id, "completed", new Date());
-      
       // Update cycle stats
-      await storage.updateSurveyCycleStats(invitation.cycleId!);
+      await storage.updateSurveyCycleStats(cycle.id);
 
+      console.log('Survey response submitted successfully');
       res.status(201).json({ message: "Response submitted successfully" });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to submit response" });
+    } catch (error: any) {
+      console.error('Survey response submission error:', error);
+      res.status(400).json({ message: "Failed to submit response", details: error.message });
     }
   });
 
