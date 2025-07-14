@@ -105,3 +105,37 @@ The application uses a comprehensive schema with the following main entities:
 - Error handling and logging middleware
 
 The application is designed for scalable deployment with support for multiple organizations, comprehensive privacy controls, and enterprise-grade security features.
+
+## Test Accounts
+
+The system has been seeded with test data and accounts for immediate use:
+
+**Admin Account:**
+- Email: admin@demo.com
+- Password: admin123
+- Role: Administrator (full access to all features)
+
+**Leader Account:**
+- Email: leader@demo.com  
+- Password: leader123
+- Role: Leader (can create surveys and view own reports)
+
+## SyncShift 360 Survey Integration
+
+The platform includes a complete SyncShift 360 feedback survey based on the provided questionnaire and competency framework:
+
+- **26 Rating Questions** (1-7 scale) across 6 key competency areas:
+  - 🌀 Leadership (Direction & Sense-Making) - 5 questions
+  - 🏗️ Infrastructure (Systems & Delivery) - 4 questions  
+  - 🔍 Motives (Purpose & Authenticity) - 4 questions
+  - ⚡ Capabilities (Skills & Agility) - 4 questions
+  - 🤝 Culture (Team & Norms) - 4 questions
+  - 🌟 Personal Brand (Impact & Reputation) - 3 questions
+  - 🗝️ Alignment (Outcome) - 2 questions
+
+- **3 Open Text Questions** for qualitative feedback:
+  - Greatest strengths
+  - Areas for small shifts to create better alignment
+  - Additional feedback
+
+The survey maintains GDPR compliance with anonymous response collection and secure data handling throughout the feedback process.
