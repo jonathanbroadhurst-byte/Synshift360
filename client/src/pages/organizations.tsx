@@ -1,22 +1,21 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Plus, Building, Users, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Building, Plus, Users, Activity } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { RequireAuth } from '@/lib/auth';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export default function Organizations() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDomain, setNewOrgDomain] = useState('');
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['/api/organizations'],
@@ -72,61 +71,25 @@ export default function Organizations() {
   return (
     <RequireAuth roles={['admin']}>
       <div className="p-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Organizations</h1>
-            <p className="text-gray-600 mt-2">Manage organizations and their settings</p>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Organizations</h1>
+              <p className="text-gray-600 mt-2">Manage organizations and their settings</p>
+            </div>
+            <Button 
+              size="lg" 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3"
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add Organization
+            </Button>
           </div>
-          
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 shrink-0">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Organization
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Organization</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateOrganization} className="space-y-4">
-                <div>
-                  <Label htmlFor="orgName">Organization Name</Label>
-                  <Input
-                    id="orgName"
-                    value={newOrgName}
-                    onChange={(e) => setNewOrgName(e.target.value)}
-                    placeholder="Enter organization name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="orgDomain">Domain</Label>
-                  <Input
-                    id="orgDomain"
-                    value={newOrgDomain}
-                    onChange={(e) => setNewOrgDomain(e.target.value)}
-                    placeholder="company.com"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createOrganizationMutation.isPending}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {createOrganizationMutation.isPending ? "Creating..." : "Create Organization"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
         </div>
 
+        {/* Organizations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {organizations?.map((org: any) => (
             <Card key={org.id} className="hover:shadow-lg transition-shadow">
@@ -173,6 +136,7 @@ export default function Organizations() {
           ))}
         </div>
 
+        {/* Empty State */}
         {organizations?.length === 0 && (
           <div className="text-center py-12">
             <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -184,6 +148,49 @@ export default function Organizations() {
             </Button>
           </div>
         )}
+
+        {/* Create Organization Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Organization</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateOrganization} className="space-y-4">
+              <div>
+                <Label htmlFor="orgName">Organization Name</Label>
+                <Input
+                  id="orgName"
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  placeholder="Enter organization name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="orgDomain">Domain</Label>
+                <Input
+                  id="orgDomain"
+                  value={newOrgDomain}
+                  onChange={(e) => setNewOrgDomain(e.target.value)}
+                  placeholder="company.com"
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createOrganizationMutation.isPending}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  {createOrganizationMutation.isPending ? "Creating..." : "Create Organization"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </RequireAuth>
   );
