@@ -332,18 +332,25 @@ export default function Surveys() {
                     </p>
                   </div>
 
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                      disabled={createSurveyCycleMutation.isPending}
+                    >
                       Cancel
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createSurveyCycleMutation.isPending}
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-blue-600 hover:bg-blue-700"
                     >
-                      {createSurveyCycleMutation.isPending ? "Creating..." : "Start Survey"}
+                      {createSurveyCycleMutation.isPending ? "Creating..." : "Create Survey"}
                     </Button>
                   </div>
+
+
                 </form>
               </DialogContent>
             </Dialog>

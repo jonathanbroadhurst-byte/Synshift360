@@ -237,7 +237,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Survey cycle request body:', req.body);
-      const cycleData = insertSurveyCycleSchema.parse(req.body);
+      // Convert endDate string to Date object
+      const requestData = {
+        ...req.body,
+        endDate: new Date(req.body.endDate)
+      };
+      const cycleData = insertSurveyCycleSchema.parse(requestData);
       console.log('Parsed cycle data:', cycleData);
       const cycle = await storage.createSurveyCycle(cycleData);
 
