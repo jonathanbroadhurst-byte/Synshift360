@@ -20,6 +20,7 @@ export default function Surveys() {
   const [newCycleTitle, setNewCycleTitle] = useState('');
   const [selectedSurveyId, setSelectedSurveyId] = useState('');
   const [selectedLeaderId, setSelectedLeaderId] = useState('');
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [endDate, setEndDate] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
   const { toast } = useToast();
@@ -31,6 +32,10 @@ export default function Surveys() {
 
   const { data: cycles, isLoading: cyclesLoading } = useQuery({
     queryKey: ['/api/survey-cycles'],
+  });
+
+  const { data: organizations, isLoading: organizationsLoading } = useQuery({
+    queryKey: ['/api/organizations'],
   });
 
   const createSurveyCycleMutation = useMutation({
@@ -49,6 +54,7 @@ export default function Surveys() {
       setIsCreateDialogOpen(false);
       setNewCycleTitle('');
       setSelectedSurveyId('');
+      setSelectedOrganizationId('');
       setEndDate('');
 
       if (inviteEmails.trim()) {
@@ -86,12 +92,19 @@ export default function Surveys() {
 
   const handleCreateSurveyCycle = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCycleTitle.trim() || !selectedSurveyId || !endDate) return;
+    if (!newCycleTitle.trim() || !selectedSurveyId || !selectedOrganizationId || !endDate) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields including organization.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     createSurveyCycleMutation.mutate({
       surveyId: parseInt(selectedSurveyId),
       leaderId: selectedLeaderId ? parseInt(selectedLeaderId) : user?.id,
-      organizationId: user?.organizationId,
+      organizationId: parseInt(selectedOrganizationId),
       title: newCycleTitle.trim(),
       endDate: new Date(endDate),
     });
@@ -245,7 +258,7 @@ export default function Surveys() {
                 <form onSubmit={handleCreateSurveyCycle} className="space-y-4">
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
-                      <strong>Organization Assignment:</strong> This survey will be assigned to <span className="font-semibold">{user?.organizationName || "Demo Organization"}</span>.
+                      <strong>Survey Assignment:</strong> Choose the organization for this survey.
                       <br />
                       Participants will receive anonymous links to provide feedback.
                     </p>
@@ -262,6 +275,22 @@ export default function Surveys() {
                     />
                   </div>
                   
+                  <div>
+                    <Label htmlFor="organization">Organization</Label>
+                    <Select value={selectedOrganizationId} onValueChange={setSelectedOrganizationId} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {organizations?.map((org: any) => (
+                          <SelectItem key={org.id} value={org.id.toString()}>
+                            {org.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div>
                     <Label htmlFor="surveyType">Survey Template</Label>
                     <Select value={selectedSurveyId} onValueChange={setSelectedSurveyId} required>
