@@ -72,7 +72,7 @@ export default function Organizations() {
   return (
     <RequireAuth roles={['admin']}>
       <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Organizations</h1>
             <p className="text-gray-600 mt-2">Manage organizations and their settings</p>
@@ -80,7 +80,7 @@ export default function Organizations() {
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90">
+              <Button className="bg-primary hover:bg-primary/90 shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Organization
               </Button>
