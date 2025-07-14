@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RequireAuth } from '@/lib/auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import Sidebar from '@/components/layout/sidebar';
+import Header from '@/components/layout/header';
 
 export default function Organizations() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -70,7 +72,13 @@ export default function Organizations() {
 
   return (
     <RequireAuth roles={['admin']}>
-      <div className="p-8">
+      <div className="min-h-screen flex bg-gray-50">
+        <Sidebar />
+        
+        <main className="flex-1 flex flex-col">
+          <Header />
+          
+          <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -200,6 +208,8 @@ export default function Organizations() {
             </form>
           </DialogContent>
         </Dialog>
+          </div>
+        </main>
       </div>
     </RequireAuth>
   );
