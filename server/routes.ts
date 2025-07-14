@@ -236,7 +236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Survey cycle routes
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
+      console.log('Survey cycle request body:', req.body);
       const cycleData = insertSurveyCycleSchema.parse(req.body);
+      console.log('Parsed cycle data:', cycleData);
       const cycle = await storage.createSurveyCycle(cycleData);
 
       await storage.logActivity({
@@ -250,8 +252,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.status(201).json({ cycle });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to create survey cycle" });
+    } catch (error: any) {
+      console.error('Survey cycle creation error:', error);
+      res.status(400).json({ message: "Failed to create survey cycle", details: error.message });
     }
   });
 
