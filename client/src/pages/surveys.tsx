@@ -208,7 +208,7 @@ export default function Surveys() {
                       </div>
                       <div>
                         <CardTitle className="text-lg">{survey.title}</CardTitle>
-                        <p className="text-sm text-gray-500">{JSON.parse(survey.questions).length} questions</p>
+                        <p className="text-sm text-gray-500">{Array.isArray(survey.questions) ? survey.questions.length : JSON.parse(survey.questions).length} questions</p>
                       </div>
                     </div>
                     <Badge variant="default">Active</Badge>
