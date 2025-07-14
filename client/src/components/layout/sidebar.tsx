@@ -29,69 +29,69 @@ export default function Sidebar() {
 
       <nav className="flex-1 p-4 space-y-2">
         <Link href="/">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-tachometer-alt w-5"></i>
             <span>Dashboard</span>
-          </a>
+          </span>
         </Link>
         
         <Link href="/organizations">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/organizations') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-building w-5"></i>
             <span>Organizations</span>
-          </a>
+          </span>
         </Link>
         
         <Link href="/surveys">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/surveys') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-clipboard-list w-5"></i>
             <span>Survey Management</span>
-          </a>
+          </span>
         </Link>
         
         <Link href="/reports">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/reports') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-chart-bar w-5"></i>
             <span>Reports</span>
-          </a>
+          </span>
         </Link>
         
         <Link href="/users">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/users') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-user-cog w-5"></i>
             <span>User Management</span>
-          </a>
+          </span>
         </Link>
         
         <Link href="/compliance">
-          <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive('/compliance') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-shield-alt w-5"></i>
             <span>GDPR Compliance</span>
-          </a>
+          </span>
         </Link>
       </nav>
 

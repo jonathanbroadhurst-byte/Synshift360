@@ -24,12 +24,47 @@ export default function Header() {
           </nav>
         </div>
         <div className="flex items-center space-x-4">
-          <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                <Bell className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  3
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="p-3 border-b">
+                <h3 className="font-semibold">Notifications</h3>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="text-sm font-medium">New survey response received</p>
+                    <p className="text-xs text-gray-500">Leadership Survey - 2 minutes ago</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="text-sm font-medium">Report ready for review</p>
+                    <p className="text-xs text-gray-500">Q4 Feedback Report - 1 hour ago</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="text-sm font-medium">Survey cycle ending soon</p>
+                    <p className="text-xs text-gray-500">Ends in 2 days - 3 hours ago</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 border-t">
+                <button className="text-sm text-blue-600 hover:text-blue-800">View all notifications</button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors font-medium">
             <Plus className="w-4 h-4 mr-2" />
