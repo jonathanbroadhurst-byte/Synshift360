@@ -307,25 +307,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Survey invitation routes
   app.post("/api/survey-invitations", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const invitationData = insertSurveyInvitationSchema.parse(req.body);
-      const invitation = await storage.createSurveyInvitation(invitationData);
+      console.log('Survey invitation request body:', req.body);
+      
+      // Handle both single email and bulk email formats
+      const { cycleId, participantEmails } = req.body;
+      
+      if (!cycleId) {
+        return res.status(400).json({ message: "Missing cycle ID" });
+      }
+
+      if (!participantEmails || !Array.isArray(participantEmails) || participantEmails.length === 0) {
+        return res.status(400).json({ message: "No participant emails provided" });
+      }
+
+      const invitations = [];
+      
+      // Create invitation for each email
+      for (const email of participantEmails) {
+        if (!email || !email.trim()) continue;
+        
+        const invitationData = {
+          cycleId: parseInt(cycleId),
+          email: email.trim(),
+          status: 'pending'
+        };
+        
+        console.log('Creating invitation for:', invitationData);
+        const invitation = await storage.createSurveyInvitation(invitationData);
+        invitations.push(invitation);
+
+        await storage.logActivity({
+          userId: req.user!.id,
+          action: "send_invitation",
+          resourceType: "survey_invitation",
+          resourceId: invitation.id,
+          details: { email: invitation.email },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        });
+      }
 
       // Update cycle stats
-      await storage.updateSurveyCycleStats(invitation.cycleId!);
+      await storage.updateSurveyCycleStats(parseInt(cycleId));
 
-      await storage.logActivity({
-        userId: req.user!.id,
-        action: "send_invitation",
-        resourceType: "survey_invitation",
-        resourceId: invitation.id,
-        details: { email: invitation.email },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
+      console.log(`Created ${invitations.length} invitations`);
+      res.status(201).json({ 
+        message: `${invitations.length} invitations created`,
+        invitations: invitations 
       });
-
-      res.status(201).json(invitation);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to send invitation" });
+    } catch (error: any) {
+      console.error('Survey invitation creation error:', error);
+      res.status(400).json({ message: "Failed to send invitation", details: error.message });
     }
   });
 

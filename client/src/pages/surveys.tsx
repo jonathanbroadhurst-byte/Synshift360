@@ -93,12 +93,25 @@ export default function Surveys() {
 
   const createInvitations = async (cycleId: number, emails: string[]) => {
     try {
-      await apiRequest('POST', '/api/survey-invitations', {
+      console.log('Creating invitations for:', { cycleId, emails });
+      const response = await apiRequest('POST', '/api/survey-invitations', {
         cycleId,
         participantEmails: emails,
       });
+      const result = await response.json();
+      console.log('Invitation result:', result);
+      
+      toast({
+        title: "Invitations created",
+        description: `${emails.length} invitation links generated. Participants can use the survey code or direct link shown in the survey cycle card.`,
+      });
     } catch (error) {
       console.error('Failed to create invitations:', error);
+      toast({
+        title: "Invitation error",
+        description: "Failed to create invitation links. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -211,10 +224,10 @@ export default function Surveys() {
                   <h3 className="font-medium text-green-900 mb-2">How to assign surveys to individuals:</h3>
                   <ol className="text-sm text-green-800 space-y-1">
                     <li>1. Click "Start New Survey" to begin a new cycle</li>
-                    <li>2. Choose the SyncShift 360 template (29 questions)</li>
-                    <li>3. Set an end date for when the survey closes</li>
-                    <li>4. Add participant emails separated by commas</li>
-                    <li>5. Each person gets a unique anonymous link</li>
+                    <li>2. Select your organization and the SyncShift 360 template</li>
+                    <li>3. Upload participant spreadsheet or enter emails manually</li>
+                    <li>4. Set an end date for when the survey closes</li>
+                    <li>5. Share the survey code or direct link with participants</li>
                     <li>6. Monitor progress and generate reports when complete</li>
                   </ol>
                 </div>
@@ -267,12 +280,19 @@ export default function Surveys() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-500">Survey Code: {cycle.inviteCode}</p>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                            {cycle.organizationName || "Demo Organization"}
-                          </Badge>
-                          <span className="text-xs text-gray-400">•</span>
-                          <span className="text-xs text-gray-500">{cycle.surveyTitle || "SyncShift 360"}</span>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {cycle.organizationName || "Demo Organization"}
+                            </Badge>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-gray-500">{cycle.surveyTitle || "SyncShift 360"}</span>
+                          </div>
+                          <div className="p-2 bg-gray-50 rounded text-xs">
+                            <div className="font-medium text-gray-700 mb-1">Share with participants:</div>
+                            <div className="text-gray-600">Survey Code: <span className="font-mono bg-white px-1 rounded">{cycle.inviteCode}</span></div>
+                            <div className="text-gray-600 mt-1">Link: <span className="font-mono bg-white px-1 rounded break-all">{window.location.origin}/survey/{cycle.inviteCode}</span></div>
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
