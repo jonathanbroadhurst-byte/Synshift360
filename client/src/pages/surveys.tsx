@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, FileText, Users, Calendar, Clock } from 'lucide-react';
+import { Plus, FileText, Users, Calendar, Clock, Upload, Download } from 'lucide-react';
+import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,8 @@ export default function Surveys() {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [endDate, setEndDate] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
+  const [participantData, setParticipantData] = useState<Array<{name: string, jobTitle: string, email: string}>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -56,12 +59,21 @@ export default function Surveys() {
       setSelectedSurveyId('');
       setSelectedOrganizationId('');
       setEndDate('');
+      setParticipantData([]);
 
+      // Send invitations from either manual emails or spreadsheet data
+      const emailsToSend = [];
+      
       if (inviteEmails.trim()) {
-        const emails = inviteEmails.split(',').map(email => email.trim()).filter(email => email);
-        if (emails.length > 0) {
-          await createInvitations(data.cycle.id, emails);
-        }
+        emailsToSend.push(...inviteEmails.split(',').map(email => email.trim()).filter(email => email));
+      }
+      
+      if (participantData.length > 0) {
+        emailsToSend.push(...participantData.map(p => p.email).filter(email => email));
+      }
+
+      if (emailsToSend.length > 0) {
+        await createInvitations(data.cycle.id, emailsToSend);
       }
       setInviteEmails('');
       
@@ -88,6 +100,58 @@ export default function Surveys() {
     } catch (error) {
       console.error('Failed to create invitations:', error);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      complete: (results) => {
+        try {
+          const participants = results.data
+            .filter((row: any) => row.email && row.email.trim())
+            .map((row: any) => ({
+              name: row.name || row.Name || row.NAME || '',
+              jobTitle: row.jobTitle || row['Job Title'] || row.position || row.Position || row.POSITION || '',
+              email: row.email || row.Email || row.EMAIL || ''
+            }));
+          
+          setParticipantData(participants);
+          setInviteEmails(''); // Clear manual emails when spreadsheet is uploaded
+          
+          toast({
+            title: "Spreadsheet imported",
+            description: `${participants.length} participants loaded from spreadsheet`,
+          });
+        } catch (error) {
+          toast({
+            title: "Import error",
+            description: "Failed to parse spreadsheet. Please check the format.",
+            variant: "destructive",
+          });
+        }
+      },
+      error: (error) => {
+        toast({
+          title: "File error",
+          description: "Failed to read file. Please try again.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "name,jobTitle,email\nJohn Doe,Software Engineer,john@company.com\nJane Smith,Product Manager,jane@company.com";
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'participant_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleCreateSurveyCycle = (e: React.FormEvent) => {
@@ -320,16 +384,84 @@ export default function Surveys() {
                   </div>
 
                   <div>
-                    <Label htmlFor="inviteEmails">Participant Emails (optional)</Label>
-                    <Input
-                      id="inviteEmails"
-                      value={inviteEmails}
-                      onChange={(e) => setInviteEmails(e.target.value)}
-                      placeholder="email1@company.com, email2@company.com"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Separate multiple emails with commas
-                    </p>
+                    <Label htmlFor="participants">Participants</Label>
+                    <div className="space-y-3">
+                      {/* Upload spreadsheet option */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                        <div className="text-center">
+                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600 mb-2">Upload participant spreadsheet</p>
+                          <div className="flex justify-center space-x-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <Upload className="w-4 h-4 mr-1" />
+                              Choose File
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={downloadTemplate}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Template
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            CSV with columns: name, jobTitle, email
+                          </p>
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".csv,.xlsx,.xls"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </div>
+
+                      {/* Show uploaded participants */}
+                      {participantData.length > 0 && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <p className="text-sm font-medium text-green-800 mb-2">
+                            {participantData.length} participants loaded from spreadsheet
+                          </p>
+                          <div className="max-h-32 overflow-y-auto">
+                            {participantData.slice(0, 5).map((participant, index) => (
+                              <div key={index} className="text-xs text-green-700">
+                                {participant.name} ({participant.jobTitle}) - {participant.email}
+                              </div>
+                            ))}
+                            {participantData.length > 5 && (
+                              <div className="text-xs text-green-600 mt-1">
+                                ... and {participantData.length - 5} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Manual email entry */}
+                      <div>
+                        <Label htmlFor="inviteEmails" className="text-sm">
+                          Or enter emails manually (optional)
+                        </Label>
+                        <Input
+                          id="inviteEmails"
+                          value={inviteEmails}
+                          onChange={(e) => setInviteEmails(e.target.value)}
+                          placeholder="email1@company.com, email2@company.com"
+                          disabled={participantData.length > 0}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Separate multiple emails with commas
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex justify-end space-x-3 pt-4">
