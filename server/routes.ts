@@ -4,7 +4,9 @@ import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertSurveyCycleSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertSurveyCycleSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, type User, users, surveys, organizations, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -247,9 +249,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAgent: req.get('User-Agent'),
       });
 
-      res.status(201).json(cycle);
+      res.status(201).json({ cycle });
     } catch (error) {
       res.status(400).json({ message: "Failed to create survey cycle" });
+    }
+  });
+
+  app.get("/api/survey-cycles", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      // Get cycles with organization and survey details
+      const cycles = await db.select({
+        id: surveyCycles.id,
+        title: surveyCycles.title,
+        status: surveyCycles.status,
+        inviteCode: surveyCycles.inviteCode,
+        endDate: surveyCycles.endDate,
+        responseCount: surveyCycles.totalResponses,
+        invitedCount: surveyCycles.totalInvites,
+        organizationName: organizations.name,
+        surveyTitle: surveys.title,
+      })
+      .from(surveyCycles)
+      .leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id))
+      .leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id))
+      .orderBy(surveyCycles.createdAt);
+
+      res.json(cycles);
+    } catch (error) {
+      console.error('Error fetching survey cycles:', error);
+      res.status(500).json({ error: 'Failed to fetch survey cycles' });
     }
   });
 

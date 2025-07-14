@@ -188,7 +188,16 @@ export default function Surveys() {
                           {cycle.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-500">Code: {cycle.inviteCode}</p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-500">Survey Code: {cycle.inviteCode}</p>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            {cycle.organizationName || "Demo Organization"}
+                          </Badge>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500">{cycle.surveyTitle || "SyncShift 360"}</span>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
@@ -236,7 +245,8 @@ export default function Surveys() {
                 <form onSubmit={handleCreateSurveyCycle} className="space-y-4">
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
-                      <strong>Survey Assignment:</strong> This survey will be assigned to your current organization.
+                      <strong>Organization Assignment:</strong> This survey will be assigned to <span className="font-semibold">{user?.organizationName || "Demo Organization"}</span>.
+                      <br />
                       Participants will receive anonymous links to provide feedback.
                     </p>
                   </div>
