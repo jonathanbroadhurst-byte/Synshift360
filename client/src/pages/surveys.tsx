@@ -111,6 +111,17 @@ export default function Surveys() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Survey Management</h1>
             <p className="text-gray-600 mt-2">Create and manage 360 feedback survey cycles</p>
+            <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+              <h3 className="font-medium text-green-900 mb-2">How to assign surveys to individuals:</h3>
+              <ol className="text-sm text-green-800 space-y-1">
+                <li>1. Click "Start New Survey" to begin a new cycle</li>
+                <li>2. Choose the SyncShift 360 template (29 questions)</li>
+                <li>3. Set an end date for when the survey closes</li>
+                <li>4. Add participant emails separated by commas</li>
+                <li>5. Each person gets a unique anonymous link</li>
+                <li>6. Monitor progress and generate reports when complete</li>
+              </ol>
+            </div>
           </div>
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -125,6 +136,13 @@ export default function Surveys() {
                 <DialogTitle>Start New Survey Cycle</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateSurveyCycle} className="space-y-4">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Survey Assignment:</strong> This survey will be assigned to your current organization.
+                    Participants will receive anonymous links to provide feedback.
+                  </p>
+                </div>
+                
                 <div>
                   <Label htmlFor="cycleTitle">Survey Title</Label>
                   <Input

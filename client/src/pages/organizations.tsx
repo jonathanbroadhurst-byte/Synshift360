@@ -77,6 +77,15 @@ export default function Organizations() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Organizations</h1>
               <p className="text-gray-600 mt-2">Manage organizations and their settings</p>
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="font-medium text-blue-900 mb-2">How to get started:</h3>
+                <ol className="text-sm text-blue-800 space-y-1">
+                  <li>1. Click "Add Organization" to create a new company</li>
+                  <li>2. Go to "Survey Management" to start a survey cycle for any organization</li>
+                  <li>3. Invite participants by email to get anonymous feedback</li>
+                  <li>4. View reports when surveys are complete</li>
+                </ol>
+              </div>
             </div>
             <Button 
               size="lg" 
