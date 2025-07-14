@@ -70,7 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await response.json();
     localStorage.setItem('auth_token', data.token);
     setUser(data.user);
-    navigate('/');
+    
+    // Use window.location for reliable navigation after login
+    window.location.href = '/';
   };
 
   const logout = () => {
