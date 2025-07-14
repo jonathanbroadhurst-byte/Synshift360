@@ -1,5 +1,6 @@
 import { useParams } from 'wouter';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,35 +14,57 @@ export default function Survey() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const mockQuestions = [
-    {
-      id: '1',
-      type: 'rating',
-      question: 'How effectively does this leader communicate with the team?',
-      scale: 5
+  // Fetch survey data including leader info
+  const { data: surveyData, isLoading } = useQuery({
+    queryKey: ['/api/survey-cycles', inviteCode],
+    queryFn: async () => {
+      const response = await fetch(`/api/survey-cycles/${inviteCode}`);
+      if (!response.ok) throw new Error('Survey not found');
+      return response.json();
     },
-    {
-      id: '2',
-      type: 'rating',
-      question: 'How well does this leader demonstrate technical expertise?',
-      scale: 5
-    },
-    {
-      id: '3',
-      type: 'text',
-      question: 'What are this leader\'s greatest strengths?',
-    },
-    {
-      id: '4',
-      type: 'text',
-      question: 'What areas could this leader focus on for development?',
-    },
-    {
-      id: '5',
-      type: 'rating',
-      question: 'How effectively does this leader support team member growth?',
-      scale: 5
-    }
+    enabled: !!inviteCode,
+  });
+
+  // Use actual survey questions or default SyncShift questions
+  const questions = surveyData?.surveyQuestions || [
+    // SyncShift 360 Rating Questions (26 questions)
+    { id: '1', type: 'rating', question: 'Communicates a clear vision and direction for the team/organization', scale: 7, category: 'Leadership' },
+    { id: '2', type: 'rating', question: 'Makes sense of complex situations and provides clarity', scale: 7, category: 'Leadership' },
+    { id: '3', type: 'rating', question: 'Demonstrates strategic thinking and planning', scale: 7, category: 'Leadership' },
+    { id: '4', type: 'rating', question: 'Inspires confidence and trust in their leadership', scale: 7, category: 'Leadership' },
+    { id: '5', type: 'rating', question: 'Effectively leads through change and uncertainty', scale: 7, category: 'Leadership' },
+    
+    { id: '6', type: 'rating', question: 'Builds and maintains effective systems and processes', scale: 7, category: 'Infrastructure' },
+    { id: '7', type: 'rating', question: 'Ensures consistent delivery of results', scale: 7, category: 'Infrastructure' },
+    { id: '8', type: 'rating', question: 'Creates structure that enables team effectiveness', scale: 7, category: 'Infrastructure' },
+    { id: '9', type: 'rating', question: 'Manages resources and priorities effectively', scale: 7, category: 'Infrastructure' },
+    
+    { id: '10', type: 'rating', question: 'Demonstrates authentic leadership style', scale: 7, category: 'Motives' },
+    { id: '11', type: 'rating', question: 'Shows genuine care for team members and stakeholders', scale: 7, category: 'Motives' },
+    { id: '12', type: 'rating', question: 'Acts with integrity and ethical principles', scale: 7, category: 'Motives' },
+    { id: '13', type: 'rating', question: 'Drives purpose and meaning in work', scale: 7, category: 'Motives' },
+    
+    { id: '14', type: 'rating', question: 'Demonstrates relevant technical/functional expertise', scale: 7, category: 'Capabilities' },
+    { id: '15', type: 'rating', question: 'Adapts quickly to new situations and challenges', scale: 7, category: 'Capabilities' },
+    { id: '16', type: 'rating', question: 'Continuously learns and develops new skills', scale: 7, category: 'Capabilities' },
+    { id: '17', type: 'rating', question: 'Applies sound judgment in decision-making', scale: 7, category: 'Capabilities' },
+    
+    { id: '18', type: 'rating', question: 'Builds strong, collaborative relationships', scale: 7, category: 'Culture' },
+    { id: '19', type: 'rating', question: 'Creates an inclusive and psychologically safe environment', scale: 7, category: 'Culture' },
+    { id: '20', type: 'rating', question: 'Develops and mentors team members effectively', scale: 7, category: 'Culture' },
+    { id: '21', type: 'rating', question: 'Promotes positive team dynamics and culture', scale: 7, category: 'Culture' },
+    
+    { id: '22', type: 'rating', question: 'Has a strong professional reputation', scale: 7, category: 'Personal Brand' },
+    { id: '23', type: 'rating', question: 'Communicates effectively across all levels', scale: 7, category: 'Personal Brand' },
+    { id: '24', type: 'rating', question: 'Creates positive impact and influence', scale: 7, category: 'Personal Brand' },
+    
+    { id: '25', type: 'rating', question: 'Aligns actions with organizational goals and values', scale: 7, category: 'Alignment' },
+    { id: '26', type: 'rating', question: 'Delivers outcomes that meet stakeholder expectations', scale: 7, category: 'Alignment' },
+    
+    // Open Text Questions (3 questions)
+    { id: '27', type: 'text', question: 'What are this leader\'s greatest strengths?' },
+    { id: '28', type: 'text', question: 'What are some small shifts this leader could make to create better alignment with team/organizational goals?' },
+    { id: '29', type: 'text', question: 'Any additional feedback or comments?' }
   ];
 
   const handleRatingChange = (questionId: string, value: number) => {
@@ -97,30 +120,58 @@ export default function Survey() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading survey...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-              <i className="fas fa-clipboard-list text-white text-xl"></i>
-            </div>
-            <CardTitle className="text-2xl font-semibold">360 Feedback Survey</CardTitle>
-            <p className="text-gray-600">
+            <CardTitle className="text-2xl font-semibold">SyncShift 360 Feedback Survey</CardTitle>
+            {surveyData?.leaderFirstName && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-lg font-medium text-blue-900">
+                  Providing feedback for: {surveyData.leaderFirstName} {surveyData.leaderLastName}
+                </p>
+                {surveyData.leaderPosition && (
+                  <p className="text-sm text-blue-700">{surveyData.leaderPosition}</p>
+                )}
+              </div>
+            )}
+            <p className="text-gray-600 mt-4">
               Your feedback is completely anonymous and will help improve leadership effectiveness.
+            </p>
+            <p className="text-sm text-gray-500">
+              26 rating questions + 3 open feedback questions (29 total)
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
-              {mockQuestions.map((question) => (
-                <div key={question.id} className="space-y-3">
-                  <Label className="text-base font-medium">{question.question}</Label>
+              {questions.map((question, index) => (
+                <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                  {question.category && (
+                    <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                      {question.category}
+                    </div>
+                  )}
+                  <Label className="text-base font-medium">
+                    {index + 1}. {question.question}
+                  </Label>
                   
                   {question.type === 'rating' ? (
                     <div className="flex items-center space-x-4">
-                      <span className="text-sm text-gray-500">Poor</span>
+                      <span className="text-sm text-gray-500">Strongly Disagree</span>
                       <div className="flex space-x-2">
-                        {[1, 2, 3, 4, 5].map((rating) => (
+                        {[1, 2, 3, 4, 5, 6, 7].map((rating) => (
                           <button
                             key={rating}
                             type="button"
@@ -135,7 +186,7 @@ export default function Survey() {
                           </button>
                         ))}
                       </div>
-                      <span className="text-sm text-gray-500">Excellent</span>
+                      <span className="text-sm text-gray-500">Strongly Agree</span>
                     </div>
                   ) : (
                     <Textarea

@@ -139,3 +139,12 @@ The platform includes a complete SyncShift 360 feedback survey based on the prov
   - Additional feedback
 
 The survey maintains GDPR compliance with anonymous response collection and secure data handling throughout the feedback process.
+
+## Recent Changes (January 2025)
+
+- **Fixed invitation system**: Added proper error handling and logging for survey invitation creation
+- **Enhanced survey display**: Shows leader's name and position prominently on survey pages
+- **Corrected question count**: Now displays all 29 questions (26 rating + 3 open text) with 7-point rating scale
+- **Clarified survey access**: Survey codes serve as backup access when direct links aren't available
+- **Improved UI**: Added category labels and better organization for the 29 SyncShift questions
+- **Updated sharing information**: Displays both survey codes and direct links with clear explanations

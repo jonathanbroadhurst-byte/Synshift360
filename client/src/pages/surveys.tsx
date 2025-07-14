@@ -291,7 +291,10 @@ export default function Surveys() {
                           <div className="p-2 bg-gray-50 rounded text-xs">
                             <div className="font-medium text-gray-700 mb-1">Share with participants:</div>
                             <div className="text-gray-600">Survey Code: <span className="font-mono bg-white px-1 rounded">{cycle.inviteCode}</span></div>
-                            <div className="text-gray-600 mt-1">Link: <span className="font-mono bg-white px-1 rounded break-all">{window.location.origin}/survey/{cycle.inviteCode}</span></div>
+                            <div className="text-gray-600 mt-1">Direct Link: <span className="font-mono bg-white px-1 rounded break-all">{window.location.origin}/survey/{cycle.inviteCode}</span></div>
+                            <div className="text-xs text-gray-500 mt-1 italic">
+                              Survey code is for participants who don't have the direct link
+                            </div>
                           </div>
                         </div>
                       </div>

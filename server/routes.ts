@@ -292,7 +292,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/survey-cycles/:inviteCode", async (req: Request, res: Response) => {
     try {
       const { inviteCode } = req.params;
-      const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
+      
+      // Get cycle with leader and survey details
+      const [cycle] = await db.select({
+        id: surveyCycles.id,
+        title: surveyCycles.title,
+        status: surveyCycles.status,
+        inviteCode: surveyCycles.inviteCode,
+        endDate: surveyCycles.endDate,
+        surveyId: surveyCycles.surveyId,
+        leaderId: surveyCycles.leaderId,
+        organizationId: surveyCycles.organizationId,
+        leaderFirstName: users.firstName,
+        leaderLastName: users.lastName,
+        leaderPosition: users.position,
+        surveyTitle: surveys.title,
+        surveyQuestions: surveys.questions,
+        organizationName: organizations.name,
+      })
+      .from(surveyCycles)
+      .leftJoin(users, eq(surveyCycles.leaderId, users.id))
+      .leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id))
+      .leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id))
+      .where(eq(surveyCycles.inviteCode, inviteCode));
       
       if (!cycle) {
         return res.status(404).json({ message: "Survey not found" });
@@ -300,6 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(cycle);
     } catch (error) {
+      console.error('Error fetching survey cycle:', error);
       res.status(500).json({ message: "Failed to fetch survey cycle" });
     }
   });
