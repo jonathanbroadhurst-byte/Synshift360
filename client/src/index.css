@@ -13,25 +13,32 @@
   --card-foreground: hsl(20, 14.3%, 4.1%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
+  --primary: hsl(213, 31%, 20%);
   --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(60, 4.8%, 95.9%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
+  --secondary: hsl(213, 94%, 68%);
+  --secondary-foreground: hsl(211, 100%, 99%);
+  --accent: hsl(180, 84%, 47%);
+  --accent-foreground: hsl(211, 100%, 99%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
 
-  /* Custom 360 Feedback platform colors */
-  --primary: hsl(207, 90%, 54%);
-  --primary-dark: hsl(216, 87%, 49%);
-  --primary-light: hsl(206, 91%, 65%);
-  --secondary: hsl(210, 11%, 26%);
-  --secondary-light: hsl(210, 9%, 43%);
-  --accent: hsl(14, 100%, 60%);
-  --accent-light: hsl(14, 100%, 68%);
+  /* SyncShift Brand Colors */
+  --syncshift-navy: hsl(213, 31%, 20%);
+  --syncshift-blue: hsl(213, 94%, 68%);
+  --syncshift-teal: hsl(180, 84%, 47%);
+  --syncshift-light-blue: hsl(200, 100%, 85%);
+  --syncshift-gradient: linear-gradient(135deg, hsl(213, 31%, 20%) 0%, hsl(213, 94%, 68%) 100%);
+  
+  /* Updated primary colors to match SyncShift */
+  --primary: hsl(213, 31%, 20%);
+  --primary-dark: hsl(213, 31%, 15%);
+  --primary-light: hsl(213, 94%, 68%);
+  --secondary: hsl(213, 94%, 68%);
+  --secondary-light: hsl(213, 94%, 80%);
+  --accent: hsl(180, 84%, 47%);
+  --accent-light: hsl(180, 84%, 60%);
   --success: hsl(122, 39%, 49%);
   --warning: hsl(37, 100%, 50%);
   --error: hsl(4, 90%, 58%);
@@ -52,15 +59,57 @@
   --card-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 3.7%, 15.9%);
   --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(213, 94%, 68%);
+  --primary-foreground: hsl(213, 31%, 20%);
+  --secondary: hsl(213, 31%, 20%);
   --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(180, 84%, 47%);
+  --accent-foreground: hsl(213, 31%, 20%);
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);
   --ring: hsl(240, 4.9%, 83.9%);
+}
+
+/* Custom SyncShift utility classes */
+.syncshift-gradient {
+  background: linear-gradient(135deg, hsl(213, 31%, 20%) 0%, hsl(213, 94%, 68%) 100%);
+}
+
+.syncshift-gradient-light {
+  background: linear-gradient(135deg, hsl(213, 94%, 68%) 0%, hsl(180, 84%, 47%) 100%);
+}
+
+.syncshift-spiral {
+  background: radial-gradient(circle at center, hsl(213, 94%, 68%) 0%, hsl(180, 84%, 47%) 50%, hsl(213, 31%, 20%) 100%);
+}
+
+.syncshift-text-gradient {
+  background: linear-gradient(135deg, hsl(213, 31%, 20%), hsl(213, 94%, 68%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.syncshift-card {
+  background: hsl(0, 0%, 100%);
+  border: 1px solid hsl(213, 94%, 90%);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+  border-radius: 0.75rem;
+}
+
+.syncshift-button {
+  background: linear-gradient(135deg, hsl(213, 31%, 20%) 0%, hsl(213, 94%, 68%) 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.syncshift-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(59, 130, 246, 0.3);
 }
 
 @layer base {

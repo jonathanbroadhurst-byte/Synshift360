@@ -48,16 +48,16 @@ export default function Report() {
 
   return (
     <div>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen syncshift-gradient">
         {/* Navigation */}
-        <nav className="bg-white shadow-sm border-b">
+        <nav className="bg-white/10 backdrop-blur-md shadow-sm border-b border-white/20">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <a href="/" className="text-xl font-bold text-gray-900">SyncShift360</a>
+                <a href="/" className="text-xl font-bold text-white">🌀 SyncShift360</a>
               </div>
               <div className="flex items-center space-x-4">
-                <a href="/" className="text-gray-600 hover:text-gray-900">← Home</a>
+                <a href="/" className="text-white/80 hover:text-white transition-colors">← Home</a>
               </div>
             </div>
           </div>
@@ -68,10 +68,10 @@ export default function Report() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  360° Leadership Feedback Report
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  🌀 SyncShift Personal Report
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-blue-100">
                   {report.title?.includes('Jon Smith') ? 'Jon Smith' : 'Sarah Johnson'} • Leadership Assessment • Generated {new Date(report.generatedAt).toLocaleDateString()}
                 </p>
               </div>
@@ -90,7 +90,7 @@ export default function Report() {
 
           {/* Overview Stats */}
           <div className="grid md:grid-cols-4 gap-6 mb-8">
-            <Card>
+            <Card className="syncshift-card">
               <CardContent className="pt-6">
                 <div className="flex items-center">
                   <div className="flex-1">
