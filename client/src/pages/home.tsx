@@ -14,9 +14,7 @@ export default function Home() {
               <h1 className="text-xl font-bold text-gray-900">SyncShift360</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/login">
-                <Button variant="outline" size="sm">Admin Login</Button>
-              </Link>
+              <a href="/" className="text-gray-600 hover:text-gray-900">Home</a>
             </div>
           </div>
         </div>
@@ -66,7 +64,33 @@ export default function Home() {
             </CardContent>
           </Card>
 
-
+          {/* Admin Login */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-lg">Admin Portal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">
+                Access the administrative dashboard to manage surveys, organizations, and reports.
+              </p>
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-800">Admin Features:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Survey management</li>
+                  <li>• Organization oversight</li>
+                  <li>• Report generation</li>
+                  <li>• User administration</li>
+                </ul>
+              </div>
+              <div className="pt-4">
+                <Link href="/login">
+                  <Button variant="outline" className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold">
+                    Admin Login
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="opacity-60">
             <CardHeader>
