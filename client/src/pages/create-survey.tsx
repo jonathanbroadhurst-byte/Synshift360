@@ -192,7 +192,7 @@ export default function CreateSurvey() {
                       <strong>Email notification:</strong> We'll send you a confirmation email with your survey details and instructions for sharing with your team.
                     </p>
                     <p className="text-xs text-gray-600">
-                      Email sent to: {contactData.email}
+                      Email will be sent to: {contactData.email}
                     </p>
                   </div>
                 </div>
