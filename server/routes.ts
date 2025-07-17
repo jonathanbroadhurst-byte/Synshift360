@@ -286,10 +286,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
+      // Send email notification (if SendGrid is configured)
+      try {
+        if (process.env.SENDGRID_API_KEY) {
+          // Import SendGrid functionality
+          const sgMail = require('@sendgrid/mail');
+          sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+          const emailContent = `
+            <h2>Your SyncShift Personal Survey is Ready!</h2>
+            <p>Hi ${contactData.firstName},</p>
+            <p>Your 360-degree feedback survey has been successfully created. Here are the details:</p>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3>Survey Details:</h3>
+              <ul>
+                <li><strong>Survey Title:</strong> ${surveyData.title}</li>
+                <li><strong>Leader:</strong> ${surveyData.leaderName}</li>
+                <li><strong>Survey Code:</strong> <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${inviteCode}</code></li>
+              </ul>
+            </div>
+
+            <h3>How to Share Your Survey:</h3>
+            <p>1. Share the survey code: <strong>${inviteCode}</strong></p>
+            <p>2. Direct participants to: <a href="${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/survey-access">${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/survey-access</a></p>
+            <p>3. Or share this direct link: <a href="${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/survey/${inviteCode}">${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/survey/${inviteCode}</a></p>
+
+            <h3>What's Next:</h3>
+            <ul>
+              <li>Share the survey with your team members</li>
+              <li>Participants complete the anonymous 29-question assessment</li>
+              <li>We'll compile responses into a comprehensive leadership report</li>
+              <li>You'll receive your personalized feedback within 24-48 hours after survey completion</li>
+            </ul>
+
+            <p>If you have any questions, feel free to reply to this email.</p>
+            <p>Best regards,<br>The SyncShift360 Team</p>
+          `;
+
+          const msg = {
+            to: contactData.email,
+            from: 'noreply@syncshift360.com', // This should be a verified sender
+            subject: `Your SyncShift Personal Survey is Ready! Code: ${inviteCode}`,
+            html: emailContent,
+          };
+
+          await sgMail.send(msg);
+          console.log('Confirmation email sent to:', contactData.email);
+        } else {
+          console.log('SendGrid not configured - skipping email notification');
+        }
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // Don't fail the whole request if email fails
+      }
+      
       res.status(201).json({ 
         success: true, 
         surveyCode: inviteCode,
-        cycle: cycle
+        cycle: cycle,
+        emailSent: !!process.env.SENDGRID_API_KEY
       });
     } catch (error: any) {
       console.error('Personal survey creation error:', error);

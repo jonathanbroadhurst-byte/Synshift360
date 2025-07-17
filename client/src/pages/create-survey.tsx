@@ -175,15 +175,25 @@ export default function CreateSurvey() {
                 </div>
               </div>
 
-              {/* Survey Link */}
+              {/* Survey Link and Email Options */}
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <h3 className="font-medium text-green-900 mb-2">Direct Survey Link</h3>
-                <div className="space-y-2">
-                  <p className="text-sm text-green-800">
-                    You can also share this direct link with participants:
-                  </p>
-                  <div className="bg-white rounded border p-2 font-mono text-sm break-all">
-                    {window.location.origin}/survey/{surveyCode}
+                <h3 className="font-medium text-green-900 mb-2">Share Your Survey</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-green-800 mb-2">
+                      Direct survey link for participants:
+                    </p>
+                    <div className="bg-white rounded border p-2 font-mono text-sm break-all">
+                      {window.location.origin}/survey/{surveyCode}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded border p-3">
+                    <p className="text-sm text-gray-700 mb-2">
+                      <strong>Email notification:</strong> We'll send you a confirmation email with your survey details and instructions for sharing with your team.
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Email sent to: {contactData.email}
+                    </p>
                   </div>
                 </div>
               </div>

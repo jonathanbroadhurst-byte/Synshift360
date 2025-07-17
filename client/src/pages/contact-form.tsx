@@ -196,11 +196,12 @@ export default function ContactForm() {
                 />
               </div>
               
-              <div className="pt-4">
+              <div className="pt-6 border-t">
                 <Button 
                   type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-medium" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl" 
                   disabled={isLoading}
+                  style={{ minHeight: '56px', zIndex: 10 }}
                 >
                   {isLoading ? "Submitting..." : "Get Access to SyncShift Personal"}
                 </Button>
