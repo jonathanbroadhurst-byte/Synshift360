@@ -247,14 +247,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create a temporary user for this personal survey
+      const tempPassword = await bcrypt.hash(Math.random().toString(36).substring(7), 10);
       const tempUser = await storage.createUser({
         email: contactData.email,
         firstName: contactData.firstName,
         lastName: contactData.lastName,
         username: contactData.email,
-        passwordHash: 'temp-hash', // This won't be used for login
+        password: tempPassword, // Temporary password for database constraint
         role: 'leader',
-        organizationId: organization.id
+        organizationId: organization.id,
+        isActive: true
       });
 
       // Get the default SyncShift survey
@@ -359,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         surveyCode: inviteCode,
         cycle: cycle,
-        emailSent: !!process.env.SENDGRID_API_KEY
+        emailSent: !!(process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY)
       });
     } catch (error: any) {
       console.error('Personal survey creation error:', error);
