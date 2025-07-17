@@ -322,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Messages: [
               {
                 From: {
-                  Email: 'noreply@syncshift360.com',
+                  Email: 'jonathan.broadhurst@me.com',
                   Name: 'SyncShift360'
                 },
                 To: [
