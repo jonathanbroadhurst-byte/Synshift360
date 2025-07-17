@@ -57,9 +57,9 @@ export default function Home() {
                 </ul>
               </div>
               <div className="pt-2">
-                <Link href="/contact-form">
+                <a href="/contact-form">
                   <Button className="w-full">Try SyncShift Personal</Button>
-                </Link>
+                </a>
               </div>
             </CardContent>
           </Card>
