@@ -94,25 +94,30 @@ export default function Home() {
 
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
-              <CardTitle className="text-lg">Sample Report</CardTitle>
+              <CardTitle className="text-lg">Sample Reports</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-gray-600">
-                View a comprehensive 360-degree feedback report example for Jon Smith with 3 team member responses.
+                View comprehensive 360-degree feedback report examples with detailed analytics and insights.
               </p>
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-gray-800">Report Features:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Complete competency analysis</li>
-                  <li>• Key strengths identification</li>
-                  <li>• Development opportunities</li>
-                  <li>• Anonymous feedback insights</li>
+                  <li>• Radar chart competency analysis</li>
+                  <li>• Anonymous feedback highlights</li>
+                  <li>• Development action plans</li>
+                  <li>• Detailed strengths assessment</li>
                 </ul>
               </div>
-              <div className="pt-4">
+              <div className="pt-4 space-y-2">
                 <a href="/report/1">
                   <Button variant="outline" className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold">
-                    View Sample Report
+                    Jon Smith Report (3 responses)
+                  </Button>
+                </a>
+                <a href="/report/2">
+                  <Button variant="outline" className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold">
+                    Sarah Johnson Report (10 responses)
                   </Button>
                 </a>
               </div>

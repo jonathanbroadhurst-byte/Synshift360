@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, TrendingUp, Users, Target, BarChart3, Download } from 'lucide-react';
+import { CheckCircle, TrendingUp, Users, Target, BarChart3, Download, Quote } from 'lucide-react';
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
 
 export default function Report() {
   const { reportId } = useParams();
@@ -71,7 +72,7 @@ export default function Report() {
                   360° Leadership Feedback Report
                 </h1>
                 <p className="text-gray-600">
-                  Jon Smith • Leadership Assessment • Generated {new Date(report.generatedAt).toLocaleDateString()}
+                  {report.title?.includes('Jon Smith') ? 'Jon Smith' : 'Sarah Johnson'} • Leadership Assessment • Generated {new Date(report.generatedAt).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex items-center space-x-3">
@@ -148,25 +149,58 @@ export default function Report() {
           </Card>
 
           {/* Competency Breakdown */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-xl">Competency Assessment</CardTitle>
-              <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
-                  <div key={competency} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-900">{competency}</span>
-                      <span className="text-sm font-semibold text-blue-600">{rating}/7</span>
+          <div className="grid lg:grid-cols-2 gap-8 mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Competency Radar</CardTitle>
+                <p className="text-gray-600">Visual overview of leadership performance</p>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <PolarRadiusAxis domain={[0, 7]} tick={{ fontSize: 10 }} />
+                      <Radar
+                        name="Performance"
+                        dataKey="value"
+                        stroke="#3b82f6"
+                        fill="#3b82f6"
+                        fillOpacity={0.2}
+                        strokeWidth={2}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Competency Scores</CardTitle>
+                <p className="text-gray-600">Detailed breakdown by framework area</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
+                    <div key={competency} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">{competency}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-semibold text-blue-600">{rating}/7</span>
+                          <Badge variant="secondary" className={`text-xs ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                            {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Developing' : 'Focus Area'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Progress value={(rating / 7) * 100} className="h-2" />
                     </div>
-                    <Progress value={(rating / 7) * 100} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Strengths */}
@@ -242,29 +276,61 @@ export default function Report() {
             </Card>
           </div>
 
-          {/* Key Themes */}
-          {statistics?.keyThemes && (
-            <Card className="mt-8">
-              <CardHeader>
-                <CardTitle className="text-xl">Key Feedback Themes</CardTitle>
-                <p className="text-gray-600">Most frequently mentioned topics across all responses</p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {statistics.keyThemes.map((theme, index) => (
-                    <div key={index} className={`p-4 rounded-lg border ${theme.sentiment === 'positive' ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{theme.theme}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {theme.frequency}x
-                        </Badge>
+          {/* Key Themes and Anonymous Feedback */}
+          <div className="grid lg:grid-cols-2 gap-8 mt-8">
+            {statistics?.keyThemes && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl">Key Feedback Themes</CardTitle>
+                  <p className="text-gray-600">Most frequently mentioned topics across all responses</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {statistics.keyThemes.map((theme, index) => (
+                      <div key={index} className={`p-3 rounded-lg border ${
+                        theme.sentiment === 'positive' ? 'bg-green-50 border-green-200' : 
+                        theme.sentiment === 'development' ? 'bg-orange-50 border-orange-200' :
+                        'bg-blue-50 border-blue-200'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{theme.theme}</span>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {theme.frequency}x
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {theme.sentiment}
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {statistics?.anonymousFeedbackHighlights && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl">Anonymous Feedback Highlights</CardTitle>
+                  <p className="text-gray-600">Key insights from team member responses</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {statistics.anonymousFeedbackHighlights.slice(0, 6).map((feedback, index) => (
+                      <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                        <div className="flex items-start space-x-2">
+                          <Quote className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />
+                          <p className="text-sm text-gray-700 italic">{feedback}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Footer */}
           <div className="mt-12 text-center text-gray-500 text-sm">
