@@ -243,14 +243,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizations = await storage.getOrganizations();
       const organization = organizations[0]; // Use the first/default organization
 
-      // Use the default leader user for simplicity
-      const existingUser = await storage.getUserByUsername('leader@demo.com');
+      // Use the existing leader user from database
+      const existingUser = await storage.getUserByUsername('leader');
       if (!existingUser) {
         return res.status(404).json({ message: "Default leader user not found" });
       }
 
-      // Get surveys by organization to find SyncShift survey
-      const surveys = await storage.getSurveysByOrganization(organization.id);
+      // Get surveys by organization to find SyncShift survey - use organization ID 1 where the survey exists
+      const surveys = await storage.getSurveysByOrganization(1);
       const syncShiftSurvey = surveys.find(s => s.title === "SyncShift 360");
       
       if (!syncShiftSurvey) {
@@ -282,11 +282,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let emailSent = false;
       try {
         if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-          const mailjet = require('node-mailjet');
-          const client = mailjet.connectAPIKey(
-            process.env.MAILJET_API_KEY,
-            process.env.MAILJET_SECRET_KEY
-          );
+          const Mailjet = require('node-mailjet');
+          const client = new Mailjet({
+            apiKey: process.env.MAILJET_API_KEY,
+            apiSecret: process.env.MAILJET_SECRET_KEY
+          });
 
           const emailContent = `
             <h2>Your SyncShift Personal Survey is Ready!</h2>
