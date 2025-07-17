@@ -80,7 +80,7 @@ export default function CreateSurvey() {
       
       toast({
         title: "Survey created successfully!",
-        description: `Your survey code is ${code}. Share this with participants.`,
+        description: `Your survey code is ${result.surveyCode}. Share this with participants.`,
       });
       
     } catch (error) {
@@ -169,7 +169,7 @@ export default function CreateSurvey() {
                 <h3 className="font-medium text-gray-900 mb-2">How to Collect Feedback</h3>
                 <div className="text-sm text-gray-700 space-y-2">
                   <p>1. Share the survey code <strong>{surveyCode}</strong> with your team members</p>
-                  <p>2. Direct them to: <strong>SyncShift360.com/survey-access</strong></p>
+                  <p>2. Direct them to: <strong>{window.location.host}/survey-access</strong></p>
                   <p>3. They'll enter the code and complete the anonymous feedback</p>
                   <p>4. We'll compile the results and send you a comprehensive report</p>
                 </div>
@@ -318,7 +318,7 @@ export default function CreateSurvey() {
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 border border-blue-700 shadow-lg" 
                 disabled={isCreating}
               >
                 {isCreating ? "Creating Your Survey..." : "Create SyncShift Personal Survey"}
