@@ -148,14 +148,14 @@ export default function Report() {
             </CardContent>
           </Card>
 
-          {/* Competency Breakdown */}
-          <div className="grid lg:grid-cols-2 gap-8 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Competency Radar</CardTitle>
-                <p className="text-gray-600">Visual overview of leadership performance</p>
-              </CardHeader>
-              <CardContent>
+          {/* Competency Assessment */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-xl">Competency Assessment</CardTitle>
+              <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid lg:grid-cols-2 gap-8">
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
@@ -173,15 +173,6 @@ export default function Report() {
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Competency Scores</CardTitle>
-                <p className="text-gray-600">Detailed breakdown by framework area</p>
-              </CardHeader>
-              <CardContent>
                 <div className="space-y-4">
                   {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
                     <div key={competency} className="space-y-2">
@@ -198,9 +189,9 @@ export default function Report() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Strengths */}
