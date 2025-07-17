@@ -233,6 +233,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Personal survey creation (no auth required)
+  app.post("/api/surveys/personal", async (req: Request, res: Response) => {
+    try {
+      const { contactData, surveyData } = req.body;
+      console.log('Creating personal survey:', { contactData, surveyData });
+
+      // Create a temporary organization for this personal survey
+      const organization = await storage.createOrganization({
+        name: contactData.organization,
+        domain: `${contactData.organization.toLowerCase().replace(/\s+/g, '')}.personal`,
+        settings: {}
+      });
+
+      // Create a temporary user for this personal survey
+      const tempUser = await storage.createUser({
+        email: contactData.email,
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        username: contactData.email,
+        passwordHash: 'temp-hash', // This won't be used for login
+        role: 'leader',
+        organizationId: organization.id
+      });
+
+      // Get the default SyncShift survey
+      const surveys = await storage.getSurveys();
+      const syncShiftSurvey = surveys.find(s => s.title === "SyncShift 360");
+      
+      if (!syncShiftSurvey) {
+        return res.status(404).json({ message: "SyncShift survey template not found" });
+      }
+
+      // Generate invite code
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Create survey cycle
+      const cycle = await storage.createSurveyCycle({
+        surveyId: syncShiftSurvey.id,
+        leaderUserId: tempUser.id,
+        organizationId: organization.id,
+        title: surveyData.title,
+        status: 'active',
+        inviteCode: inviteCode,
+        leaderFirstName: surveyData.leaderName.split(' ')[0] || surveyData.leaderName,
+        leaderLastName: surveyData.leaderName.split(' ').slice(1).join(' ') || '',
+        leaderEmail: contactData.email,
+        leaderPosition: surveyData.leaderPosition || '',
+        customInstructions: surveyData.instructions || '',
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      });
+
+      console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
+      
+      res.status(201).json({ 
+        success: true, 
+        surveyCode: inviteCode,
+        cycle: cycle
+      });
+    } catch (error: any) {
+      console.error('Personal survey creation error:', error);
+      res.status(400).json({ message: "Failed to create personal survey", details: error.message });
+    }
+  });
+
   // Survey cycle routes
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {

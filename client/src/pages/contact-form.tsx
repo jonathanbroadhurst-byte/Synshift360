@@ -47,11 +47,14 @@ export default function ContactForm() {
       
       toast({
         title: "Thank you for your interest!",
-        description: "We'll contact you soon to set up your SyncShift Personal trial.",
+        description: "You can now create your own survey cycle for feedback collection.",
       });
       
-      // Redirect to survey access page after contact form submission
-      setLocation('/survey-access');
+      // Store contact data in localStorage for the survey creation flow
+      localStorage.setItem('syncshift_contact', JSON.stringify(formData));
+      
+      // Redirect to survey creation page
+      setLocation('/create-survey');
     } catch (error) {
       toast({
         title: "Error",

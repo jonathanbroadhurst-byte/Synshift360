@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import ContactForm from "@/pages/contact-form";
+import CreateSurvey from "@/pages/create-survey";
 import SurveyAccess from "@/pages/survey-access";
 import Dashboard from "@/pages/dashboard";
 import Login from "@/pages/login";
@@ -20,6 +21,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/contact-form" component={ContactForm} />
+      <Route path="/create-survey" component={CreateSurvey} />
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/admin" component={Dashboard} />
