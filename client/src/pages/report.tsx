@@ -44,7 +44,7 @@ export default function Report() {
 
   const statistics = typeof report.statistics === 'string' ? JSON.parse(report.statistics) : report.statistics;
   const strengths = typeof report.strengths === 'string' ? JSON.parse(report.strengths) : report.strengths;
-  const developmentAreas = typeof report.development_areas === 'string' ? JSON.parse(report.development_areas) : report.development_areas;
+  const developmentAreas = typeof report.developmentAreas === 'string' ? JSON.parse(report.developmentAreas) : report.developmentAreas;
 
   return (
     <div>
