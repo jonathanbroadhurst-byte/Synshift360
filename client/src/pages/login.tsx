@@ -35,14 +35,29 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Navigation */}
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <a href="/" className="text-xl font-bold text-gray-900">Business Platform</a>
+            </div>
+            <div className="flex items-center space-x-4">
+              <a href="/" className="text-gray-600 hover:text-gray-900">← Back to Home</a>
+            </div>
+          </div>
+        </div>
+      </nav>
+      
+      <div className="flex items-center justify-center py-12 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
             <i className="fas fa-users text-white text-xl"></i>
           </div>
-          <CardTitle className="text-2xl font-semibold">360 Feedback Platform</CardTitle>
-          <p className="text-gray-600">Sign in to your account</p>
+          <CardTitle className="text-2xl font-semibold">Admin Login</CardTitle>
+          <p className="text-gray-600">Sign in to access the admin dashboard</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -78,6 +93,7 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

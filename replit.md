@@ -148,3 +148,6 @@ The survey maintains GDPR compliance with anonymous response collection and secu
 - **Clarified survey access**: Survey codes serve as backup access when direct links aren't available
 - **Improved UI**: Added category labels and better organization for the 29 SyncShift questions
 - **Updated sharing information**: Displays both survey codes and direct links with clear explanations
+- **Added public home page**: Created main landing page at "/" with 360 feedback as a menu option
+- **Anonymous survey access**: Users can access surveys via "/survey-access" without admin login
+- **Reorganized navigation**: Admin functions moved to "/admin" route, public access at root

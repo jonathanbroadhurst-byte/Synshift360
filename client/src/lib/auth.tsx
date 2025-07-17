@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
     
     // Use window.location for reliable navigation after login
-    window.location.href = '/';
+    window.location.href = '/admin';
   };
 
   const logout = () => {
