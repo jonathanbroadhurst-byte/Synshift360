@@ -155,9 +155,9 @@ export default function Report() {
               <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[320px]">
+              <div className="grid grid-cols-5 gap-6 min-h-[320px]">
                 {/* Radar Chart - Takes 3 columns */}
-                <div className="lg:col-span-3 min-h-[320px] flex items-center justify-center">
+                <div className="col-span-3 min-h-[320px] flex items-center justify-center">
                   <div className="w-full h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
@@ -178,7 +178,7 @@ export default function Report() {
                 </div>
                 
                 {/* Competency Scores - Takes 2 columns */}
-                <div className="lg:col-span-2 bg-gray-50 rounded-lg p-4">
+                <div className="col-span-2 bg-gray-50 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 text-sm mb-4">Detailed Scores</h4>
                   <div className="space-y-3">
                     {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
