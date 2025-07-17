@@ -155,10 +155,10 @@ export default function Report() {
               <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-8 items-start">
-                {/* Radar Chart - Takes up more space */}
-                <div className="w-full lg:flex-1 lg:max-w-[60%]">
-                  <div className="h-80 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[320px]">
+                {/* Radar Chart - Takes 3 columns */}
+                <div className="lg:col-span-3 min-h-[320px] flex items-center justify-center">
+                  <div className="w-full h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
                         <PolarGrid />
@@ -177,22 +177,22 @@ export default function Report() {
                   </div>
                 </div>
                 
-                {/* Competency Scores - Compact sidebar */}
-                <div className="w-full lg:w-80 lg:flex-shrink-0">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-gray-900 text-sm mb-3">Detailed Scores</h4>
+                {/* Competency Scores - Takes 2 columns */}
+                <div className="lg:col-span-2 bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 text-sm mb-4">Detailed Scores</h4>
+                  <div className="space-y-3">
                     {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
-                      <div key={competency} className="py-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium text-gray-700 text-xs">{competency}</span>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-xs font-bold text-blue-600">{rating}/7</span>
-                            <Badge variant="secondary" className={`text-xs px-1.5 py-0.5 ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                      <div key={competency} className="bg-white rounded p-3 shadow-sm">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium text-gray-800 text-sm">{competency}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-bold text-blue-600">{rating}/7</span>
+                            <Badge variant="secondary" className={`text-xs ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                               {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Dev' : 'Focus'}
                             </Badge>
                           </div>
                         </div>
-                        <Progress value={(rating / 7) * 100} className="h-1" />
+                        <Progress value={(rating / 7) * 100} className="h-1.5" />
                       </div>
                     ))}
                   </div>
