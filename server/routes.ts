@@ -286,12 +286,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
-      // Send email notification (if SendGrid is configured)
+      // Send email notification (if Mailjet is configured)
       try {
-        if (process.env.SENDGRID_API_KEY) {
-          // Import SendGrid functionality
-          const sgMail = require('@sendgrid/mail');
-          sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+          // Import Mailjet functionality
+          const mailjet = require('node-mailjet').connect(
+            process.env.MAILJET_API_KEY,
+            process.env.MAILJET_SECRET_KEY
+          );
 
           const emailContent = `
             <h2>Your SyncShift Personal Survey is Ready!</h2>
@@ -324,17 +326,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <p>Best regards,<br>The SyncShift360 Team</p>
           `;
 
-          const msg = {
-            to: contactData.email,
-            from: 'noreply@syncshift360.com', // This should be a verified sender
-            subject: `Your SyncShift Personal Survey is Ready! Code: ${inviteCode}`,
-            html: emailContent,
-          };
+          const request = mailjet.post('send', { version: 'v3.1' }).request({
+            Messages: [
+              {
+                From: {
+                  Email: 'noreply@syncshift360.com',
+                  Name: 'SyncShift360'
+                },
+                To: [
+                  {
+                    Email: contactData.email,
+                    Name: `${contactData.firstName} ${contactData.lastName}`
+                  }
+                ],
+                Subject: `Your SyncShift Personal Survey is Ready! Code: ${inviteCode}`,
+                HTMLPart: emailContent
+              }
+            ]
+          });
 
-          await sgMail.send(msg);
-          console.log('Confirmation email sent to:', contactData.email);
+          await request;
+          console.log('Confirmation email sent via Mailjet to:', contactData.email);
         } else {
-          console.log('SendGrid not configured - skipping email notification');
+          console.log('Mailjet not configured - skipping email notification');
         }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
