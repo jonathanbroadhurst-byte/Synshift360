@@ -58,7 +58,7 @@ export default function Home() {
               </div>
               <div className="pt-4">
                 <a href="/contact-form">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 border-2 border-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 text-lg">
+                  <Button variant="outline" className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold">
                     Try SyncShift Personal
                   </Button>
                 </a>
