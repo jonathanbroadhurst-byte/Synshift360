@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the hardcoded SyncShift survey ID for personal surveys
       const syncShiftSurvey = { id: 1, title: "SyncShift 360 Feedback" };
 
-      // Generate unique invite code
+      // Generate unique invite code as simple text
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
       // Create survey cycle
@@ -276,11 +276,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send email notification (if Mailjet is configured)
       let emailSent = false;
       try {
-        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-          const Mailjet = require('node-mailjet');
+        // Use hardcoded API keys for now since env vars aren't being read properly
+        const MAILJET_API_KEY = "09f0623f9e2a799619657daeb374bd9c";
+        const MAILJET_SECRET_KEY = "1365d27cec2b723fc65e53f1b5f1019e";
+        
+        if (MAILJET_API_KEY && MAILJET_SECRET_KEY) {
+          const { default: Mailjet } = await import('node-mailjet');
           const client = new Mailjet({
-            apiKey: process.env.MAILJET_API_KEY,
-            apiSecret: process.env.MAILJET_SECRET_KEY
+            apiKey: MAILJET_API_KEY,
+            apiSecret: MAILJET_SECRET_KEY
           });
 
           const emailContent = `
@@ -336,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Confirmation email sent via Mailjet to:', contactData.email);
           emailSent = true;
         } else {
-          console.log('Mailjet not configured - skipping email notification');
+          console.log('Mailjet API keys missing - skipping email notification');
         }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
