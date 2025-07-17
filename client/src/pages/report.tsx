@@ -155,8 +155,8 @@ export default function Report() {
               <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 h-80">
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="lg:w-2/3 h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
                       <PolarGrid />
@@ -173,7 +173,7 @@ export default function Report() {
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="space-y-3">
+                <div className="lg:w-1/3 space-y-3">
                   {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
                     <div key={competency} className="space-y-1">
                       <div className="flex justify-between items-center">
