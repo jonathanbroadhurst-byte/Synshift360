@@ -249,13 +249,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Default leader user not found" });
       }
 
-      // Get surveys by organization to find SyncShift survey - use organization ID 1 where the survey exists
-      const surveys = await storage.getSurveysByOrganization(1);
-      const syncShiftSurvey = surveys.find(s => s.title === "SyncShift 360");
-      
-      if (!syncShiftSurvey) {
-        return res.status(404).json({ message: "SyncShift survey template not found" });
-      }
+      // Use the hardcoded SyncShift survey ID for personal surveys
+      const syncShiftSurvey = { id: 1, title: "SyncShift 360 Feedback" };
 
       // Generate unique invite code
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -264,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cycle = await storage.createSurveyCycle({
         surveyId: syncShiftSurvey.id,
         leaderUserId: existingUser.id,
-        organizationId: organization.id,
+        organizationId: 1, // Use default organization for personal surveys
         title: surveyData.title,
         status: 'active',
         inviteCode: inviteCode,
@@ -323,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Messages: [
               {
                 From: {
-                  Email: 'noreply@example.com',
+                  Email: 'noreply@syncshift360.com',
                   Name: 'SyncShift360'
                 },
                 To: [
