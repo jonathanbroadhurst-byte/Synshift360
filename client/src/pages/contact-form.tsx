@@ -196,13 +196,15 @@ export default function ContactForm() {
                 />
               </div>
               
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
-                {isLoading ? "Submitting..." : "Get Access to SyncShift Personal"}
-              </Button>
+              <div className="pt-4">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-medium" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Submitting..." : "Get Access to SyncShift Personal"}
+                </Button>
+              </div>
             </form>
 
             {/* Information Section */}
