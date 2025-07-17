@@ -145,7 +145,7 @@ export default function Survey() {
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-semibold">SyncShift 360 Feedback Survey</CardTitle>
+            <CardTitle className="text-2xl font-semibold">SyncShift Personal Survey</CardTitle>
             {surveyData?.leaderFirstName && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-lg font-medium text-blue-900">

@@ -11,7 +11,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Business Platform</h1>
+              <h1 className="text-xl font-bold text-gray-900">SyncShift360</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/login">
@@ -26,21 +26,21 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to Our Business Platform
+            Welcome to SyncShift360
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Access powerful tools and services designed to help your organization grow and succeed.
+            Professional 360-degree feedback platform for leadership development and organizational growth.
           </p>
         </div>
 
         {/* Services Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {/* 360 Feedback Platform */}
+          {/* SyncShift Personal */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">360 Feedback Platform</CardTitle>
-                <Badge variant="secondary">New</Badge>
+                <CardTitle className="text-lg">SyncShift Personal</CardTitle>
+                <Badge variant="secondary">Featured</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -57,35 +57,46 @@ export default function Home() {
                 </ul>
               </div>
               <div className="pt-2">
-                <Link href="/survey-access">
-                  <Button className="w-full">Access 360 Feedback</Button>
+                <Link href="/contact-form">
+                  <Button className="w-full">Try SyncShift Personal</Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
 
-          {/* Placeholder for other services */}
-          <Card className="opacity-60">
+          {/* Admin Login */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
-              <CardTitle className="text-lg">Project Management</CardTitle>
+              <CardTitle className="text-lg">Admin Portal</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-gray-600">
-                Organize and track your projects with powerful collaboration tools.
+                Access the administrative dashboard to manage surveys, organizations, and reports.
               </p>
-              <Button variant="outline" className="w-full" disabled>
-                Coming Soon
-              </Button>
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-800">Admin Features:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Survey management</li>
+                  <li>• Organization oversight</li>
+                  <li>• Report generation</li>
+                  <li>• User administration</li>
+                </ul>
+              </div>
+              <div className="pt-2">
+                <Link href="/login">
+                  <Button variant="outline" className="w-full">Admin Login</Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
           <Card className="opacity-60">
             <CardHeader>
-              <CardTitle className="text-lg">Analytics Dashboard</CardTitle>
+              <CardTitle className="text-lg">Enterprise Solutions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-gray-600">
-                Get insights into your business performance with detailed analytics.
+                Custom enterprise solutions for large organizations with advanced reporting needs.
               </p>
               <Button variant="outline" className="w-full" disabled>
                 Coming Soon
@@ -98,12 +109,12 @@ export default function Home() {
         <div className="bg-white rounded-lg shadow-sm border p-8">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              About Our Platform
+              About SyncShift360
             </h2>
             <p className="text-gray-600 leading-relaxed">
-              Our business platform provides essential tools for modern organizations. 
-              Start with our 360 feedback system to gather anonymous insights and drive 
-              leadership development, with more services coming soon.
+              SyncShift360 specializes in 360-degree feedback solutions that help leaders and organizations 
+              achieve meaningful growth. Our SyncShift Personal platform provides comprehensive, anonymous 
+              feedback collection with detailed insights for leadership development.
             </p>
           </div>
         </div>
@@ -113,7 +124,7 @@ export default function Home() {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-600">
-            <p>&copy; 2025 Business Platform. All rights reserved.</p>
+            <p>&copy; 2025 SyncShift360. All rights reserved.</p>
           </div>
         </div>
       </footer>

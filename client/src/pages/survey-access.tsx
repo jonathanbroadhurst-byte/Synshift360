@@ -56,7 +56,7 @@ export default function SurveyAccess() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <a href="/" className="text-xl font-bold text-gray-900">Business Platform</a>
+              <a href="/" className="text-xl font-bold text-gray-900">SyncShift360</a>
             </div>
             <div className="flex items-center space-x-4">
               <a href="/" className="text-gray-600 hover:text-gray-900">← Back to Home</a>
@@ -69,7 +69,7 @@ export default function SurveyAccess() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">360 Feedback Survey Access</CardTitle>
+            <CardTitle className="text-2xl font-bold">SyncShift Personal Access</CardTitle>
             <p className="text-gray-600 mt-2">
               Enter your survey code to provide anonymous feedback
             </p>
