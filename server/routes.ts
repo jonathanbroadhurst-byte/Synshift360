@@ -239,41 +239,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { contactData, surveyData } = req.body;
       console.log('Creating personal survey:', { contactData, surveyData });
 
-      // Create a temporary organization for this personal survey
-      const organization = await storage.createOrganization({
-        name: contactData.organization,
-        domain: `${contactData.organization.toLowerCase().replace(/\s+/g, '')}.personal`,
-        settings: {}
-      });
+      // Use the default organization for personal surveys
+      const organizations = await storage.getOrganizations();
+      const organization = organizations[0]; // Use the first/default organization
 
-      // Create a temporary user for this personal survey
-      const tempPassword = await bcrypt.hash(Math.random().toString(36).substring(7), 10);
-      const tempUser = await storage.createUser({
-        email: contactData.email,
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        username: contactData.email,
-        password: tempPassword, // Temporary password for database constraint
-        role: 'leader',
-        organizationId: organization.id,
-        isActive: true
-      });
+      // Use the default leader user for simplicity
+      const existingUser = await storage.getUserByUsername('leader@demo.com');
+      if (!existingUser) {
+        return res.status(404).json({ message: "Default leader user not found" });
+      }
 
-      // Get the default SyncShift survey
-      const surveys = await storage.getSurveys();
+      // Get surveys by organization to find SyncShift survey
+      const surveys = await storage.getSurveysByOrganization(organization.id);
       const syncShiftSurvey = surveys.find(s => s.title === "SyncShift 360");
       
       if (!syncShiftSurvey) {
         return res.status(404).json({ message: "SyncShift survey template not found" });
       }
 
-      // Generate invite code
+      // Generate unique invite code
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
       // Create survey cycle
       const cycle = await storage.createSurveyCycle({
         surveyId: syncShiftSurvey.id,
-        leaderUserId: tempUser.id,
+        leaderUserId: existingUser.id,
         organizationId: organization.id,
         title: surveyData.title,
         status: 'active',
@@ -289,10 +279,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
       // Send email notification (if Mailjet is configured)
+      let emailSent = false;
       try {
         if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-          // Import Mailjet functionality
-          const mailjet = require('node-mailjet').connect(
+          const mailjet = require('node-mailjet');
+          const client = mailjet.connectAPIKey(
             process.env.MAILJET_API_KEY,
             process.env.MAILJET_SECRET_KEY
           );
@@ -328,11 +319,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <p>Best regards,<br>The SyncShift360 Team</p>
           `;
 
-          const request = mailjet.post('send', { version: 'v3.1' }).request({
+          const result = await client.post('send', { version: 'v3.1' }).request({
             Messages: [
               {
                 From: {
-                  Email: 'noreply@syncshift360.com',
+                  Email: 'noreply@example.com',
                   Name: 'SyncShift360'
                 },
                 To: [
@@ -347,8 +338,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ]
           });
 
-          await request;
           console.log('Confirmation email sent via Mailjet to:', contactData.email);
+          emailSent = true;
         } else {
           console.log('Mailjet not configured - skipping email notification');
         }
@@ -361,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         surveyCode: inviteCode,
         cycle: cycle,
-        emailSent: !!(process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY)
+        emailSent: emailSent
       });
     } catch (error: any) {
       console.error('Personal survey creation error:', error);
