@@ -206,13 +206,14 @@ export default function CreateSurvey() {
                     setLocation('/');
                   }}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold"
                 >
                   Return to Home
                 </Button>
                 <Button 
                   onClick={() => setLocation('/survey-access')}
-                  className="flex-1"
+                  variant="outline"
+                  className="flex-1 border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold"
                 >
                   Test Your Survey
                 </Button>
@@ -318,7 +319,8 @@ export default function CreateSurvey() {
               
               <Button 
                 type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 border border-blue-700 shadow-lg" 
+                variant="outline"
+                className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold" 
                 disabled={isCreating}
               >
                 {isCreating ? "Creating Your Survey..." : "Create SyncShift Personal Survey"}

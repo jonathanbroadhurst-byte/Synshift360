@@ -94,7 +94,8 @@ export default function SurveyAccess() {
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                variant="outline"
+                className="w-full border-2 border-gray-300 hover:border-gray-400 py-3 px-6 font-semibold" 
                 disabled={isLoading || !surveyCode.trim()}
               >
                 {isLoading ? "Accessing Survey..." : "Access Survey"}
