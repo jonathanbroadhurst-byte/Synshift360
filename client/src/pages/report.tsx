@@ -154,40 +154,48 @@ export default function Report() {
               <CardTitle className="text-xl">Competency Assessment</CardTitle>
               <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col lg:flex-row gap-6">
-                <div className="lg:w-2/3 h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <PolarRadiusAxis domain={[0, 7]} tick={{ fontSize: 10 }} />
-                      <Radar
-                        name="Performance"
-                        dataKey="value"
-                        stroke="#3b82f6"
-                        fill="#3b82f6"
-                        fillOpacity={0.2}
-                        strokeWidth={2}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+            <CardContent className="p-6">
+              <div className="flex flex-col lg:flex-row gap-8 items-start">
+                {/* Radar Chart - Takes up more space */}
+                <div className="w-full lg:flex-1 lg:max-w-[60%]">
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <PolarRadiusAxis domain={[0, 7]} tick={{ fontSize: 10 }} />
+                        <Radar
+                          name="Performance"
+                          dataKey="value"
+                          stroke="#3b82f6"
+                          fill="#3b82f6"
+                          fillOpacity={0.2}
+                          strokeWidth={2}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-                <div className="lg:w-1/3 space-y-3">
-                  {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
-                    <div key={competency} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900 text-sm">{competency}</span>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs font-semibold text-blue-600">{rating}/7</span>
-                          <Badge variant="secondary" className={`text-xs px-2 py-0.5 ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                            {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Dev' : 'Focus'}
-                          </Badge>
+                
+                {/* Competency Scores - Compact sidebar */}
+                <div className="w-full lg:w-80 lg:flex-shrink-0">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-900 text-sm mb-3">Detailed Scores</h4>
+                    {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
+                      <div key={competency} className="py-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium text-gray-700 text-xs">{competency}</span>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs font-bold text-blue-600">{rating}/7</span>
+                            <Badge variant="secondary" className={`text-xs px-1.5 py-0.5 ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                              {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Dev' : 'Focus'}
+                            </Badge>
+                          </div>
                         </div>
+                        <Progress value={(rating / 7) * 100} className="h-1" />
                       </div>
-                      <Progress value={(rating / 7) * 100} className="h-1.5" />
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
