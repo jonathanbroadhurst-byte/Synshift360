@@ -369,12 +369,7 @@ export default function Report() {
                         
                         <PolarAngleAxis 
                           dataKey="name" 
-                          tick={{ 
-                            fontSize: 13, 
-                            fill: '#374151',
-                            fontWeight: 600
-                          }}
-                          tickFormatter={(value) => value}
+                          tick={false}
                         />
                         
                         <PolarRadiusAxis 
