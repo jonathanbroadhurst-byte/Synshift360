@@ -67,36 +67,116 @@ const competencyExplanations: Record<string, {
   }
 };
 
-// HBDI-aligned learning activities for different development areas
-const hbdiLearningActivities: Record<string, {
-  A: string[];
-  B: string[];
-  C: string[];
-  D: string[];
+// Learning activities for different development areas organized by learning approach
+const learningActivities: Record<string, {
+  analytical: string[];
+  systematic: string[];
+  interpersonal: string[];
+  creative: string[];
 }> = {
   "Strategic Leadership": {
-    A: ["Analytical frameworks workshops", "Data-driven decision making courses", "Strategic planning methodologies", "ROI analysis training"],
-    B: ["Project management certification", "Process mapping workshops", "Implementation planning training", "Systematic approach to strategy execution"],
-    C: ["Leadership communication programs", "Stakeholder engagement workshops", "Team inspiration techniques", "Vision crafting sessions"],
-    D: ["Innovation thinking workshops", "Future scenario planning", "Creative strategy sessions", "Disruptive thinking training"]
+    analytical: [
+      "Complete Harvard Business School's Strategy Execution course with quarterly business case analysis",
+      "Attend McKinsey Problem Solving workshop focusing on hypothesis-driven strategic planning",
+      "Enroll in Financial Times Strategic Management program with ROI modeling exercises",
+      "Join Stanford Executive Program on Data-Driven Strategy with competitor analysis projects"
+    ],
+    systematic: [
+      "Obtain PMP certification with focus on strategic project portfolio management",
+      "Complete Lean Six Sigma Black Belt training applied to strategic initiative deployment",
+      "Attend Franklin Covey's 4 Disciplines of Execution workshop with 90-day implementation plan",
+      "Enroll in MIT's Systems Thinking course with organizational change management application"
+    ],
+    interpersonal: [
+      "Join Dale Carnegie's Leadership Training with peer coaching circles for vision communication",
+      "Attend Center for Creative Leadership's stakeholder engagement intensive with 360 feedback",
+      "Complete John Maxwell Team leadership certification with monthly mentoring sessions",
+      "Enroll in Wharton's Executive Presence program focusing on inspiring others during change"
+    ],
+    creative: [
+      "Attend IDEO Design Thinking for Leaders workshop with innovation challenge project",
+      "Complete Stanford d.school's Strategic Innovation course with prototype development",
+      "Join Singularity University's Future Studies program with scenario planning exercises",
+      "Enroll in MIT's Innovation Leadership course with disruptive business model creation"
+    ]
   },
   "Delegation": {
-    A: ["Authority matrix development", "Decision rights frameworks", "Performance metrics design", "Accountability systems training"],
-    B: ["Process documentation workshops", "Standard operating procedures", "Task breakdown methodologies", "Quality control systems"],
-    C: ["Trust building exercises", "One-on-one conversation skills", "Coaching and mentoring training", "Empowerment communication workshops"],
-    D: ["Experimentation frameworks", "Innovation delegation models", "Creative problem-solving empowerment", "Entrepreneurial thinking development"]
+    analytical: [
+      "Develop RACI matrix for all team responsibilities with quarterly effectiveness reviews",
+      "Create decision authority frameworks using McKinsey's RAPID model with success metrics",
+      "Implement OKR (Objectives and Key Results) system with delegation scorecards",
+      "Design performance dashboard tracking delegation outcomes with monthly analysis"
+    ],
+    systematic: [
+      "Attend Getting Things Done (GTD) methodology workshop with team delegation workflows",
+      "Complete Project Management Institute's delegation certification with standard procedures",
+      "Enroll in Lean Leadership training focusing on value stream delegation methods",
+      "Implement Scrum Master certification with agile delegation practices and retrospectives"
+    ],
+    interpersonal: [
+      "Join Center for Creative Leadership's Trust Building program with team coaching sessions",
+      "Complete coaching certification (ICF-accredited) with weekly one-on-one practice sessions",
+      "Attend Crucial Conversations training focusing on empowerment discussions",
+      "Enroll in emotional intelligence certification with delegation confidence building exercises"
+    ],
+    creative: [
+      "Create innovation delegation lab with experimental project assignments and learning reviews",
+      "Design entrepreneurship challenges for team members with mentorship and failure celebrations",
+      "Implement 'Innovation Time Off' program (like Google's 20% time) with creative project guidance",
+      "Establish cross-functional collaboration experiments with rotating leadership opportunities"
+    ]
   },
   "Communication": {
-    A: ["Data presentation skills", "Evidence-based communication", "Analytical storytelling", "Metrics communication workshops"],
-    B: ["Structured communication frameworks", "Meeting facilitation training", "Documentation best practices", "Process communication systems"],
-    C: ["Emotional intelligence training", "Interpersonal communication skills", "Active listening workshops", "Empathy building exercises"],
-    D: ["Creative presentation techniques", "Storytelling workshops", "Visual communication training", "Innovation communication methods"]
+    analytical: [
+      "Complete Presentation Zen methodology with data storytelling workshops and audience analysis",
+      "Attend Evidence-Based Communication course with persuasion psychology and metrics tracking",
+      "Enroll in Business Writing certification focusing on executive briefings and impact measurement",
+      "Join Toastmasters Advanced program with speech contest participation and feedback analysis"
+    ],
+    systematic: [
+      "Implement structured meeting facilitation training with agenda templates and outcome tracking",
+      "Complete documentation best practices certification with knowledge management systems",
+      "Attend Franklin Covey's communication planning workshop with systematic feedback loops",
+      "Enroll in project communication methodology course with stakeholder mapping and cadence design"
+    ],
+    interpersonal: [
+      "Complete Daniel Goleman's Emotional Intelligence certification with active listening practice labs",
+      "Join Dale Carnegie's Interpersonal Skills course with peer practice groups and role-playing",
+      "Attend Nonviolent Communication (NVC) training with conflict resolution practice sessions",
+      "Enroll in Cultural Intelligence (CQ) certification with diverse team communication exercises"
+    ],
+    creative: [
+      "Attend TED Masterclass on public speaking with storytelling techniques and video practice",
+      "Complete Second City's improvisation workshop for spontaneous communication and adaptability",
+      "Join visual communication design course with infographic creation and presentation design",
+      "Enroll in digital storytelling workshop with multimedia content creation and engagement metrics"
+    ]
   },
   "Executive Presence": {
-    A: ["Executive decision-making frameworks", "Board presentation skills", "Financial acumen development", "Strategic thinking workshops"],
-    B: ["Professional development programs", "Executive etiquette training", "Systematic leadership approaches", "Organizational protocol training"],
-    C: ["Executive coaching", "Relationship building workshops", "Influence and persuasion training", "Networking skills development"],
-    D: ["Thought leadership development", "Creative leadership approaches", "Innovation leadership training", "Visionary communication workshops"]
+    analytical: [
+      "Complete Wharton Executive Presence program with 360 assessment and quantified improvement plan",
+      "Attend board presentation skills workshop with financial modeling and investor pitch practice",
+      "Enroll in strategic thinking certification with case study analysis and decision frameworks",
+      "Join McKinsey Executive Communication course with data-driven influence and metrics tracking"
+    ],
+    systematic: [
+      "Complete professional development certification with systematic skill building and milestone tracking",
+      "Attend executive etiquette and protocol training with international business culture modules",
+      "Enroll in systematic leadership development program with competency assessments and coaching",
+      "Join organizational behavior course with leadership framework implementation and measurement"
+    ],
+    interpersonal: [
+      "Hire executive coach (minimum 6 months) with monthly 360 feedback and relationship mapping",
+      "Join peer executive mastermind group with monthly networking and influence practice",
+      "Complete negotiation and persuasion training with role-play scenarios and stakeholder practice",
+      "Attend networking mastery workshop with relationship building strategies and follow-up systems"
+    ],
+    creative: [
+      "Develop thought leadership platform with content creation, speaking engagements, and media training",
+      "Join creative leadership intensive with innovative problem-solving and visionary communication",
+      "Complete personal branding workshop with digital presence optimization and storytelling",
+      "Attend design thinking for executives with innovation leadership and creative collaboration methods"
+    ]
   }
 };
 
@@ -396,7 +476,7 @@ export default function Report() {
                   <Brain className="w-5 h-5 mr-2" />
                   Development Opportunities
                 </CardTitle>
-                <p className="text-gray-600">Areas for continued growth with HBDI-aligned learning activities</p>
+                <p className="text-gray-600">Areas for continued growth with targeted learning approaches</p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
@@ -408,7 +488,7 @@ export default function Report() {
                                            area.title.includes('Executive Presence') ? 'Executive Presence' :
                                            'Communication'; // Default fallback
                     
-                    const hbdiActivities = hbdiLearningActivities[developmentTheme];
+                    const activities = learningActivities[developmentTheme];
                     
                     return (
                       <div key={index} className="border-l-4 border-orange-500 pl-4 bg-gradient-to-r from-orange-50 to-white p-4 rounded-r-lg">
@@ -433,22 +513,22 @@ export default function Report() {
                             </ul>
                           </div>
 
-                          {hbdiActivities && (
+                          {activities && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                               <div className="flex items-center mb-3">
                                 <Brain className="w-4 h-4 mr-2 text-blue-600" />
-                                <p className="text-sm font-semibold text-blue-900">HBDI Learning Activities</p>
+                                <p className="text-sm font-semibold text-blue-900">Targeted Learning Activities</p>
                               </div>
-                              <p className="text-xs text-blue-700 mb-3">Choose activities that match your thinking preferences:</p>
+                              <p className="text-xs text-blue-700 mb-3">Choose specific development approaches that match your learning style:</p>
                               
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-white rounded p-3 border-l-4 border-blue-500">
                                   <div className="flex items-center mb-2">
                                     <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                                    <p className="text-xs font-semibold text-gray-800">Analytical (A)</p>
+                                    <p className="text-xs font-semibold text-gray-800">Data-Driven Approach</p>
                                   </div>
                                   <ul className="text-xs text-gray-600 space-y-1">
-                                    {hbdiActivities.A.slice(0, 2).map((activity: string, idx: number) => (
+                                    {activities.analytical.slice(0, 2).map((activity: string, idx: number) => (
                                       <li key={idx} className="flex items-start">
                                         <span className="mr-1">•</span>
                                         {activity}
@@ -460,10 +540,10 @@ export default function Report() {
                                 <div className="bg-white rounded p-3 border-l-4 border-green-500">
                                   <div className="flex items-center mb-2">
                                     <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                    <p className="text-xs font-semibold text-gray-800">Practical (B)</p>
+                                    <p className="text-xs font-semibold text-gray-800">Process-Focused Approach</p>
                                   </div>
                                   <ul className="text-xs text-gray-600 space-y-1">
-                                    {hbdiActivities.B.slice(0, 2).map((activity: string, idx: number) => (
+                                    {activities.systematic.slice(0, 2).map((activity: string, idx: number) => (
                                       <li key={idx} className="flex items-start">
                                         <span className="mr-1">•</span>
                                         {activity}
@@ -475,10 +555,10 @@ export default function Report() {
                                 <div className="bg-white rounded p-3 border-l-4 border-orange-500">
                                   <div className="flex items-center mb-2">
                                     <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
-                                    <p className="text-xs font-semibold text-gray-800">Relational (C)</p>
+                                    <p className="text-xs font-semibold text-gray-800">People-Centered Approach</p>
                                   </div>
                                   <ul className="text-xs text-gray-600 space-y-1">
-                                    {hbdiActivities.C.slice(0, 2).map((activity: string, idx: number) => (
+                                    {activities.interpersonal.slice(0, 2).map((activity: string, idx: number) => (
                                       <li key={idx} className="flex items-start">
                                         <span className="mr-1">•</span>
                                         {activity}
@@ -490,10 +570,10 @@ export default function Report() {
                                 <div className="bg-white rounded p-3 border-l-4 border-purple-500">
                                   <div className="flex items-center mb-2">
                                     <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                                    <p className="text-xs font-semibold text-gray-800">Experimental (D)</p>
+                                    <p className="text-xs font-semibold text-gray-800">Innovation-Focused Approach</p>
                                   </div>
                                   <ul className="text-xs text-gray-600 space-y-1">
-                                    {hbdiActivities.D.slice(0, 2).map((activity: string, idx: number) => (
+                                    {activities.creative.slice(0, 2).map((activity: string, idx: number) => (
                                       <li key={idx} className="flex items-start">
                                         <span className="mr-1">•</span>
                                         {activity}
