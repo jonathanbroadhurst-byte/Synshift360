@@ -329,23 +329,93 @@ export default function Report() {
             <CardContent className="p-6">
               <div className="grid grid-cols-5 gap-6 min-h-[320px]">
                 {/* Radar Chart - Takes 3 columns */}
-                <div className="col-span-3 min-h-[320px] flex items-center justify-center">
-                  <div className="w-full h-80">
+                <div className="col-span-3 min-h-[320px] flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6">
+                  <div className="w-full h-80 relative">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ name, value, fullMark: 7 })) : []}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <PolarRadiusAxis domain={[0, 7]} tick={{ fontSize: 10 }} />
+                      <RadarChart 
+                        data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ 
+                          name: name.length > 12 ? name.substring(0, 10) + '...' : name,
+                          fullName: name,
+                          value: Number(value),
+                          fullMark: 7 
+                        })) : []}
+                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      >
+                        <defs>
+                          <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                            <stop offset="50%" stopColor="#1d4ed8" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#1e40af" stopOpacity={0.2} />
+                          </linearGradient>
+                          <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge> 
+                              <feMergeNode in="coloredBlur"/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        <PolarGrid 
+                          stroke="#e2e8f0" 
+                          strokeWidth={1}
+                          fill="none"
+                          radialLines={true}
+                        />
+                        <PolarAngleAxis 
+                          dataKey="name" 
+                          tick={{ 
+                            fontSize: 11, 
+                            fill: '#475569',
+                            fontWeight: 600,
+                            textAnchor: 'middle'
+                          }}
+                          tickFormatter={(value) => value}
+                          className="text-slate-700"
+                        />
+                        <PolarRadiusAxis 
+                          domain={[0, 7]} 
+                          tick={{ 
+                            fontSize: 9, 
+                            fill: '#64748b',
+                            fontWeight: 500
+                          }}
+                          tickCount={8}
+                          angle={90}
+                          stroke="#cbd5e1"
+                          strokeWidth={1}
+                        />
                         <Radar
-                          name="Performance"
+                          name="Leadership Performance"
                           dataKey="value"
-                          stroke="#3b82f6"
-                          fill="#3b82f6"
-                          fillOpacity={0.2}
-                          strokeWidth={2}
+                          stroke="#1d4ed8"
+                          fill="url(#radarGradient)"
+                          fillOpacity={0.6}
+                          strokeWidth={3}
+                          dot={{
+                            fill: '#1d4ed8',
+                            strokeWidth: 2,
+                            stroke: '#ffffff',
+                            r: 4
+                          }}
+                          activeDot={{
+                            fill: '#dc2626',
+                            strokeWidth: 2,
+                            stroke: '#ffffff',
+                            r: 6
+                          }}
+                          filter="url(#glow)"
                         />
                       </RadarChart>
                     </ResponsiveContainer>
+                    
+                    {/* Chart Legend */}
+                    <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-slate-200">
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-blue-700"></div>
+                        <span className="text-slate-600 font-medium">Leadership Competencies</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">Scale: 1-7 (Excellent)</div>
+                    </div>
                   </div>
                 </div>
                 
