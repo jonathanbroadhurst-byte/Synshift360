@@ -373,13 +373,13 @@ export default function Report() {
                         />
                         
                         <PolarRadiusAxis 
-                          domain={[0, 7]} 
+                          domain={[3, 7]} 
                           tick={{ 
                             fontSize: 11, 
                             fill: '#6b7280',
                             fontWeight: 500
                           }}
-                          tickCount={8}
+                          tickCount={9}
                           angle={90}
                           stroke="#d1d5db"
                           strokeWidth={1}
