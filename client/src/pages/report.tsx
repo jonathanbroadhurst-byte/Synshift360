@@ -326,122 +326,133 @@ export default function Report() {
               <CardTitle className="text-xl">Competency Assessment</CardTitle>
               <p className="text-gray-600">Performance across SyncShift 360 leadership framework</p>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-5 gap-6 min-h-[320px]">
-                {/* Radar Chart - Takes 3 columns */}
-                <div className="col-span-3 min-h-[320px] flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6">
-                  <div className="w-full h-80 relative">
+            <CardContent className="p-8">
+              {/* Large Centered Radar Chart */}
+              <div className="flex justify-center mb-8">
+                <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-lg p-8">
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Leadership Competency Profile</h3>
+                    <p className="text-sm text-gray-600">Interactive radar chart showing performance across all competency areas</p>
+                  </div>
+                  
+                  <div className="w-full h-96 relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart 
                         data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ 
-                          name: name.length > 12 ? name.substring(0, 10) + '...' : name,
-                          fullName: name,
+                          name: name === "Personal Brand" ? "Personal\nBrand" : name,
                           value: Number(value),
                           fullMark: 7 
                         })) : []}
-                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                        margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
                       >
                         <defs>
-                          <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
-                            <stop offset="50%" stopColor="#1d4ed8" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="#1e40af" stopOpacity={0.2} />
+                          <radialGradient id="radarFill" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="70%" stopColor="#1d4ed8" stopOpacity={0.2} />
+                            <stop offset="100%" stopColor="#1e40af" stopOpacity={0.1} />
+                          </radialGradient>
+                          <linearGradient id="radarStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#2563eb" />
+                            <stop offset="100%" stopColor="#1d4ed8" />
                           </linearGradient>
-                          <filter id="glow">
-                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                            <feMerge> 
-                              <feMergeNode in="coloredBlur"/>
-                              <feMergeNode in="SourceGraphic"/>
-                            </feMerge>
+                          <filter id="dropShadow">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.1"/>
                           </filter>
                         </defs>
+                        
                         <PolarGrid 
-                          stroke="#e2e8f0" 
+                          stroke="#e5e7eb" 
                           strokeWidth={1}
-                          fill="none"
+                          strokeDasharray="3 3"
                           radialLines={true}
                         />
+                        
                         <PolarAngleAxis 
                           dataKey="name" 
                           tick={{ 
-                            fontSize: 11, 
-                            fill: '#475569',
-                            fontWeight: 600,
-                            textAnchor: 'middle'
+                            fontSize: 13, 
+                            fill: '#374151',
+                            fontWeight: 600
                           }}
                           tickFormatter={(value) => value}
-                          className="text-slate-700"
                         />
+                        
                         <PolarRadiusAxis 
                           domain={[0, 7]} 
                           tick={{ 
-                            fontSize: 9, 
-                            fill: '#64748b',
+                            fontSize: 11, 
+                            fill: '#6b7280',
                             fontWeight: 500
                           }}
                           tickCount={8}
                           angle={90}
-                          stroke="#cbd5e1"
+                          stroke="#d1d5db"
                           strokeWidth={1}
                         />
+                        
                         <Radar
-                          name="Leadership Performance"
+                          name="Performance"
                           dataKey="value"
-                          stroke="#1d4ed8"
-                          fill="url(#radarGradient)"
-                          fillOpacity={0.6}
+                          stroke="url(#radarStroke)"
+                          fill="url(#radarFill)"
                           strokeWidth={3}
                           dot={{
-                            fill: '#1d4ed8',
-                            strokeWidth: 2,
+                            fill: '#2563eb',
+                            strokeWidth: 3,
                             stroke: '#ffffff',
-                            r: 4
+                            r: 5,
+                            filter: 'url(#dropShadow)'
                           }}
                           activeDot={{
                             fill: '#dc2626',
-                            strokeWidth: 2,
+                            strokeWidth: 3,
                             stroke: '#ffffff',
-                            r: 6
+                            r: 7
                           }}
-                          filter="url(#glow)"
                         />
                       </RadarChart>
                     </ResponsiveContainer>
-                    
-                    {/* Chart Legend */}
-                    <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-slate-200">
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-blue-700"></div>
-                        <span className="text-slate-600 font-medium">Leadership Competencies</span>
+                  </div>
+                  
+                  <div className="flex justify-center mt-4">
+                    <div className="bg-gray-50 rounded-lg px-4 py-2 border">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700"></div>
+                          <span className="text-sm font-medium text-gray-700">Your Performance</span>
+                        </div>
+                        <div className="text-sm text-gray-500">•</div>
+                        <div className="text-sm text-gray-600">Scale: 1 (Needs Focus) → 7 (Exceptional)</div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">Scale: 1-7 (Excellent)</div>
                     </div>
                   </div>
                 </div>
-                
-                {/* Competency Scores - Takes 2 columns */}
-                <div className="col-span-2 bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 text-sm mb-4">Detailed Scores</h4>
-                  <div className="space-y-3">
-                    {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
-                      <div key={competency} className="bg-white rounded p-3 shadow-sm">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-lg">{competencyExplanations[competency]?.emoji}</span>
-                            <span className="font-medium text-gray-800 text-sm">{competency}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-bold text-blue-600">{rating}/7</span>
-                            <Badge variant="secondary" className={`text-xs ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                              {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Dev' : 'Focus'}
-                            </Badge>
+              </div>
+
+              {/* Competency Scores Grid */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {statistics?.competencyAverages && Object.entries(statistics.competencyAverages).map(([competency, rating]) => (
+                  <div key={competency} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{competencyExplanations[competency]?.emoji}</span>
+                        <div>
+                          <span className="font-semibold text-gray-900 text-sm">{competency}</span>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {competencyExplanations[competency]?.title.split('(')[1]?.replace(')', '')}
                           </div>
                         </div>
-                        <Progress value={(rating / 7) * 100} className="h-1.5" />
                       </div>
-                    ))}
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-blue-600">{rating}/7</div>
+                        <Badge variant="secondary" className={`text-xs ${rating >= 5.5 ? 'bg-green-100 text-green-800' : rating >= 4.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                          {rating >= 5.5 ? 'Strong' : rating >= 4.5 ? 'Developing' : 'Focus Area'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Progress value={(rating / 7) * 100} className="h-2" />
                   </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
