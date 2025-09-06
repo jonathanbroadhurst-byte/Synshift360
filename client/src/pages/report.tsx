@@ -329,13 +329,13 @@ export default function Report() {
             <CardContent className="p-8">
               {/* Large Centered Radar Chart */}
               <div className="flex justify-center mb-8">
-                <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-lg p-8">
-                  <div className="text-center mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Leadership Competency Profile</h3>
-                    <p className="text-sm text-gray-600">Interactive radar chart showing performance across all competency areas</p>
+                <div className="w-full max-w-4xl bg-white border border-gray-200 rounded-2xl shadow-lg p-10">
+                  <div className="text-center mb-8">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Leadership Competency Profile</h3>
+                    <p className="text-base text-gray-600">Interactive radar chart showing performance across all competency areas</p>
                   </div>
                   
-                  <div className="w-full h-96 relative">
+                  <div className="w-full h-[600px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart 
                         data={statistics?.competencyAverages ? Object.entries(statistics.competencyAverages).map(([name, value]) => ({ 
@@ -375,14 +375,14 @@ export default function Report() {
                         <PolarRadiusAxis 
                           domain={[3, 7]} 
                           tick={{ 
-                            fontSize: 11, 
+                            fontSize: 16, 
                             fill: '#6b7280',
-                            fontWeight: 500
+                            fontWeight: 600
                           }}
                           tickCount={9}
                           angle={90}
                           stroke="#d1d5db"
-                          strokeWidth={1}
+                          strokeWidth={2}
                         />
                         
                         <Radar
@@ -390,19 +390,19 @@ export default function Report() {
                           dataKey="value"
                           stroke="url(#radarStroke)"
                           fill="url(#radarFill)"
-                          strokeWidth={3}
+                          strokeWidth={4}
                           dot={{
                             fill: '#2563eb',
-                            strokeWidth: 3,
+                            strokeWidth: 4,
                             stroke: '#ffffff',
-                            r: 5,
+                            r: 8,
                             filter: 'url(#dropShadow)'
                           }}
                           activeDot={{
                             fill: '#dc2626',
-                            strokeWidth: 3,
+                            strokeWidth: 4,
                             stroke: '#ffffff',
-                            r: 7
+                            r: 12
                           }}
                         />
                       </RadarChart>
