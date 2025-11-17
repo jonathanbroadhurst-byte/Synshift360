@@ -1,0 +1,9 @@
+{
+    "name": "Quantum Leadership Calibration 360",
+    "version": "1.0",
+    "questionFile": "questions.json",
+    "scoringFile": "scoring.json",
+    "reportTemplate": "Quantum_Leader_Report_Template.docx",
+    "scaleMin": 1,
+    "scaleMax": 10
+}

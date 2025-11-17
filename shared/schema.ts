@@ -34,7 +34,11 @@ export const surveys = pgTable("surveys", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
+  surveyType: text("survey_type").notNull().default("syncshift"), // 'syncshift' | 'quantum'
+  scaleMin: integer("scale_min").default(1),
+  scaleMax: integer("scale_max").default(7),
   questions: jsonb("questions").notNull(), // Array of question objects
+  maturityCategories: jsonb("maturity_categories"), // For Quantum: scoring ranges to maturity levels
   organizationId: integer("organization_id").references(() => organizations.id),
   createdBy: integer("created_by").references(() => users.id),
   isActive: boolean("is_active").default(true),
@@ -51,7 +55,7 @@ export const surveyCycles = pgTable("survey_cycles", {
   status: text("status").default("active"), // 'active', 'completed', 'cancelled'
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
-  inviteCode: uuid("invite_code").defaultRandom(),
+  inviteCode: text("invite_code"),
   totalInvites: integer("total_invites").default(0),
   totalResponses: integer("total_responses").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -62,7 +66,7 @@ export const surveyInvitations = pgTable("survey_invitations", {
   id: serial("id").primaryKey(),
   cycleId: integer("cycle_id").references(() => surveyCycles.id),
   email: text("email").notNull(),
-  inviteToken: uuid("invite_token").defaultRandom(),
+  inviteToken: text("invite_token"),
   status: text("status").default("pending"), // 'pending', 'completed', 'expired'
   sentAt: timestamp("sent_at").defaultNow(),
   completedAt: timestamp("completed_at"),
