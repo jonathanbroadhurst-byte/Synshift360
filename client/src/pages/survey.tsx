@@ -27,14 +27,40 @@ export default function Survey() {
 
 
 
-  // Use actual survey questions if available, otherwise use default SyncShift questions
-  const questions = surveyData?.surveyQuestions?.map((q: any) => ({
-    id: q.id,
-    type: q.type,
-    question: q.text || q.question,
-    scale: q.scale?.max || 7,
-    category: q.category
-  })) || [
+  // Flatten Quantum questions or use survey questions directly
+  const flattenQuestions = (surveyQuestions: any) => {
+    if (!surveyQuestions || surveyQuestions.length === 0) {
+      return null;
+    }
+    
+    // Check if it's Quantum format (nested competencies)
+    if (surveyQuestions[0]?.competency && surveyQuestions[0]?.questions) {
+      const flattened: any[] = [];
+      surveyQuestions.forEach((comp: any) => {
+        comp.questions.forEach((q: any) => {
+          flattened.push({
+            id: q.id,
+            type: q.type,
+            question: q.text,
+            scale: q.scaleMax || 10,
+            category: comp.competency
+          });
+        });
+      });
+      return flattened;
+    }
+    
+    // Standard flat format (SyncShift)
+    return surveyQuestions.map((q: any) => ({
+      id: q.id,
+      type: q.type,
+      question: q.text || q.question,
+      scale: q.scaleMax || q.scale?.max || 7,
+      category: q.category
+    }));
+  };
+
+  const questions = flattenQuestions(surveyData?.surveyQuestions) || [
     // SyncShift 360 Rating Questions (26 questions)
     { id: '1', type: 'rating', question: 'Communicates a clear vision and direction for the team/organization', scale: 7, category: 'Leadership' },
     { id: '2', type: 'rating', question: 'Makes sense of complex situations and provides clarity', scale: 7, category: 'Leadership' },
@@ -140,19 +166,33 @@ export default function Survey() {
     );
   }
 
+  // Determine if this is a Quantum survey
+  const isQuantum = surveyData?.surveyTitle?.includes('Quantum') || 
+                    surveyData?.surveyQuestions?.[0]?.competency;
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-semibold">SyncShift Personal Survey</CardTitle>
+            <CardTitle className="text-2xl font-semibold">
+              {isQuantum ? 'Quantum Leadership Calibration 360' : 'SyncShift Personal Survey'}
+            </CardTitle>
             {surveyData?.leaderFirstName && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-lg font-medium text-blue-900">
+              <div className={`mt-4 p-4 rounded-lg border ${
+                isQuantum 
+                  ? 'bg-gradient-to-r from-orange-50 to-pink-50 border-orange-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <p className={`text-lg font-medium ${
+                  isQuantum ? 'text-gray-900' : 'text-blue-900'
+                }`}>
                   Providing feedback for: {surveyData.leaderFirstName} {surveyData.leaderLastName}
                 </p>
                 {surveyData.leaderPosition && (
-                  <p className="text-sm text-blue-700">{surveyData.leaderPosition}</p>
+                  <p className={`text-sm ${
+                    isQuantum ? 'text-gray-700' : 'text-blue-700'
+                  }`}>{surveyData.leaderPosition}</p>
                 )}
               </div>
             )}
@@ -160,13 +200,13 @@ export default function Survey() {
               Your feedback is completely anonymous and will help improve leadership effectiveness.
             </p>
             <p className="text-sm text-gray-500">
-              {questions.length} questions total
+              {questions.length} questions total • {isQuantum ? '1-10' : '1-7'} rating scale
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
 
-              {questions.map((question, index) => (
+              {questions.map((question: any, index: number) => (
                 <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                   {question.category && (
                     <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">

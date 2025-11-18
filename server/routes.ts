@@ -707,11 +707,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quantum survey template not found. Please contact support." });
       }
 
-      // Use default leader user for Quantum surveys
-      const existingUser = await storage.getUserByUsername('leader');
+      // Parse leader name into first and last name
+      const nameParts = leaderName.split(' ');
+      const firstName = nameParts[0] || leaderName;
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Check if user already exists
+      let existingUser = await storage.getUserByEmail(leaderEmail);
+      
       if (!existingUser) {
-        console.error("Default leader user not found - database may need seeding");
-        return res.status(404).json({ message: "System configuration error. Please contact support." });
+        // Create new user for this leader
+        const newUser = await storage.createUser({
+          username: leaderEmail.split('@')[0],
+          email: leaderEmail,
+          password: await bcrypt.hash('quantum360', 10), // Temporary password
+          firstName,
+          lastName,
+          role: 'leader',
+          organizationId: 1,
+          isActive: true
+        });
+        existingUser = newUser;
       }
 
       // Generate unique invite code
@@ -724,6 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: 1,
         title: title || "Quantum Leadership Assessment",
         status: 'active',
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
       });
       
       // Update invite code using storage method

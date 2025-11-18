@@ -218,3 +218,9 @@ The platform now supports a second complementary assessment tool: **Quantum Lead
   - Confirmed explicit 0.0.0.0:5000 host binding for deployment compatibility
   - Added database connection validation with enhanced error reporting
   - Implemented production build process with proper ESM module handling
+- **Fixed Quantum 360 survey display** (November 2025):
+  - Added question flattening logic to convert nested competency structure (10×3) into linear 30-question display
+  - Implemented dynamic rating scale rendering supporting both 1-7 (SyncShift) and 1-10 (Quantum) scales
+  - Fixed leader name display by updating Quantum endpoint to create/find users from form data
+  - Added survey type detection with appropriate branding (orange/pink gradient for Quantum, blue for SyncShift)
+  - All 30 Quantum questions now display correctly with proper competency category labels
