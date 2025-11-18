@@ -23,12 +23,14 @@ export interface IStorage {
   // Survey methods
   createSurvey(insertSurvey: InsertSurvey): Promise<Survey>;
   getSurveysByOrganization(orgId: number): Promise<Survey[]>;
+  getSurveyByType(surveyType: string): Promise<Survey | undefined>;
 
   // Survey cycle methods
   createSurveyCycle(insertCycle: InsertSurveyCycle): Promise<SurveyCycle>;
   getSurveyCycle(id: number): Promise<SurveyCycle | undefined>;
   getSurveyCycleByInviteCode(inviteCode: string): Promise<SurveyCycle | undefined>;
   updateSurveyCycleStats(cycleId: number): Promise<void>;
+  updateCycleInviteCode(cycleId: number, inviteCode: string): Promise<void>;
 
   // Survey invitation methods
   createSurveyInvitation(insertInvitation: InsertSurveyInvitation): Promise<SurveyInvitation>;
@@ -101,6 +103,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(surveys).where(eq(surveys.organizationId, orgId));
   }
 
+  async getSurveyByType(surveyType: string): Promise<Survey | undefined> {
+    const [survey] = await db.select().from(surveys).where(eq(surveys.surveyType, surveyType));
+    return survey || undefined;
+  }
+
   async createSurveyCycle(insertCycle: InsertSurveyCycle): Promise<SurveyCycle> {
     const [cycle] = await db
       .insert(surveyCycles)
@@ -128,6 +135,12 @@ export class DatabaseStorage implements IStorage {
         totalInvites: inviteCount.count,
         totalResponses: responseCount.count
       })
+      .where(eq(surveyCycles.id, cycleId));
+  }
+
+  async updateCycleInviteCode(cycleId: number, inviteCode: string): Promise<void> {
+    await db.update(surveyCycles)
+      .set({ inviteCode })
       .where(eq(surveyCycles.id, cycleId));
   }
 

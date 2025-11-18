@@ -265,21 +265,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
       });
       
-      // Update invite code after creation
-      await db.update(surveyCycles)
-        .set({ inviteCode })
-        .where(eq(surveyCycles.id, cycle.id));
+      // Update invite code using storage method
+      await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
       // Send email notification (if Mailjet is configured)
       let emailSent = false;
       try {
-        // Use hardcoded API keys for now since env vars aren't being read properly
-        const MAILJET_API_KEY = "09f0623f9e2a799619657daeb374bd9c";
-        const MAILJET_SECRET_KEY = "1365d27cec2b723fc65e53f1b5f1019e";
+        const MAILJET_API_KEY = process.env.MAILJET_API_KEY;
+        const MAILJET_SECRET_KEY = process.env.MAILJET_SECRET_KEY;
         
-        if (MAILJET_API_KEY && MAILJET_SECRET_KEY) {
+        if (!MAILJET_API_KEY || !MAILJET_SECRET_KEY) {
+          console.warn("Mailjet API keys not configured - email notifications disabled. Set MAILJET_API_KEY and MAILJET_SECRET_KEY environment variables to enable.");
+        } else {
           const { default: Mailjet } = await import('node-mailjet');
           const client = new Mailjet({
             apiKey: MAILJET_API_KEY,
@@ -338,8 +337,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log('Confirmation email sent via Mailjet to:', contactData.email);
           emailSent = true;
-        } else {
-          console.log('Mailjet API keys missing - skipping email notification');
         }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
@@ -687,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Quantum 360 routes
   app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
     try {
-      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum"));
+      const quantumSurvey = await storage.getSurveyByType("quantum");
       
       if (!quantumSurvey) {
         return res.status(404).json({ message: "Quantum survey not found" });
@@ -703,22 +700,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leaderName, leaderEmail, title } = req.body;
       
-      // Get Quantum survey
-      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum"));
+      // Get Quantum survey by type (not hardcoded ID)
+      const quantumSurvey = await storage.getSurveyByType("quantum");
       if (!quantumSurvey) {
-        return res.status(404).json({ message: "Quantum survey not found" });
+        console.error("Quantum survey template not found - ensure seed-quantum.ts has been run");
+        return res.status(404).json({ message: "Quantum survey template not found. Please contact support." });
       }
 
       // Use default leader user for Quantum surveys
       const existingUser = await storage.getUserByUsername('leader');
       if (!existingUser) {
-        return res.status(404).json({ message: "Default leader user not found" });
+        console.error("Default leader user not found - database may need seeding");
+        return res.status(404).json({ message: "System configuration error. Please contact support." });
       }
 
       // Generate unique invite code
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // Create survey cycle
+      // Create survey cycle using storage interface
       const cycle = await storage.createSurveyCycle({
         surveyId: quantumSurvey.id,
         leaderId: existingUser.id,
@@ -727,10 +726,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'active',
       });
       
-      // Update invite code after creation
-      await db.update(surveyCycles)
-        .set({ inviteCode })
-        .where(eq(surveyCycles.id, cycle.id));
+      // Update invite code using storage method
+      await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
       res.status(201).json({ cycle, inviteCode });
     } catch (error) {
