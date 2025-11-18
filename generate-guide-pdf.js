@@ -1,0 +1,137 @@
+import { mdToPdf } from 'md-to-pdf';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+async function generatePDF() {
+  try {
+    console.log('Generating Survey Participant Guide PDF...');
+    
+    const mdPath = path.join(__dirname, 'SURVEY_PARTICIPANT_GUIDE.md');
+    const pdfPath = path.join(__dirname, 'Survey_Participant_Guide.pdf');
+    
+    const pdf = await mdToPdf(
+      { path: mdPath },
+      {
+        dest: pdfPath,
+        launch_options: {
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        },
+        pdf_options: {
+          format: 'A4',
+          margin: {
+            top: '20mm',
+            right: '20mm',
+            bottom: '20mm',
+            left: '20mm'
+          },
+          printBackground: true
+        },
+        stylesheet: `
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          h1 {
+            color: #2563eb;
+            font-size: 24pt;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 10px;
+            margin-top: 30px;
+          }
+          h2 {
+            color: #1e40af;
+            font-size: 18pt;
+            margin-top: 25px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 5px;
+          }
+          h3 {
+            color: #3b82f6;
+            font-size: 14pt;
+            margin-top: 20px;
+          }
+          h4 {
+            color: #60a5fa;
+            font-size: 12pt;
+            margin-top: 15px;
+          }
+          p {
+            margin: 10px 0;
+          }
+          ul, ol {
+            margin: 10px 0;
+            padding-left: 30px;
+          }
+          li {
+            margin: 5px 0;
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+          }
+          th, td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+          }
+          code {
+            background-color: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+          }
+          hr {
+            border: none;
+            border-top: 2px solid #e5e7eb;
+            margin: 30px 0;
+          }
+          blockquote {
+            border-left: 4px solid #3b82f6;
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #6b7280;
+          }
+          strong {
+            color: #1f2937;
+          }
+          @media print {
+            body {
+              font-size: 10pt;
+            }
+            h1 {
+              page-break-before: avoid;
+            }
+            h2, h3 {
+              page-break-after: avoid;
+            }
+          }
+        `
+      }
+    );
+    
+    console.log('✅ PDF generated successfully!');
+    console.log(`📄 Location: ${pdfPath}`);
+    console.log(`📏 File size: ${(pdf.content.length / 1024).toFixed(2)} KB`);
+    
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    process.exit(1);
+  }
+}
+
+generatePDF();
