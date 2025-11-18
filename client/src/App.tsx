@@ -14,6 +14,8 @@ import Survey from "@/pages/survey";
 import Report from "@/pages/report";
 import Organizations from "@/pages/organizations";
 import Surveys from "@/pages/surveys";
+import Quantum360 from "@/pages/quantum360";
+import Quantum360Start from "@/pages/quantum360-start";
 import { AuthProvider } from "@/lib/auth";
 
 function Router() {
@@ -29,6 +31,8 @@ function Router() {
       <Route path="/report/:reportId" component={Report} />
       <Route path="/organizations" component={Organizations} />
       <Route path="/surveys" component={Surveys} />
+      <Route path="/quantum360" component={Quantum360} />
+      <Route path="/quantum360/start" component={Quantum360Start} />
       <Route path="/reports" component={() => <div className="p-8"><h1 className="text-2xl font-bold">Reports</h1><p>Report management coming soon...</p></div>} />
       <Route path="/users" component={() => <div className="p-8"><h1 className="text-2xl font-bold">User Management</h1><p>User management coming soon...</p></div>} />
       <Route path="/compliance" component={() => <div className="p-8"><h1 className="text-2xl font-bold">GDPR Compliance</h1><p>Compliance tools coming soon...</p></div>} />

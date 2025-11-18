@@ -685,6 +685,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quantum 360 routes
+  app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
+    try {
+      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum"));
+      
+      if (!quantumSurvey) {
+        return res.status(404).json({ message: "Quantum survey not found" });
+      }
+
+      res.json(quantumSurvey);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Quantum survey" });
+    }
+  });
+
+  app.post("/api/quantum360/create-cycle", async (req: Request, res: Response) => {
+    try {
+      const { leaderName, leaderEmail, title } = req.body;
+      
+      // Get Quantum survey
+      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum"));
+      if (!quantumSurvey) {
+        return res.status(404).json({ message: "Quantum survey not found" });
+      }
+
+      // Use default leader user for Quantum surveys
+      const existingUser = await storage.getUserByUsername('leader');
+      if (!existingUser) {
+        return res.status(404).json({ message: "Default leader user not found" });
+      }
+
+      // Generate unique invite code
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Create survey cycle
+      const cycle = await storage.createSurveyCycle({
+        surveyId: quantumSurvey.id,
+        leaderId: existingUser.id,
+        organizationId: 1,
+        title: title || "Quantum Leadership Assessment",
+        status: 'active',
+        inviteCode: inviteCode,
+      });
+
+      res.status(201).json({ cycle, inviteCode });
+    } catch (error) {
+      console.error("Error creating Quantum cycle:", error);
+      res.status(500).json({ message: "Failed to create Quantum survey cycle" });
+    }
+  });
+
+  app.get("/api/quantum360/reports/:cycleId", async (req: Request, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.cycleId);
+      const [report] = await db.select().from(reports).where(eq(reports.cycleId, cycleId));
+      
+      if (!report) {
+        return res.status(404).json({ message: "Quantum report not found" });
+      }
+
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Quantum report" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
