@@ -258,18 +258,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create survey cycle
       const cycle = await storage.createSurveyCycle({
         surveyId: syncShiftSurvey.id,
-        leaderUserId: existingUser.id,
+        leaderId: existingUser.id,
         organizationId: 1, // Use default organization for personal surveys
         title: surveyData.title,
         status: 'active',
-        inviteCode: inviteCode,
-        leaderFirstName: surveyData.leaderName.split(' ')[0] || surveyData.leaderName,
-        leaderLastName: surveyData.leaderName.split(' ').slice(1).join(' ') || '',
-        leaderEmail: contactData.email,
-        leaderPosition: surveyData.leaderPosition || '',
-        customInstructions: surveyData.instructions || '',
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
       });
+      
+      // Update invite code after creation
+      await db.update(surveyCycles)
+        .set({ inviteCode })
+        .where(eq(surveyCycles.id, cycle.id));
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
@@ -726,8 +725,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: 1,
         title: title || "Quantum Leadership Assessment",
         status: 'active',
-        inviteCode: inviteCode,
       });
+      
+      // Update invite code after creation
+      await db.update(surveyCycles)
+        .set({ inviteCode })
+        .where(eq(surveyCycles.id, cycle.id));
 
       res.status(201).json({ cycle, inviteCode });
     } catch (error) {

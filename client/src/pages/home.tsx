@@ -67,6 +67,37 @@ export default function Home() {
             </CardContent>
           </Card>
 
+          {/* Quantum 360 */}
+          <Card className="bg-gradient-to-br from-orange-50 to-pink-50 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105 border-2 border-orange-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-gray-900">✨ Quantum Leadership 360</CardTitle>
+                <Badge className="bg-gradient-to-r from-orange-500 to-pink-600 text-white">New</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700">
+                Advanced leadership calibration across 10 competencies with 4 maturity levels (1-10 scale).
+              </p>
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-800">⚡ Quantum Features:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• 10 core leadership competencies</li>
+                  <li>• 4 maturity levels (Reactive → Quantum)</li>
+                  <li>• 9-box performance grid</li>
+                  <li>• Advanced analytics & insights</li>
+                </ul>
+              </div>
+              <div className="pt-4">
+                <Link href="/quantum360">
+                  <button className="w-full bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white py-3 px-6 font-semibold rounded-lg transition-colors">
+                    Explore Quantum 360
+                  </button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Admin Login */}
           <Card className="syncshift-card hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105">
             <CardHeader>
