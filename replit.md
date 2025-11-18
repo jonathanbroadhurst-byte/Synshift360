@@ -140,6 +140,58 @@ The platform includes a complete SyncShift 360 feedback survey based on the prov
 
 The survey maintains GDPR compliance with anonymous response collection and secure data handling throughout the feedback process.
 
+## Quantum Leadership Calibration 360 Integration
+
+The platform now supports a second complementary assessment tool: **Quantum Leadership Calibration 360**, running alongside SyncShift Personal on the same infrastructure.
+
+### Quantum 360 Features
+
+- **10 Core Leadership Competencies** measured on a 1-10 scale:
+  - Cognitive Agility
+  - Trust Intelligence
+  - Systems Awareness
+  - Adaptive Communication
+  - Emotional Regulation & Resilience
+  - Ethical Anchoring
+  - Coherence Leadership
+  - Change Navigation
+  - Creative Problem Solving & Innovation
+  - Human Energy Stewardship
+
+- **4 Maturity Levels** with score-based classification:
+  - **Reactive** (1-3): Responds to immediate challenges
+  - **Transitional** (4-6): Building new capabilities
+  - **Adaptive** (7-8): Proactive and flexible
+  - **Quantum** (9-10): Transformative and visionary
+
+- **30 Behavioral Questions**: 3 questions per competency, rated 1-10
+- **9-Box Performance Grid**: Plots leaders on Maturity × Deployment axes
+- **Advanced Scoring Engine**: TypeScript-based calculation of competency scores, maturity levels, deployment levels, and self-vs-others gaps
+
+### Technical Implementation
+
+**Database Schema Extensions:**
+- Added `surveyType` field to surveys table ('syncshift' | 'quantum')
+- Added `scaleMin` and `scaleMax` fields to support both 1-7 and 1-10 scales
+- Added `maturityCategories` JSONB field for Quantum's classification system
+- Both survey types use the same infrastructure (cycles, invitations, responses, reports)
+
+**Backend Components:**
+- `server/seed-quantum.ts`: Seed script for Quantum survey template
+- `server/quantum-scoring.ts`: Scoring engine with maturity/deployment calculations
+- Quantum-specific API routes: `/api/quantum360/*`
+
+**Frontend Pages:**
+- `/quantum360`: Landing page with orange→magenta→black radial gradient
+- `/quantum360/start`: Assessment creation form
+- Quantum survey accessible via standard survey flow with unique branding
+
+**Design System:**
+- Distinct Quantum branding: orange→magenta→black gradient theme
+- Space Grotesk font for headlines, Inter for body text
+- Premium scientific aesthetic differentiated from SyncShift's blue theme
+- Maturity level progression cards and 9-box grid visualizations
+
 ## Recent Changes (January 2025)
 
 - **Fixed invitation system**: Added proper error handling and logging for survey invitation creation
