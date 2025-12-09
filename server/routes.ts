@@ -270,10 +270,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
-      // Send email notification via SendGrid
+      // Send email notification via Resend (free tier)
       let emailSent = false;
       try {
-        const { sendSurveyConfirmationEmail } = await import('./sendgrid');
+        const { sendSurveyConfirmationEmail } = await import('./resend');
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
           : 'http://localhost:5000';
@@ -694,10 +694,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update invite code using storage method
       await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
-      // Send confirmation email via SendGrid
+      // Send confirmation email via Resend (free tier)
       let emailSent = false;
       try {
-        const { sendQuantumSurveyConfirmationEmail } = await import('./sendgrid');
+        const { sendQuantumSurveyConfirmationEmail } = await import('./resend');
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
           : 'http://localhost:5000';
