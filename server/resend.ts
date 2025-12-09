@@ -38,9 +38,14 @@ async function getCredentials() {
 
 async function getResendClient() {
   const { apiKey, fromEmail } = await getCredentials();
+  // Always use Resend's test address unless a verified domain is configured
+  // Custom domains need to be verified at https://resend.com/domains
+  const verifiedFrom = fromEmail && !fromEmail.includes('@me.com') && !fromEmail.includes('@example.com')
+    ? fromEmail 
+    : 'SyncShift360 <onboarding@resend.dev>';
   return {
     client: new Resend(apiKey),
-    fromEmail
+    fromEmail: verifiedFrom
   };
 }
 
@@ -57,7 +62,7 @@ export async function sendSurveyConfirmationEmail(
     const surveyLink = `${baseUrl}/survey/${surveyCode}`;
     
     const { error } = await client.emails.send({
-      from: fromEmail || 'SyncShift360 <noreply@resend.dev>',
+      from: fromEmail || 'SyncShift360 <onboarding@resend.dev>',
       to: toEmail,
       subject: `Your SyncShift Personal Survey is Ready - ${surveyTitle}`,
       html: `
@@ -133,7 +138,7 @@ export async function sendQuantumSurveyConfirmationEmail(
     const surveyLink = `${baseUrl}/survey/${surveyCode}`;
     
     const { error } = await client.emails.send({
-      from: fromEmail || 'SyncShift360 <noreply@resend.dev>',
+      from: fromEmail || 'SyncShift360 <onboarding@resend.dev>',
       to: toEmail,
       subject: `Your Quantum Leadership Assessment is Ready - ${surveyTitle}`,
       html: `
