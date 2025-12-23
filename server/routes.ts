@@ -541,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/survey-cycles/:id/progress", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.id);
       const cycle = await storage.getSurveyCycle(cycleId);
