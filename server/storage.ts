@@ -51,6 +51,29 @@ export interface IStorage {
   getDashboardStats(): Promise<any>;
   getRecentActivity(limit: number): Promise<AuditLog[]>;
 
+  // Progress tracking methods
+  getCycleProgress(cycleId: number): Promise<{
+    totalInvites: number;
+    completedInvites: number;
+    pendingInvites: number;
+    completionPercentage: number;
+    invitations: Array<{
+      id: number;
+      email: string;
+      status: string;
+      sentAt: Date | null;
+      completedAt: Date | null;
+    }>;
+  }>;
+  getActiveCyclesWithProgress(): Promise<Array<{
+    cycle: SurveyCycle;
+    leaderName: string;
+    surveyTitle: string;
+    totalInvites: number;
+    completedInvites: number;
+    completionPercentage: number;
+  }>>;
+
   // Audit methods
   logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
 }
@@ -231,6 +254,87 @@ export class DatabaseStorage implements IStorage {
       .values(insertAudit)
       .returning();
     return activity;
+  }
+
+  async getCycleProgress(cycleId: number): Promise<{
+    totalInvites: number;
+    completedInvites: number;
+    pendingInvites: number;
+    completionPercentage: number;
+    invitations: Array<{
+      id: number;
+      email: string;
+      status: string;
+      sentAt: Date | null;
+      completedAt: Date | null;
+    }>;
+  }> {
+    const invitations = await db.select().from(surveyInvitations)
+      .where(eq(surveyInvitations.cycleId, cycleId));
+    
+    const totalInvites = invitations.length;
+    const completedInvites = invitations.filter(inv => inv.status === 'completed').length;
+    const pendingInvites = totalInvites - completedInvites;
+    const completionPercentage = totalInvites > 0 ? Math.round((completedInvites / totalInvites) * 100) : 0;
+
+    return {
+      totalInvites,
+      completedInvites,
+      pendingInvites,
+      completionPercentage,
+      invitations: invitations.map(inv => ({
+        id: inv.id,
+        email: inv.email,
+        status: inv.status || 'pending',
+        sentAt: inv.sentAt,
+        completedAt: inv.completedAt
+      }))
+    };
+  }
+
+  async getActiveCyclesWithProgress(): Promise<Array<{
+    cycle: SurveyCycle;
+    leaderName: string;
+    surveyTitle: string;
+    totalInvites: number;
+    completedInvites: number;
+    completionPercentage: number;
+  }>> {
+    const cycles = await db.select().from(surveyCycles)
+      .where(eq(surveyCycles.status, 'active'));
+    
+    const results = await Promise.all(cycles.map(async (cycle) => {
+      const progress = await this.getCycleProgress(cycle.id);
+      
+      // Get leader name
+      let leaderName = 'Unknown';
+      if (cycle.leaderId) {
+        const leader = await this.getUser(cycle.leaderId);
+        if (leader) {
+          leaderName = `${leader.firstName} ${leader.lastName}`;
+        }
+      }
+      
+      // Get survey title
+      let surveyTitle = 'Unknown Survey';
+      if (cycle.surveyId) {
+        const [survey] = await db.select().from(surveys).where(eq(surveys.id, cycle.surveyId));
+        if (survey) {
+          surveyTitle = survey.title;
+        }
+      }
+      
+      return {
+        cycle,
+        leaderName,
+        surveyTitle,
+        totalInvites: progress.totalInvites,
+        completedInvites: progress.completedInvites,
+        completionPercentage: progress.completionPercentage
+      };
+    }));
+    
+    return results;
   }
 }
 

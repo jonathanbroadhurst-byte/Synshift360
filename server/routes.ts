@@ -530,6 +530,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Progress tracking routes
+  app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
+      res.json(cyclesWithProgress);
+    } catch (error) {
+      console.error('Failed to fetch cycles progress:', error);
+      res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
+  app.get("/api/survey-cycles/:id/progress", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.id);
+      const cycle = await storage.getSurveyCycle(cycleId);
+      
+      if (!cycle) {
+        return res.status(404).json({ message: "Survey cycle not found" });
+      }
+
+      const progress = await storage.getCycleProgress(cycleId);
+      
+      // Get leader info
+      let leaderName = 'Unknown';
+      if (cycle.leaderId) {
+        const leader = await storage.getUser(cycle.leaderId);
+        if (leader) {
+          leaderName = `${leader.firstName} ${leader.lastName}`;
+        }
+      }
+
+      res.json({
+        cycle,
+        leaderName,
+        ...progress
+      });
+    } catch (error) {
+      console.error('Failed to fetch cycle progress:', error);
+      res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
   // Report routes
   app.get("/api/reports/pending", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
