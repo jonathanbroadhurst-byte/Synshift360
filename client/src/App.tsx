@@ -9,6 +9,7 @@ import ContactForm from "@/pages/contact-form";
 import CreateSurvey from "@/pages/create-survey";
 import SurveyAccess from "@/pages/survey-access";
 import Dashboard from "@/pages/dashboard";
+import OwnerDashboard from "@/pages/owner-dashboard";
 import Login from "@/pages/login";
 import Survey from "@/pages/survey";
 import Report from "@/pages/report";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/admin" component={Dashboard} />
+      <Route path="/owner" component={OwnerDashboard} />
       <Route path="/login" component={Login} />
       <Route path="/report/:reportId" component={Report} />
       <Route path="/organizations" component={Organizations} />

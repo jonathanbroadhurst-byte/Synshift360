@@ -28,14 +28,27 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
-        <Link href="/">
+        {user?.role === 'owner' && (
+          <Link href="/owner">
+            <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+              isActive('/owner') 
+                ? 'bg-purple-100 text-purple-700 font-medium' 
+                : 'text-purple-600 hover:bg-purple-50'
+            }`}>
+              <i className="fas fa-crown w-5"></i>
+              <span>Owner Dashboard</span>
+            </span>
+          </Link>
+        )}
+
+        <Link href="/admin">
           <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/') 
+            isActive('/admin') 
               ? 'bg-primary/10 text-primary font-medium' 
               : 'text-gray-600 hover:bg-gray-100'
           }`}>
             <i className="fas fa-tachometer-alt w-5"></i>
-            <span>Dashboard</span>
+            <span>Admin Dashboard</span>
           </span>
         </Link>
         
@@ -107,7 +120,10 @@ export default function Sidebar() {
               {user ? `${user.firstName} ${user.lastName}` : 'User'}
             </p>
             <p className="text-xs text-gray-500">
-              {user?.role === 'admin' ? 'Administrator' : user?.role}
+              {user?.role === 'owner' ? 'Platform Owner' : 
+               user?.role === 'admin' ? 'Administrator' : 
+               user?.role === 'org_admin' ? 'Org Administrator' :
+               user?.role}
             </p>
           </div>
           <button 
