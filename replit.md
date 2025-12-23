@@ -110,15 +110,24 @@ The application is designed for scalable deployment with support for multiple or
 
 The system has been seeded with test data and accounts for immediate use:
 
-**Admin Account:**
+**Platform Owner Account:**
 - Email: admin@demo.com
 - Password: admin123
-- Role: Administrator (full access to all features)
+- Role: Owner (platform-wide access, can view all organizations, usage metrics, and assign org admins)
 
 **Leader Account:**
 - Email: leader@demo.com  
 - Password: leader123
 - Role: Leader (can create surveys and view own reports)
+
+## Role Hierarchy
+
+The platform supports a multi-tenant role system:
+- **Owner**: Platform owner with visibility across ALL organizations. Can view usage/billing data, assign org admins, and access all admin features.
+- **Admin**: Full administrative access within the platform
+- **Org Admin**: Can manage surveys for their specific organization only
+- **Leader**: Can create and manage their own surveys
+- **Participant**: Can complete surveys they are invited to
 
 ## SyncShift 360 Survey Integration
 
