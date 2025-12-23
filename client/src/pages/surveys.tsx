@@ -24,7 +24,7 @@ export default function Surveys() {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [endDate, setEndDate] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
-  const [participantData, setParticipantData] = useState<Array<{name: string, jobTitle: string, email: string}>>([]);
+  const [participantData, setParticipantData] = useState<Array<{name: string, jobTitle: string, department: string, email: string, relationship: string}>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -62,18 +62,13 @@ export default function Surveys() {
       setParticipantData([]);
 
       // Send invitations from either manual emails or spreadsheet data
-      const emailsToSend = [];
-      
-      if (inviteEmails.trim()) {
-        emailsToSend.push(...inviteEmails.split(',').map(email => email.trim()).filter(email => email));
-      }
-      
       if (participantData.length > 0) {
-        emailsToSend.push(...participantData.map(p => p.email).filter(email => email));
-      }
-
-      if (emailsToSend.length > 0) {
-        await createInvitations(data.cycle.id, emailsToSend);
+        // Use full participant data from spreadsheet
+        await createInvitationsWithDetails(data.cycle.id, participantData);
+      } else if (inviteEmails.trim()) {
+        // Use manual email entry (emails only)
+        const emails = inviteEmails.split(',').map(email => email.trim()).filter(email => email);
+        await createInvitations(data.cycle.id, emails);
       }
       setInviteEmails('');
       
@@ -115,6 +110,30 @@ export default function Surveys() {
     }
   };
 
+  const createInvitationsWithDetails = async (cycleId: number, participants: Array<{name: string, jobTitle: string, department: string, email: string, relationship: string}>) => {
+    try {
+      console.log('Creating invitations with details:', { cycleId, participantCount: participants.length });
+      const response = await apiRequest('POST', '/api/survey-invitations/bulk', {
+        cycleId,
+        participants,
+      });
+      const result = await response.json();
+      console.log('Bulk invitation result:', result);
+      
+      toast({
+        title: "Invitations created",
+        description: `${participants.length} invitation links generated with full participant details.`,
+      });
+    } catch (error) {
+      console.error('Failed to create bulk invitations:', error);
+      toast({
+        title: "Invitation error",
+        description: "Failed to create invitation links. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -127,8 +146,10 @@ export default function Surveys() {
             .filter((row: any) => row.email && row.email.trim())
             .map((row: any) => ({
               name: row.name || row.Name || row.NAME || '',
-              jobTitle: row.jobTitle || row['Job Title'] || row.position || row.Position || row.POSITION || '',
-              email: row.email || row.Email || row.EMAIL || ''
+              jobTitle: row.jobTitle || row['Job Title'] || row.job_title || row.position || row.Position || row.POSITION || '',
+              department: row.department || row.Department || row.DEPARTMENT || row.dept || row.Dept || '',
+              email: row.email || row.Email || row.EMAIL || '',
+              relationship: row.relationship || row.Relationship || row.RELATIONSHIP || row.type || row.Type || 'Peer'
             }));
           
           setParticipantData(participants);
@@ -157,7 +178,11 @@ export default function Surveys() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "name,jobTitle,email\nJohn Doe,Software Engineer,john@company.com\nJane Smith,Product Manager,jane@company.com";
+    const csvContent = `name,jobTitle,department,email,relationship
+John Doe,Software Engineer,Engineering,john@company.com,Peer
+Jane Smith,Product Manager,Product,jane@company.com,Manager
+Alex Johnson,Team Lead,Engineering,alex@company.com,Direct Report
+Sarah Wilson,VP Operations,Operations,sarah@company.com,Manager`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -435,7 +460,7 @@ export default function Surveys() {
                             </Button>
                           </div>
                           <p className="text-xs text-gray-500 mt-2">
-                            CSV with columns: name, jobTitle, email
+                            CSV columns: name, jobTitle, department, email, relationship
                           </p>
                         </div>
                         <input
@@ -453,15 +478,19 @@ export default function Surveys() {
                           <p className="text-sm font-medium text-green-800 mb-2">
                             {participantData.length} participants loaded from spreadsheet
                           </p>
-                          <div className="max-h-32 overflow-y-auto">
+                          <div className="max-h-40 overflow-y-auto">
                             {participantData.slice(0, 5).map((participant, index) => (
-                              <div key={index} className="text-xs text-green-700">
-                                {participant.name} ({participant.jobTitle}) - {participant.email}
+                              <div key={index} className="text-xs text-green-700 py-1 border-b border-green-100 last:border-0">
+                                <div className="font-medium">{participant.name}</div>
+                                <div className="text-green-600">
+                                  {participant.jobTitle}{participant.department && ` • ${participant.department}`} • {participant.relationship || 'Peer'}
+                                </div>
+                                <div className="text-green-500">{participant.email}</div>
                               </div>
                             ))}
                             {participantData.length > 5 && (
-                              <div className="text-xs text-green-600 mt-1">
-                                ... and {participantData.length - 5} more
+                              <div className="text-xs text-green-600 mt-2 font-medium">
+                                + {participantData.length - 5} more participants
                               </div>
                             )}
                           </div>

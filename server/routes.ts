@@ -491,6 +491,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk survey invitations with full participant details (from spreadsheet upload)
+  app.post("/api/survey-invitations/bulk", authenticateToken, requireRole(['admin', 'org_admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      console.log('Bulk survey invitation request:', req.body);
+      
+      const { cycleId, participants } = req.body;
+      
+      if (!cycleId) {
+        return res.status(400).json({ message: "Missing cycle ID" });
+      }
+
+      if (!participants || !Array.isArray(participants) || participants.length === 0) {
+        return res.status(400).json({ message: "No participants provided" });
+      }
+
+      const invitations = [];
+      
+      for (const participant of participants) {
+        if (!participant.email || !participant.email.trim()) continue;
+        
+        const invitationData = {
+          cycleId: parseInt(cycleId),
+          email: participant.email.trim(),
+          participantName: participant.name || null,
+          jobTitle: participant.jobTitle || null,
+          department: participant.department || null,
+          relationship: participant.relationship || 'Peer',
+          status: 'pending'
+        };
+        
+        console.log('Creating bulk invitation for:', invitationData);
+        const invitation = await storage.createSurveyInvitation(invitationData);
+        invitations.push(invitation);
+
+        await storage.logActivity({
+          userId: req.user!.id,
+          action: "send_invitation",
+          resourceType: "survey_invitation",
+          resourceId: invitation.id,
+          details: { 
+            email: invitation.email,
+            participantName: participant.name,
+            department: participant.department,
+            relationship: participant.relationship
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        });
+      }
+
+      // Update cycle stats
+      await storage.updateSurveyCycleStats(parseInt(cycleId));
+
+      console.log(`Created ${invitations.length} bulk invitations`);
+      res.status(201).json({ 
+        message: `${invitations.length} invitations created with participant details`,
+        invitations: invitations 
+      });
+    } catch (error: any) {
+      console.error('Bulk survey invitation creation error:', error);
+      res.status(400).json({ message: "Failed to create bulk invitations", details: error.message });
+    }
+  });
+
   app.get("/api/survey-invitations/:token", async (req: Request, res: Response) => {
     try {
       const { token } = req.params;

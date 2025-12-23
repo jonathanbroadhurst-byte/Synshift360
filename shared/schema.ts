@@ -66,6 +66,10 @@ export const surveyInvitations = pgTable("survey_invitations", {
   id: serial("id").primaryKey(),
   cycleId: integer("cycle_id").references(() => surveyCycles.id),
   email: text("email").notNull(),
+  participantName: text("participant_name"),
+  jobTitle: text("job_title"),
+  department: text("department"),
+  relationship: text("relationship"), // 'Self', 'Manager', 'Peer', 'Direct Report'
   inviteToken: text("invite_token"),
   status: text("status").default("pending"), // 'pending', 'completed', 'expired'
   sentAt: timestamp("sent_at").defaultNow(),
