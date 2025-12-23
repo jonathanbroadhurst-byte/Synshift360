@@ -71,8 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', data.token);
     setUser(data.user);
     
-    // Use window.location for reliable navigation after login
-    window.location.href = '/admin';
+    // Redirect based on user role
+    const userRole = data.user?.role;
+    if (userRole === 'owner') {
+      window.location.href = '/owner';
+    } else if (userRole === 'admin' || userRole === 'org_admin') {
+      window.location.href = '/admin';
+    } else {
+      window.location.href = '/admin';
+    }
   };
 
   const logout = () => {
