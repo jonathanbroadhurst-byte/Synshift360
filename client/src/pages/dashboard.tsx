@@ -5,6 +5,7 @@ import StatsGrid from '@/components/stats/stats-grid';
 import RecentActivity from '@/components/activity/recent-activity';
 import ReportsTable from '@/components/tables/reports-table';
 import ReportPreviewModal from '@/components/modals/report-preview-modal';
+import SurveyProgress from '@/components/progress/survey-progress';
 import { useState } from 'react';
 
 export default function Dashboard() {
@@ -32,6 +33,8 @@ export default function Dashboard() {
           <div className="flex-1 p-8 space-y-8">
             <StatsGrid />
             
+            <SurveyProgress />
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
                 <RecentActivity />
