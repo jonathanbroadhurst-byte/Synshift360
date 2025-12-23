@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import path from "path";
+import fs from "fs";
 import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertSurveyCycleSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, type User, users, surveys, organizations, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -60,6 +62,22 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Download participant guide
+  app.get("/api/download/participant-guide", (req: Request, res: Response) => {
+    const filePath = path.join(process.cwd(), 'Survey_Participant_Guide.docx');
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Guide not found" });
+    }
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename="Survey_Participant_Guide.docx"');
+    res.setHeader('Content-Length', fs.statSync(filePath).size);
+    
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  });
+
   // Authentication routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
