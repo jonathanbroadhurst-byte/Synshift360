@@ -76,6 +76,18 @@ export interface IStorage {
 
   // Audit methods
   logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
+
+  // Owner/Organization management methods
+  getAllOrganizationsWithUsage(): Promise<Array<{
+    organization: Organization;
+    activeSurveys: number;
+    totalParticipants: number;
+    completedResponses: number;
+    pendingResponses: number;
+  }>>;
+  getOrganizationAdmins(orgId: number): Promise<User[]>;
+  updateUserRole(userId: number, role: string): Promise<void>;
+  getAllUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -335,6 +347,66 @@ export class DatabaseStorage implements IStorage {
     }));
     
     return results;
+  }
+
+  async getAllOrganizationsWithUsage(): Promise<Array<{
+    organization: Organization;
+    activeSurveys: number;
+    totalParticipants: number;
+    completedResponses: number;
+    pendingResponses: number;
+  }>> {
+    const orgs = await db.select().from(organizations);
+    
+    const results = await Promise.all(orgs.map(async (org) => {
+      // Get active survey cycles for this organization
+      const cycles = await db.select().from(surveyCycles)
+        .where(eq(surveyCycles.organizationId, org.id));
+      
+      const activeCycles = cycles.filter(c => c.status === 'active');
+      
+      // Get all invitations for organization's cycles
+      let totalParticipants = 0;
+      let completedResponses = 0;
+      let pendingResponses = 0;
+      
+      for (const cycle of cycles) {
+        const invitations = await db.select().from(surveyInvitations)
+          .where(eq(surveyInvitations.cycleId, cycle.id));
+        
+        totalParticipants += invitations.length;
+        completedResponses += invitations.filter(inv => inv.status === 'completed').length;
+        pendingResponses += invitations.filter(inv => inv.status === 'pending').length;
+      }
+      
+      return {
+        organization: org,
+        activeSurveys: activeCycles.length,
+        totalParticipants,
+        completedResponses,
+        pendingResponses
+      };
+    }));
+    
+    return results;
+  }
+
+  async getOrganizationAdmins(orgId: number): Promise<User[]> {
+    return await db.select().from(users)
+      .where(and(
+        eq(users.organizationId, orgId),
+        eq(users.role, 'org_admin')
+      ));
+  }
+
+  async updateUserRole(userId: number, role: string): Promise<void> {
+    await db.update(users)
+      .set({ role })
+      .where(eq(users.id, userId));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
   }
 }
 

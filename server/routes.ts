@@ -41,10 +41,29 @@ const authenticateToken = async (req: AuthenticatedRequest, res: Response, next:
 };
 
 // Middleware for role-based access
+// Role hierarchy: owner > admin/org_admin > leader > participant
+// 'owner' role has access to everything
 const requireRole = (roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
       return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+    // Owner role has access to all routes
+    if (req.user.role === 'owner') {
+      return next();
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+    next();
+  };
+};
+
+// Middleware for owner-only routes
+const requireOwner = () => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user || req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Owner access required' });
     }
     next();
   };
@@ -793,6 +812,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(report);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch Quantum report" });
+    }
+  });
+
+  // ============================================
+  // OWNER DASHBOARD ROUTES
+  // ============================================
+
+  // Get all organizations with usage metrics (for billing)
+  app.get("/api/owner/organizations/usage", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
+      res.json(orgsWithUsage);
+    } catch (error) {
+      console.error('Failed to fetch organization usage:', error);
+      res.status(500).json({ message: "Failed to fetch organization usage" });
+    }
+  });
+
+  // Get all users (for owner to manage)
+  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      // Don't return passwords
+      const sanitizedUsers = allUsers.map(({ password, ...user }) => user);
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Update user role (assign org_admin, admin, etc.)
+  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { role } = req.body;
+
+      const validRoles = ['owner', 'admin', 'org_admin', 'leader', 'participant'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.updateUserRole(userId, role);
+
+      await storage.logActivity({
+        userId: req.user!.id,
+        action: "update_user_role",
+        resourceType: "user",
+        resourceId: userId,
+        details: { newRole: role, previousRole: user.role },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json({ message: "User role updated successfully" });
+    } catch (error) {
+      console.error('Failed to update user role:', error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // Get organization admins
+  app.get("/api/owner/organizations/:orgId/admins", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const admins = await storage.getOrganizationAdmins(orgId);
+      const sanitizedAdmins = admins.map(({ password, ...user }) => user);
+      res.json(sanitizedAdmins);
+    } catch (error) {
+      console.error('Failed to fetch organization admins:', error);
+      res.status(500).json({ message: "Failed to fetch organization admins" });
     }
   });
 
