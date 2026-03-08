@@ -15,6 +15,8 @@ def report(leader_id):
     # TODO: Fetch from database
     results = calculate_scores(leader_id)
     return jsonify(results)
-
+import os
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=3000)
+    # Use the PORT provided by Koyeb, or default to 8000
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host='0.0.0.0', port=port)
