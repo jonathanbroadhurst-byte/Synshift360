@@ -307,25 +307,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
       
-      // Send email notification via Resend (free tier)
       let emailSent = false;
       try {
-        const { sendSurveyConfirmationEmail } = await import('./resend');
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
-          : 'http://localhost:5000';
+          : process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
         
-        emailSent = await sendSurveyConfirmationEmail(
-          contactData.email,
-          contactData.firstName,
-          surveyData.title,
-          surveyData.leaderName,
-          inviteCode,
-          baseUrl
-        );
+        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+          const { sendSurveyConfirmationEmail } = await import('./mailjet');
+          emailSent = await sendSurveyConfirmationEmail(
+            contactData.email, contactData.firstName, surveyData.title,
+            surveyData.leaderName, inviteCode, baseUrl
+          );
+        } else {
+          const { sendSurveyConfirmationEmail } = await import('./resend');
+          emailSent = await sendSurveyConfirmationEmail(
+            contactData.email, contactData.firstName, surveyData.title,
+            surveyData.leaderName, inviteCode, baseUrl
+          );
+        }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
-        // Don't fail the whole request if email fails
       }
       
       res.status(201).json({ 
@@ -837,22 +839,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update invite code using storage method
       await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
-      // Send confirmation email via Resend (free tier)
       let emailSent = false;
       try {
-        const { sendQuantumSurveyConfirmationEmail } = await import('./resend');
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
-          : 'http://localhost:5000';
+          : process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
         
-        emailSent = await sendQuantumSurveyConfirmationEmail(
-          leaderEmail,
-          firstName,
-          title || "Quantum Leadership Assessment",
-          leaderName,
-          inviteCode,
-          baseUrl
-        );
+        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+          const { sendQuantumSurveyConfirmationEmail } = await import('./mailjet');
+          emailSent = await sendQuantumSurveyConfirmationEmail(
+            leaderEmail, firstName, title || "Quantum Leadership Assessment",
+            leaderName, inviteCode, baseUrl
+          );
+        } else {
+          const { sendQuantumSurveyConfirmationEmail } = await import('./resend');
+          emailSent = await sendQuantumSurveyConfirmationEmail(
+            leaderEmail, firstName, title || "Quantum Leadership Assessment",
+            leaderName, inviteCode, baseUrl
+          );
+        }
       } catch (emailError) {
         console.error('Failed to send Quantum confirmation email:', emailError);
       }
