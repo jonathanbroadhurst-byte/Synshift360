@@ -276,27 +276,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { contactData, surveyData } = req.body;
       console.log('Creating personal survey:', { contactData, surveyData });
 
-      // Use the default organization for personal surveys
       const organizations = await storage.getOrganizations();
-      const organization = organizations[0]; // Use the first/default organization
+      const organization = organizations[0];
 
-      // Use the existing leader user from database
-      const existingUser = await storage.getUserByUsername('leader');
-      if (!existingUser) {
-        return res.status(404).json({ message: "Default leader user not found" });
+      const leaderName = surveyData.leaderName || 'Unknown Leader';
+      const leaderPosition = surveyData.leaderPosition || '';
+      const nameParts = leaderName.trim().split(/\s+/);
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const leaderUsername = leaderName.toLowerCase().replace(/\s+/g, '.') + '.' + Date.now();
+      const leaderEmail = contactData.email;
+
+      let leaderUser = await storage.getUserByEmail(leaderEmail);
+      if (!leaderUser) {
+        const bcrypt = await import('bcrypt');
+        const tempPassword = await bcrypt.default.hash(Math.random().toString(36), 10);
+        leaderUser = await storage.createUser({
+          email: leaderEmail,
+          username: leaderUsername,
+          firstName,
+          lastName,
+          password: tempPassword,
+          role: 'leader',
+          organizationId: organization.id,
+          position: leaderPosition,
+        });
       }
 
-      // Use the hardcoded SyncShift survey ID for personal surveys
-      const syncShiftSurvey = { id: 1, title: "SyncShift 360 Feedback" };
+      const allSurveys = await storage.getSurveysByOrganization(organization.id);
+      const syncShiftSurvey = allSurveys.find(s => s.surveyType === 'syncshift' || !s.surveyType) || allSurveys[0];
+      if (!syncShiftSurvey) {
+        return res.status(404).json({ message: "SyncShift survey template not found" });
+      }
 
-      // Generate unique invite code as simple text
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // Create survey cycle
       const cycle = await storage.createSurveyCycle({
         surveyId: syncShiftSurvey.id,
-        leaderId: existingUser.id,
-        organizationId: 1, // Use default organization for personal surveys
+        leaderId: leaderUser.id,
+        organizationId: organization.id,
         title: surveyData.title,
         status: 'active',
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
