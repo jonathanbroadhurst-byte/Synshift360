@@ -1,0 +1,100 @@
+Timer: Restorer ran for 2.90844358s and ended at 2026-03-12T10:05:10Z
+Timer: Builder started at 2026-03-12T10:05:12Z
+
+[1;35m## Heroku Node.js Engine[0m
+
+- Checking Node.js version
+  - Node.js version not specified, using `[0;33m22.x[0m`
+  - Resolved Node.js version: `[0;33m22.15.1[0m`
+- Installing Node.js distribution
+  - Reusing Node.js 22.15.1 (linux-amd64)
+- Done (finished in < 0.1s)
+
+[1;35m## Heroku Node.js npm Install[0m
+
+- Installing node modules
+  - Using npm version `[0;33m10.9.2[0m`
+  - Restoring npm cache
+  - Configuring npm cache directory
+  - Running `[0;33m[1;36mnpm ci "--production=false"[0m`
+
+      npm warn config production Use `--omit=dev` instead.
+      npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+      npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+      added 753 packages, and audited 754 packages in 11s
+
+      88 packages are looking for funding
+        run `npm fund` for details
+
+      24 vulnerabilities (5 low, 9 moderate, 7 high, 3 critical)
+
+      To address issues that do not require attention, run:
+        npm audit fix
+
+      To address all issues (including breaking changes), run:
+        npm audit fix --force
+
+      Run `npm audit` for details.
+
+  - Done (11.2s)
+- Running scripts
+  - Running `[0;33m[1;36mnpm run build[0m`
+
+
+      > rest-express@1.0.0 build
+      > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+      vite v5.4.19 building for production...
+      transforming...
+      Browserslist: browsers data (caniuse-lite) is 17 months old. Please run:
+        npx update-browserslist-db@latest
+        Why you should do it regularly: https://github.com/browserslist/update-db#readme
+      ✓ 2538 modules transformed.
+      rendering chunks...
+      computing gzip size...
+      ../dist/public/index.html                   0.63 kB │ gzip:   0.38 kB
+      ../dist/public/assets/index-CbCY4Q2D.css   78.03 kB │ gzip:  13.23 kB
+      ../dist/public/assets/index-CItPfA1V.js   869.80 kB │ gzip: 249.17 kB
+
+      (!) Some chunks are larger than 500 kB after minification. Consider:
+      - Using dynamic import() to code-split the application
+      - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+      - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+      ✓ built in 3.86s
+
+        dist/index.js  75.3kb
+
+      ⚡ Done in 4ms
+
+  - Done (4.1s)
+- Configuring default processes
+  - Adding default web process for `[0;33mnpm start[0m`
+- Done (finished in 15.5s)
+Timer: Builder ran for 15.531722111s and ended at 2026-03-12T10:05:27Z
+Reusing layers from image 'registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e@sha256:5099ae66beda9b3966042afc807ea4b51029b68e0e2eabf05d4a07574a07b6d2'
+Timer: Exporter started at 2026-03-12T10:05:31Z
+Reusing layer 'heroku/nodejs-engine:available_parallelism'
+Reusing layer 'heroku/nodejs-engine:dist'
+Reusing layer 'heroku/nodejs-engine:web_env'
+Reusing layer 'heroku/nodejs-npm-install:npm_runtime_config'
+Reusing layer 'buildpacksio/lifecycle:launch.sbom'
+Adding 1/1 app layer(s)
+Reusing layer 'buildpacksio/lifecycle:launcher'
+Reusing layer 'buildpacksio/lifecycle:config'
+Reusing layer 'buildpacksio/lifecycle:process-types'
+Adding label 'io.buildpacks.lifecycle.metadata'
+Adding label 'io.buildpacks.build.metadata'
+Adding label 'io.buildpacks.project.metadata'
+Setting default process type 'web'
+Timer: Saving registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:latest... started at 2026-03-12T10:05:36Z
+*** Images (sha256:9787280f39a475ff9fe36073eeb0ca6e35f6d6d9be64285cb509309d3647566e):
+      registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:latest
+      registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:4864d987-38f9-4c9f-aec1-8f9a1684abc3
+Timer: Saving registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:latest... ran for 11.25361386s and ended at 2026-03-12T10:05:47Z
+Timer: Exporter ran for 16.796302658s and ended at 2026-03-12T10:05:47Z
+Timer: Cache started at 2026-03-12T10:05:47Z
+Reusing cache layer 'heroku/nodejs-engine:dist'
+Adding cache layer 'heroku/nodejs-npm-install:npm_cache'
+Timer: Cache ran for 8.724853174s and ended at 2026-03-12T10:05:56Z
+Build succeeded ✅
