@@ -10,6 +10,26 @@ import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertS
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import * as mailjetEmail from "./mailjet";
+import * as resendEmail from "./resend";
+
+async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
+  if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+    console.log('Sending survey email via Mailjet to:', toEmail);
+    return mailjetEmail.sendSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
+  }
+  console.log('Sending survey email via Resend to:', toEmail);
+  return resendEmail.sendSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
+}
+
+async function sendQuantumEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
+  if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+    console.log('Sending Quantum email via Mailjet to:', toEmail);
+    return mailjetEmail.sendQuantumSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
+  }
+  console.log('Sending Quantum email via Resend to:', toEmail);
+  return resendEmail.sendQuantumSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -330,20 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
           : process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
-        
-        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-          const { sendSurveyConfirmationEmail } = await import('./mailjet');
-          emailSent = await sendSurveyConfirmationEmail(
-            contactData.email, contactData.firstName, surveyData.title,
-            surveyData.leaderName, inviteCode, baseUrl
-          );
-        } else {
-          const { sendSurveyConfirmationEmail } = await import('./resend');
-          emailSent = await sendSurveyConfirmationEmail(
-            contactData.email, contactData.firstName, surveyData.title,
-            surveyData.leaderName, inviteCode, baseUrl
-          );
-        }
+        emailSent = await sendSurveyEmail(contactData.email, contactData.firstName, surveyData.title, surveyData.leaderName, inviteCode, baseUrl);
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
       }
@@ -862,20 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
           ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`
           : process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
-        
-        if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-          const { sendQuantumSurveyConfirmationEmail } = await import('./mailjet');
-          emailSent = await sendQuantumSurveyConfirmationEmail(
-            leaderEmail, firstName, title || "Quantum Leadership Assessment",
-            leaderName, inviteCode, baseUrl
-          );
-        } else {
-          const { sendQuantumSurveyConfirmationEmail } = await import('./resend');
-          emailSent = await sendQuantumSurveyConfirmationEmail(
-            leaderEmail, firstName, title || "Quantum Leadership Assessment",
-            leaderName, inviteCode, baseUrl
-          );
-        }
+        emailSent = await sendQuantumEmail(leaderEmail, firstName, title || "Quantum Leadership Assessment", leaderName, inviteCode, baseUrl);
       } catch (emailError) {
         console.error('Failed to send Quantum confirmation email:', emailError);
       }
