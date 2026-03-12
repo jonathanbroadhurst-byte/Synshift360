@@ -84,6 +84,9 @@ export const surveyResponses = pgTable("survey_responses", {
   invitationId: integer("invitation_id").references(() => surveyInvitations.id),
   responses: jsonb("responses").notNull(), // Array of response objects
   responseHash: text("response_hash").notNull(), // For anonymization
+  respondentName: text("respondent_name"), // Optional: participant's name
+  respondentEmail: text("respondent_email"), // Optional: participant's email
+  respondentRelationship: text("respondent_relationship"), // e.g. Manager, Peer, Direct Report
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 

@@ -604,9 +604,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Survey response routes
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
-      const { inviteCode, responses } = req.body;
+      const { inviteCode, responses, respondentName, respondentEmail, respondentRelationship } = req.body;
       
-      console.log('Survey response submission:', { inviteCode, responseCount: responses?.length });
+      console.log('Survey response submission:', { inviteCode, responseCount: responses?.length, respondentName });
       
       // Get survey cycle by invite code
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
@@ -624,9 +624,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const response = await storage.createSurveyResponse({
         cycleId: cycle.id,
-        invitationId: null, // Anonymous response, no specific invitation
+        invitationId: null,
         responses,
         responseHash,
+        respondentName: respondentName || null,
+        respondentEmail: respondentEmail || null,
+        respondentRelationship: respondentRelationship || null,
       });
 
       // Update cycle stats
@@ -648,6 +651,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Failed to fetch cycles progress:', error);
       res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
+  app.get("/api/survey-cycles/:id/respondents", authenticateToken, requireRole(['admin', 'org_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.id);
+      const respondents = await db
+        .select({
+          id: surveyResponses.id,
+          respondentName: surveyResponses.respondentName,
+          respondentEmail: surveyResponses.respondentEmail,
+          respondentRelationship: surveyResponses.respondentRelationship,
+          submittedAt: surveyResponses.submittedAt,
+        })
+        .from(surveyResponses)
+        .where(eq(surveyResponses.cycleId, cycleId))
+        .orderBy(surveyResponses.submittedAt);
+      res.json(respondents);
+    } catch (error) {
+      console.error('Failed to fetch respondents:', error);
+      res.status(500).json({ message: "Failed to fetch respondents" });
     }
   });
 

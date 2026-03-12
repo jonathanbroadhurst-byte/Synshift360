@@ -6,15 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Survey() {
   const { inviteCode } = useParams();
+  const [step, setStep] = useState<'details' | 'survey' | 'submitted'>('details');
+  const [respondentName, setRespondentName] = useState('');
+  const [respondentEmail, setRespondentEmail] = useState('');
+  const [respondentRelationship, setRespondentRelationship] = useState('');
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Fetch survey data including leader info
   const { data: surveyData, isLoading } = useQuery({
     queryKey: ['/api/survey-cycles', inviteCode],
     queryFn: async () => {
@@ -25,131 +29,84 @@ export default function Survey() {
     enabled: !!inviteCode,
   });
 
-
-
-  // Flatten Quantum questions or use survey questions directly
   const flattenQuestions = (surveyQuestions: any) => {
-    if (!surveyQuestions || surveyQuestions.length === 0) {
-      return null;
-    }
-    
-    // Check if it's Quantum format (nested competencies)
+    if (!surveyQuestions || surveyQuestions.length === 0) return null;
     if (surveyQuestions[0]?.competency && surveyQuestions[0]?.questions) {
       const flattened: any[] = [];
       surveyQuestions.forEach((comp: any) => {
         comp.questions.forEach((q: any) => {
-          flattened.push({
-            id: q.id,
-            type: q.type,
-            question: q.text,
-            scale: q.scaleMax || 10,
-            category: comp.competency
-          });
+          flattened.push({ id: q.id, type: q.type, question: q.text, scale: q.scaleMax || 10, category: comp.competency });
         });
       });
       return flattened;
     }
-    
-    // Standard flat format (SyncShift)
     return surveyQuestions.map((q: any) => ({
-      id: q.id,
-      type: q.type,
-      question: q.text || q.question,
-      scale: q.scaleMax || q.scale?.max || 7,
-      category: q.category
+      id: q.id, type: q.type, question: q.text || q.question, scale: q.scaleMax || q.scale?.max || 7, category: q.category
     }));
   };
 
   const questions = flattenQuestions(surveyData?.surveyQuestions) || [
-    // SyncShift 360 Rating Questions (26 questions)
     { id: '1', type: 'rating', question: 'Communicates a clear vision and direction for the team/organization', scale: 7, category: 'Leadership' },
     { id: '2', type: 'rating', question: 'Makes sense of complex situations and provides clarity', scale: 7, category: 'Leadership' },
     { id: '3', type: 'rating', question: 'Demonstrates strategic thinking and planning', scale: 7, category: 'Leadership' },
     { id: '4', type: 'rating', question: 'Inspires confidence and trust in their leadership', scale: 7, category: 'Leadership' },
     { id: '5', type: 'rating', question: 'Effectively leads through change and uncertainty', scale: 7, category: 'Leadership' },
-    
     { id: '6', type: 'rating', question: 'Builds and maintains effective systems and processes', scale: 7, category: 'Infrastructure' },
     { id: '7', type: 'rating', question: 'Ensures consistent delivery of results', scale: 7, category: 'Infrastructure' },
     { id: '8', type: 'rating', question: 'Creates structure that enables team effectiveness', scale: 7, category: 'Infrastructure' },
     { id: '9', type: 'rating', question: 'Manages resources and priorities effectively', scale: 7, category: 'Infrastructure' },
-    
     { id: '10', type: 'rating', question: 'Demonstrates authentic leadership style', scale: 7, category: 'Motives' },
     { id: '11', type: 'rating', question: 'Shows genuine care for team members and stakeholders', scale: 7, category: 'Motives' },
     { id: '12', type: 'rating', question: 'Acts with integrity and ethical principles', scale: 7, category: 'Motives' },
     { id: '13', type: 'rating', question: 'Drives purpose and meaning in work', scale: 7, category: 'Motives' },
-    
     { id: '14', type: 'rating', question: 'Demonstrates relevant technical/functional expertise', scale: 7, category: 'Capabilities' },
     { id: '15', type: 'rating', question: 'Adapts quickly to new situations and challenges', scale: 7, category: 'Capabilities' },
     { id: '16', type: 'rating', question: 'Continuously learns and develops new skills', scale: 7, category: 'Capabilities' },
     { id: '17', type: 'rating', question: 'Applies sound judgment in decision-making', scale: 7, category: 'Capabilities' },
-    
     { id: '18', type: 'rating', question: 'Builds strong, collaborative relationships', scale: 7, category: 'Culture' },
     { id: '19', type: 'rating', question: 'Creates an inclusive and psychologically safe environment', scale: 7, category: 'Culture' },
     { id: '20', type: 'rating', question: 'Develops and mentors team members effectively', scale: 7, category: 'Culture' },
     { id: '21', type: 'rating', question: 'Promotes positive team dynamics and culture', scale: 7, category: 'Culture' },
-    
     { id: '22', type: 'rating', question: 'Has a strong professional reputation', scale: 7, category: 'Personal Brand' },
     { id: '23', type: 'rating', question: 'Communicates effectively across all levels', scale: 7, category: 'Personal Brand' },
     { id: '24', type: 'rating', question: 'Creates positive impact and influence', scale: 7, category: 'Personal Brand' },
-    
     { id: '25', type: 'rating', question: 'Aligns actions with organizational goals and values', scale: 7, category: 'Alignment' },
     { id: '26', type: 'rating', question: 'Delivers outcomes that meet stakeholder expectations', scale: 7, category: 'Alignment' },
-    
-    // Open Text Questions (3 questions)
-    { id: '27', type: 'text', question: 'What are this leader\'s greatest strengths?' },
+    { id: '27', type: 'text', question: "What are this leader's greatest strengths?" },
     { id: '28', type: 'text', question: 'What are some small shifts this leader could make to create better alignment with team/organizational goals?' },
     { id: '29', type: 'text', question: 'Any additional feedback or comments?' }
   ];
 
-
-
   const handleRatingChange = (questionId: string, value: number) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: { type: 'rating', value }
-    }));
+    setResponses(prev => ({ ...prev, [questionId]: { type: 'rating', value } }));
   };
 
   const handleTextChange = (questionId: string, value: string) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: { type: 'text', value }
-    }));
+    setResponses(prev => ({ ...prev, [questionId]: { type: 'text', value } }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
       const response = await fetch('/api/survey-responses', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inviteCode: inviteCode,
-          responses: Object.entries(responses).map(([questionId, answer]) => ({
-            questionId,
-            ...answer
-          }))
+          inviteCode,
+          respondentName,
+          respondentEmail,
+          respondentRelationship,
+          responses: Object.entries(responses).map(([questionId, answer]) => ({ questionId, ...answer }))
         }),
       });
-
       if (response.ok) {
-        toast({
-          title: "Survey submitted",
-          description: "Thank you for your feedback. Your responses have been recorded anonymously.",
-        });
+        setStep('submitted');
       } else {
         throw new Error('Submission failed');
       }
     } catch (error) {
-      toast({
-        title: "Submission failed",
-        description: "There was an error submitting your feedback. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Submission failed", description: "There was an error submitting your feedback. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -166,57 +123,127 @@ export default function Survey() {
     );
   }
 
-  // Determine if this is a Quantum survey
-  const isQuantum = surveyData?.surveyTitle?.includes('Quantum') || 
-                    surveyData?.surveyQuestions?.[0]?.competency;
-  
+  const isQuantum = surveyData?.surveyTitle?.includes('Quantum') || surveyData?.surveyQuestions?.[0]?.competency;
+
+  if (step === 'submitted') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="pt-8 pb-8">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Thank you!</h2>
+            <p className="text-gray-600">Your feedback has been submitted successfully. Your responses are recorded and will contribute to the leadership report.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 'details') {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="max-w-lg mx-auto">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-semibold">
+                {isQuantum ? 'Quantum Leadership Calibration 360' : 'SyncShift Organisation Alignment'}
+              </CardTitle>
+              {surveyData?.leaderFirstName && (
+                <div className={`mt-4 p-4 rounded-lg border ${isQuantum ? 'bg-gradient-to-r from-orange-50 to-pink-50 border-orange-200' : 'bg-blue-50 border-blue-200'}`}>
+                  <p className={`text-lg font-medium ${isQuantum ? 'text-gray-900' : 'text-blue-900'}`}>
+                    Providing feedback for: {surveyData.leaderFirstName} {surveyData.leaderLastName}
+                  </p>
+                  {surveyData.leaderPosition && (
+                    <p className={`text-sm ${isQuantum ? 'text-gray-700' : 'text-blue-700'}`}>{surveyData.leaderPosition}</p>
+                  )}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-5">
+                <p className="text-gray-600 text-sm">Before you begin, please tell us a little about yourself. Your identity will only be visible to the survey administrator — your individual answers remain anonymous.</p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="name">Your Name <span className="text-red-500">*</span></Label>
+                  <Input id="name" placeholder="e.g. Sarah Jones" value={respondentName} onChange={e => setRespondentName(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Your Email <span className="text-red-500">*</span></Label>
+                  <Input id="email" type="email" placeholder="e.g. sarah@company.com" value={respondentEmail} onChange={e => setRespondentEmail(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="relationship">Your Relationship to the Leader <span className="text-red-500">*</span></Label>
+                  <Select value={respondentRelationship} onValueChange={setRespondentRelationship}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your relationship..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Manager">Manager / Senior Leader</SelectItem>
+                      <SelectItem value="Peer">Peer / Colleague</SelectItem>
+                      <SelectItem value="Direct Report">Direct Report</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Privacy:</strong> Your name and email let the administrator confirm participation. Your individual answers are always kept anonymous — only aggregated results are shared with the leader.
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full"
+                  disabled={!respondentName || !respondentEmail || !respondentRelationship}
+                  onClick={() => setStep('survey')}
+                >
+                  Start Survey ({questions.length} questions)
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-semibold">
-              {isQuantum ? 'Quantum Leadership Calibration 360' : 'SyncShift Personal Survey'}
+              {isQuantum ? 'Quantum Leadership Calibration 360' : 'SyncShift Organisation Alignment'}
             </CardTitle>
             {surveyData?.leaderFirstName && (
-              <div className={`mt-4 p-4 rounded-lg border ${
-                isQuantum 
-                  ? 'bg-gradient-to-r from-orange-50 to-pink-50 border-orange-200' 
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
-                <p className={`text-lg font-medium ${
-                  isQuantum ? 'text-gray-900' : 'text-blue-900'
-                }`}>
+              <div className={`mt-4 p-4 rounded-lg border ${isQuantum ? 'bg-gradient-to-r from-orange-50 to-pink-50 border-orange-200' : 'bg-blue-50 border-blue-200'}`}>
+                <p className={`text-lg font-medium ${isQuantum ? 'text-gray-900' : 'text-blue-900'}`}>
                   Providing feedback for: {surveyData.leaderFirstName} {surveyData.leaderLastName}
                 </p>
                 {surveyData.leaderPosition && (
-                  <p className={`text-sm ${
-                    isQuantum ? 'text-gray-700' : 'text-blue-700'
-                  }`}>{surveyData.leaderPosition}</p>
+                  <p className={`text-sm ${isQuantum ? 'text-gray-700' : 'text-blue-700'}`}>{surveyData.leaderPosition}</p>
                 )}
               </div>
             )}
             <p className="text-gray-600 mt-4">
-              Your feedback is completely anonymous and will help improve leadership effectiveness.
+              Completing as: <strong>{respondentName}</strong> · {respondentRelationship}
             </p>
-            <p className="text-sm text-gray-500">
-              {questions.length} questions total • {isQuantum ? '1-10' : '1-7'} rating scale
-            </p>
+            <p className="text-sm text-gray-500">{questions.length} questions · {isQuantum ? '1-10' : '1-7'} rating scale</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
-
               {questions.map((question: any, index: number) => (
                 <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                   {question.category && (
-                    <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                      {question.category}
-                    </div>
+                    <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{question.category}</div>
                   )}
-                  <Label className="text-base font-medium">
-                    {index + 1}. {question.question}
-                  </Label>
-                  
+                  <Label className="text-base font-medium">{index + 1}. {question.question}</Label>
                   {question.type === 'rating' ? (
                     <div className="flex items-center space-x-4">
                       <span className="text-sm text-gray-500">Strongly Disagree</span>
@@ -226,11 +253,7 @@ export default function Survey() {
                             key={rating}
                             type="button"
                             onClick={() => handleRatingChange(question.id, rating)}
-                            className={`w-10 h-10 rounded-full border-2 transition-colors ${
-                              responses[question.id]?.value === rating
-                                ? 'bg-primary border-primary text-white'
-                                : 'border-gray-300 hover:border-primary'
-                            }`}
+                            className={`w-10 h-10 rounded-full border-2 transition-colors ${responses[question.id]?.value === rating ? 'bg-primary border-primary text-white' : 'border-gray-300 hover:border-primary'}`}
                           >
                             {rating}
                           </button>
@@ -250,23 +273,13 @@ export default function Survey() {
               ))}
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start space-x-2">
-                  <i className="fas fa-shield-alt text-yellow-600 mt-1"></i>
-                  <div>
-                    <h4 className="font-medium text-yellow-800">Privacy Notice</h4>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Your responses are completely anonymous. We use encryption and follow GDPR guidelines 
-                      to protect your privacy. Individual responses cannot be traced back to you.
-                    </p>
-                  </div>
-                </div>
+                <h4 className="font-medium text-yellow-800">Privacy Notice</h4>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Your individual answers are anonymous and cannot be traced back to you. Only your name and email (for participation tracking) are visible to the administrator.
+                </p>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting || Object.keys(responses).length === 0}
-              >
+              <Button type="submit" className="w-full" disabled={isSubmitting || Object.keys(responses).length === 0}>
                 {isSubmitting ? "Submitting..." : "Submit Feedback"}
               </Button>
             </form>

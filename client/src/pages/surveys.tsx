@@ -18,6 +18,7 @@ import Header from '@/components/layout/header';
 
 export default function Surveys() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [respondentsCycleId, setRespondentsCycleId] = useState<number | null>(null);
   const [newCycleTitle, setNewCycleTitle] = useState('');
   const [selectedSurveyId, setSelectedSurveyId] = useState('');
   const [selectedLeaderId, setSelectedLeaderId] = useState('');
@@ -39,6 +40,18 @@ export default function Surveys() {
 
   const { data: organizations, isLoading: organizationsLoading } = useQuery({
     queryKey: ['/api/organizations'],
+  });
+
+  const { data: respondents, isLoading: respondentsLoading } = useQuery({
+    queryKey: ['/api/survey-cycles', respondentsCycleId, 'respondents'],
+    queryFn: async () => {
+      const response = await fetch(`/api/survey-cycles/${respondentsCycleId}/respondents`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch respondents');
+      return response.json();
+    },
+    enabled: !!respondentsCycleId,
   });
 
   const createSurveyCycleMutation = useMutation({
@@ -342,6 +355,15 @@ Sarah Wilson,VP Operations,Operations,sarah@company.com,Manager`;
                             {new Date(cycle.endDate).toLocaleDateString()}
                           </span>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => setRespondentsCycleId(cycle.id)}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          View Respondents ({cycle.responseCount || 0})
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -541,6 +563,60 @@ Sarah Wilson,VP Operations,Operations,sarah@company.com,Manager`;
           </div>
         </main>
       </div>
+
+      {/* Respondents Dialog */}
+      <Dialog open={!!respondentsCycleId} onOpenChange={(open) => { if (!open) setRespondentsCycleId(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Survey Respondents</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              These participants have submitted their feedback. Their individual answers remain anonymous — only their participation is tracked.
+            </p>
+            {respondentsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-gray-500 text-sm">Loading respondents...</p>
+              </div>
+            ) : respondents && respondents.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Relationship</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {respondents.map((r: any) => (
+                      <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="py-3 px-4">{r.respondentName || <span className="text-gray-400 italic">Unknown</span>}</td>
+                        <td className="py-3 px-4 text-gray-600">{r.respondentEmail || <span className="text-gray-400 italic">—</span>}</td>
+                        <td className="py-3 px-4">
+                          {r.respondentRelationship ? (
+                            <Badge variant="outline" className="text-xs">{r.respondentRelationship}</Badge>
+                          ) : <span className="text-gray-400 italic">—</span>}
+                        </td>
+                        <td className="py-3 px-4 text-gray-500 text-xs">
+                          {r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p>No responses yet for this survey cycle.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </RequireAuth>
   );
 }
