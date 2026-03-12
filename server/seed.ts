@@ -256,8 +256,8 @@ export async function seedDatabase() {
     ];
 
     const [survey] = await db.insert(surveys).values({
-      title: "SyncShift 360 Feedback",
-      description: "This 360 tool helps your leader see where their leadership creates alignment and flow — and where small shifts could unlock even more performance. Your feedback is confidential and will only be summarised. Please respond honestly.",
+      title: "SyncShift Organisation Alignment",
+      description: "SyncShift explains how high performance emerges from the alignment of personal and organisational enablers. Key Features: Simple online diagnostic, Visual insights, Actionable recommendations, Clear pathways to high performance.",
       organizationId: organization.id,
       createdBy: adminUser.id,
       questions: syncShiftQuestions,
