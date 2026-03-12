@@ -1,0 +1,114 @@
+Instance is starting... Waiting for health checks to pass.
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+Database connection initialized successfully
+11:08:51 AM [express] Environment validation passed
+11:08:51 AM [express] Running in production mode
+11:08:51 AM [express] Server successfully started on 0.0.0.0:5000
+11:08:51 AM [express] Environment: production
+Instance is healthy. All health checks are passing.
+Instance is stopping.
+11:09:32 AM [express] SIGTERM received, shutting down gracefully
+11:09:32 AM [express] Server closed
+npm error path /workspace
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c NODE_ENV=production node dist/index.js
+npm error A complete log of this run can be found in: /tmp/npm_cache/_logs/2026-03-11T10_51_49_990Z-debug-0.log
+Instance stopped.
+Instance created. Preparing to start...
+Starting download for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:3e66818e-81e5-45f4-82fc-28158490594b
+Download progress: 100% |[32m++++++++[0m| (30.0 MiB/s)
+Download complete for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:3e66818e-81e5-45f4-82fc-28158490594b
+Instance is starting... Waiting for health checks to pass.
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+Database connection initialized successfully
+11:10:08 AM [express] Environment validation passed
+11:10:08 AM [express] Running in production mode
+11:10:08 AM [express] Server successfully started on 0.0.0.0:5000
+11:10:08 AM [express] Environment: production
+Instance is healthy. All health checks are passing.
+Instance is stopping.
+11:10:51 AM [express] SIGTERM received, shutting down gracefully
+11:10:51 AM [express] Server closed
+npm error path /workspace
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c NODE_ENV=production node dist/index.js
+npm error A complete log of this run can be found in: /tmp/npm_cache/_logs/2026-03-11T11_08_49_379Z-debug-0.log
+Instance stopped.
+Instance is stopping.
+12:17:34 PM [express] SIGTERM received, shutting down gracefully
+12:17:34 PM [express] Server closed
+Instance stopped.
+Instance created. Preparing to start...
+Starting download for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:3e66818e-81e5-45f4-82fc-28158490594b
+Download progress: 100% |[32m++++++++[0m| (30.0 MiB/s)
+Download complete for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:3e66818e-81e5-45f4-82fc-28158490594b
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+Instance is healthy. All health checks are passing.
+Database connection initialized successfully
+1:31:29 PM [express] Environment validation passed
+1:31:29 PM [express] Running in production mode
+1:31:29 PM [express] Server successfully started on 0.0.0.0:5000
+1:31:29 PM [express] Environment: production
+Creating personal survey: {
+  contactData: {
+    firstName: 'Jonathan',
+    lastName: 'Broadhurst',
+    email: 'jonathan.broadhurst@me.com',
+    phone: '+447432048433',
+    organization: 'Ignite-me',
+    role: 'leader',
+    teamSize: '2',
+    message: ''
+  },
+  surveyData: {
+    title: 'test',
+    leaderName: 'Jonathan Broadhurst',
+    leaderPosition: 'leader',
+    participantEmails: '',
+    instructions: ''
+  }
+}
+Personal survey created successfully: { code: 'LST8BI', cycleId: 3 }
+1:33:55 PM [express] POST /api/surveys/personal 201 in 1934ms :: {"success":true,"surveyCode":"LST8B…
+Failed to send email via Resend: Error: X_REPLIT_TOKEN not found for repl/depl
+    at getCredentials (file:///workspace/dist/index.js:165:11)
+    at getResendClient (file:///workspace/dist/index.js:185:39)
+    at sendSurveyConfirmationEmail2 (file:///workspace/dist/index.js:194:41)
+    at file:///workspace/dist/index.js:1125:29
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+1:34:12 PM [express] GET /api/survey-cycles/LST8BI 200 in 19ms :: {"id":3,"title":"test","status":"a…
+1:34:12 PM [express] GET /api/survey-cycles/LST8BI 304 in 11ms :: {"id":3,"title":"test","status":"a…
+Instance is stopping.
+2:40:06 PM [express] SIGTERM received, shutting down gracefully
+2:40:06 PM [express] Server closed
+npm error path /workspace
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c NODE_ENV=production node dist/index.js
+npm error A complete log of this run can be found in: /tmp/npm_cache/_logs/2026-03-11T13_31_27_985Z-debug-0.log
+Instance stopped.
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+Instance created. Preparing to start...
+Starting download for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:d10a6413-02b3-44d5-90a0-40bdf0696ef4
+Download progress: 100% |[32m++++++++[0m| (30.0 MiB/s)
+Database connection initialized successfully
+9:47:55 AM [express] Environment validation passed
+9:47:55 AM [express] Running in production mode
+9:47:55 AM [express] Server successfully started on 0.0.0.0:5000
+9:47:55 AM [express] Environment: production
+Download complete for registry01.prod.koyeb.com/k-16b7d0f2-6ec2-4cb4-b139-8f734e0c195e/53e2930f-404d-4e96-be12-480791c62b6e:d10a6413-02b3-44d5-90a0-40bdf0696ef4
+Instance is healthy. All health checks are passing.
