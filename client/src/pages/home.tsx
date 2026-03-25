@@ -52,9 +52,11 @@ export default function Home() {
                 <h4 className="font-medium text-sm text-gray-800">✨ Key Features:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• Anonymous feedback collection</li>
-                  <li>• SyncShift 360 competency framework</li>
-                  <li>• Comprehensive leadership reports</li>
-                  <li>• GDPR compliant data handling</li>
+                  <li>• Mapped to SyncShift Framework</li>
+                  <li>• Comprehensive reports</li>
+                  <li>• Identifies priorities for action</li>
+                  <li>• Maximise talent deployment opportunities</li>
+                  <li>• Optimise organisation systems and structures</li>
                 </ul>
               </div>
               <div className="pt-4">
