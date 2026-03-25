@@ -83,7 +83,7 @@ export async function sendSurveyConfirmationEmail(
       </ul>
 
       <p>If you have any questions, feel free to reply to this email.</p>
-      <p>Best regards,<br>The SyncShift360 Team</p>
+      <p>Best regards,<br>The SyncShift Team</p>
     `;
 
     const msg = {
@@ -143,7 +143,7 @@ export async function sendQuantumSurveyConfirmationEmail(
       </ul>
 
       <p>If you have any questions, feel free to reply to this email.</p>
-      <p>Best regards,<br>The SyncShift360 Team</p>
+      <p>Best regards,<br>The SyncShift Team</p>
     `;
 
     const msg = {

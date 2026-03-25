@@ -1,4 +1,4 @@
-// Resend Email Service for SyncShift360
+// Resend Email Service for SyncShift
 // Uses Replit's Resend connector for free transactional emails
 
 import { Resend } from 'resend';
@@ -42,7 +42,7 @@ async function getResendClient() {
   // Custom domains need to be verified at https://resend.com/domains
   const verifiedFrom = fromEmail && !fromEmail.includes('@me.com') && !fromEmail.includes('@example.com')
     ? fromEmail 
-    : 'SyncShift360 <onboarding@resend.dev>';
+    : 'SyncShift <onboarding@resend.dev>';
   return {
     client: new Resend(apiKey),
     fromEmail: verifiedFrom
@@ -62,7 +62,7 @@ export async function sendSurveyConfirmationEmail(
     const surveyLink = `${baseUrl}/survey/${surveyCode}`;
     
     const { error } = await client.emails.send({
-      from: fromEmail || 'SyncShift360 <onboarding@resend.dev>',
+      from: fromEmail || 'SyncShift <onboarding@resend.dev>',
       to: toEmail,
       subject: `Your SyncShift Personal Survey is Ready - ${surveyTitle}`,
       html: `
@@ -105,7 +105,7 @@ export async function sendSurveyConfirmationEmail(
           
           <div style="background: #1e293b; padding: 20px; border-radius: 0 0 10px 10px; text-align: center;">
             <p style="color: #94a3b8; margin: 0; font-size: 12px;">
-              SyncShift360 - Professional 360-Degree Feedback Platform
+              SyncShift - Professional 360-Degree Feedback Platform
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export async function sendQuantumSurveyConfirmationEmail(
     const surveyLink = `${baseUrl}/survey/${surveyCode}`;
     
     const { error } = await client.emails.send({
-      from: fromEmail || 'SyncShift360 <onboarding@resend.dev>',
+      from: fromEmail || 'SyncShift <onboarding@resend.dev>',
       to: toEmail,
       subject: `Your Quantum Leadership Assessment is Ready - ${surveyTitle}`,
       html: `

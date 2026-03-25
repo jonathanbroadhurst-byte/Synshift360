@@ -4,7 +4,7 @@ function getMailjetClient() {
   const apiKey = process.env.MAILJET_API_KEY;
   const secretKey = process.env.MAILJET_SECRET_KEY;
   const fromEmail = process.env.MAILJET_FROM_EMAIL || 'noreply@syncshift360.com';
-  const fromName = process.env.MAILJET_FROM_NAME || 'SyncShift360';
+  const fromName = process.env.MAILJET_FROM_NAME || 'SyncShift';
 
   if (!apiKey || !secretKey) {
     throw new Error('Mailjet credentials not configured');
@@ -65,7 +65,7 @@ export async function sendSurveyConfirmationEmail(
               </div>
               <div style="background: #1e293b; padding: 20px; border-radius: 0 0 10px 10px; text-align: center;">
                 <p style="color: #94a3b8; margin: 0; font-size: 12px;">
-                  SyncShift360 - Professional 360-Degree Feedback Platform
+                  SyncShift - Professional 360-Degree Feedback Platform
                 </p>
               </div>
             </div>

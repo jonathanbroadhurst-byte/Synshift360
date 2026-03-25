@@ -11,7 +11,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-white">🌀 SyncShift360</h1>
+              <h1 className="text-xl font-bold text-white">🌀 SyncShift</h1>
             </div>
             <div className="flex items-center space-x-4">
               <a href="/" className="text-white/80 hover:text-white transition-colors">Home</a>
@@ -24,7 +24,7 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">
-            🌀 SyncShift360
+            🌀 SyncShift
           </h1>
           <p className="text-xl text-blue-100 max-w-3xl mx-auto mb-2">
             Professional 360-degree feedback platform for leadership development and organizational growth.
@@ -163,12 +163,10 @@ export default function Home() {
         <div className="syncshift-card p-8">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              🌀 About SyncShift360
+              🌀 About SyncShift
             </h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              SyncShift360 specializes in 360-degree feedback solutions that help leaders and organizations 
-              achieve meaningful growth. Our SyncShift Personal platform provides comprehensive, anonymous 
-              feedback collection with detailed insights for leadership development.
+              Organisational alignment is the key to high performance. Discover what is accelerating or throttling performance in your organisation.
             </p>
             <p className="text-blue-600 font-semibold italic">
               "Unlock Consistent High Performance through Alignment"
@@ -181,7 +179,7 @@ export default function Home() {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-600">
-            <p>&copy; 2025 SyncShift360. All rights reserved.</p>
+            <p>&copy; 2025 SyncShift. All rights reserved.</p>
           </div>
         </div>
       </footer>
