@@ -27,7 +27,7 @@ export default function Home() {
             🌀 SyncShift
           </h1>
           <p className="text-xl text-blue-100 max-w-3xl mx-auto mb-2">
-            Professional 360-degree feedback platform for leadership development and organizational growth.
+            Organisational alignment is the key to high performance. Discover what is accelerating or throttling performance in your organisation.
           </p>
           <p className="text-lg text-blue-200 italic font-medium">
             Shift your thinking - Change your world
