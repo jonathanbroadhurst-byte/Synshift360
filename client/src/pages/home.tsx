@@ -40,13 +40,13 @@ export default function Home() {
           <Card className="syncshift-card hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-gray-900">🌀 SyncShift Personal</CardTitle>
+                <CardTitle className="text-lg text-gray-900">🌀 SyncShift</CardTitle>
                 <Badge className="bg-gradient-to-r from-blue-500 to-teal-500 text-white">Featured</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-gray-700">
-                Complete anonymous 360-degree feedback surveys for leadership development and team growth.
+                An organisation alignment tool that highlights strengths and weaknesses across 6 key factors.
               </p>
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-gray-800">✨ Key Features:</h4>
