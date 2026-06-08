@@ -1,14 +1,13 @@
 import { db } from "./db";
 import { users, organizations, surveys } from "@shared/schema";
 import bcrypt from "bcrypt";
-import { sql } from "drizzle-orm"; // Added this helper to handle complex relationships safely
+import { sql } from "drizzle-orm";
 
 export async function seedDatabase() {
   try {
     console.log("Starting database seeding...");
 
     console.log("Clearing old test data safely via cascade...");
-    // This wipes the test tables and automatically clears down-chain constraints like survey_cycles
     await db.execute(sql`TRUNCATE TABLE survey_cycles, surveys, users, organizations CASCADE;`);
 
     // Create sample organization
@@ -250,12 +249,3 @@ export async function seedDatabase() {
     throw error;
   }
 }
-
-// Run if called directly
-seedDatabase().then(() => {
-  console.log("Seeding completed");
-  process.exit(0);
-}).catch((error) => {
-  console.error("Seeding failed:", error);
-  process.exit(1);
-});
