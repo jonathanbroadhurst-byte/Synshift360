@@ -74,7 +74,10 @@ app.use((req, res, next) => {
 (async () => {
   try {
     // Validate environment variables before starting
-    validateEnvironment();
+validateEnvironment();
+
+// Tigger the automatic safe seeding process
+await seedDatabase();
     
     const server = await registerRoutes(app);
 
