@@ -43,213 +43,185 @@ export async function seedDatabase() {
 
     console.log("Created leader user:", leaderUser.email);
 
-    // Create SyncShift 360 Survey based on provided questionnaire
+    // Create SyncShift 360 Survey based on updated behavior-focused framework
     const syncShiftQuestions = [
-      // Leadership (Direction & Sense-Making)
+      // LAYER 1: MOTIVES (Purpose & Authenticity)
       {
         id: "1",
-        text: "Clearly communicates a compelling vision that connects day-to-day work to bigger goals.",
+        text: "This leader stays true to our core organizational values even when faced with high-pressure situations or difficult trade-offs.",
         type: "rating",
-        category: "Leadership",
+        category: "Motives",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "2",
-        text: "Helps people make sense of change and what it means for them.",
+        text: "This leader actively encourages others to challenge their assumptions and is genuinely open to changing their mind when presented with better evidence.",
         type: "rating",
-        category: "Leadership",
+        category: "Motives",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "3",
-        text: "Adjusts strategy and direction when needed and explains why.",
+        text: "This leader creates an environment where people feel safe to speak the truth, admit mistakes, or voice dissenting opinions without fear of negative consequences.",
         type: "rating",
-        category: "Leadership",
+        category: "Motives",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
+
+      // LAYER 2: THINKING (Cognitive Bandwidth)
       {
         id: "4",
-        text: "Influences and gains buy-in through trust and credibility.",
+        text: "This leader focuses on helping the team think through solutions rather than immediately stepping in to dictate exactly how tasks should be executed.",
         type: "rating",
-        category: "Leadership",
+        category: "Thinking",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "5",
-        text: "Communicates clearly and listens actively.",
+        text: "When problems arise, this leader looks at why the process or system broke down, rather than immediately searching for an individual to blame.",
         type: "rating",
-        category: "Leadership",
+        category: "Thinking",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
-      // Infrastructure (Systems & Delivery)
+
+      // LAYER 3: CAPABILITIES (Agility & Innovation)
       {
         id: "6",
-        text: "Holds self and others accountable for results.",
+        text: "This leader approaches ambiguous or unfamiliar challenges with genuine curiosity, seeking out hidden patterns before jumping to conclusions.",
         type: "rating",
-        category: "Infrastructure",
+        category: "Capabilities",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "7",
-        text: "Regularly reviews workflows to remove friction and blockers.",
+        text: "This leader models a strong commitment to learning and helps team members continuously update their skills to match changing demands.",
         type: "rating",
-        category: "Infrastructure",
+        category: "Capabilities",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "8",
-        text: "Delegates tasks appropriately, building ownership and trust.",
+        text: "This leader demonstrates high agility, showing a willingness to quickly drop outdated strategies when conditions change.",
         type: "rating",
-        category: "Infrastructure",
+        category: "Capabilities",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "9",
-        text: "Prioritises and simplifies systems to help people do their best work.",
+        text: "This leader effectively integrates new digital tools and automated technologies to help the team work smarter and make better data-informed decisions.",
         type: "rating",
-        category: "Infrastructure",
+        category: "Capabilities",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
-      // Motives (Purpose & Authenticity)
+
+      // LAYER 4: CULTURE (Trust & Coherence)
       {
         id: "10",
-        text: "Acts consistently with clear values and integrity.",
+        text: "This leader actively works to build deep trust within the team, serving as a reliable and stabilizing presence.",
         type: "rating",
-        category: "Motives",
+        category: "Culture",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "11",
-        text: "Demonstrates self-awareness and openness to feedback.",
+        text: "This leader intentionally draws out different viewpoints from everyone in the room, ensuring quiet or alternative perspectives are genuinely heard before decisions are finalized.",
         type: "rating",
-        category: "Motives",
+        category: "Culture",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "12",
-        text: "Builds psychological safety for people to share ideas and concerns.",
+        text: "This leader creates fast, constructive feedback loops, ensuring praise and course corrections are shared openly and in real-time.",
         type: "rating",
-        category: "Motives",
+        category: "Culture",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
+
+      // LAYER 5: INFRASTRUCTURE (Systems & Flow)
       {
         id: "13",
-        text: "Stays calm and solution-focused during challenges.",
+        text: "This leader sets clear expectations for performance and ensures everyone takes personal ownership of their collective output.",
         type: "rating",
-        category: "Motives",
+        category: "Infrastructure",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
-      // Capabilities (Skills & Agility)
       {
         id: "14",
-        text: "Tackles problems with curiosity and sound judgement.",
+        text: "This leader actively removes unnecessary administrative steps, redundant meetings, or procedural hurdles that block the team from getting work done.",
         type: "rating",
-        category: "Capabilities",
+        category: "Infrastructure",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "15",
-        text: "Seeks out learning opportunities and encourages growth in others.",
+        text: "This leader empowers people to move fast and make decisions within their roles, avoiding the need for constant check-ins or multiple layers of approval.",
         type: "rating",
-        category: "Capabilities",
+        category: "Infrastructure",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
+
+      // LAYER 6: LEADERSHIP (Sense-Making & Pattern Reading)
       {
         id: "16",
-        text: "Coaches and supports people to build skills and confidence.",
+        text: "When unexpected changes or disruptions occur outside our organization, this leader quickly explains what those changes mean for our day-to-day priorities.",
         type: "rating",
-        category: "Capabilities",
+        category: "Leadership",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "17",
-        text: "Shows adaptability when plans change.",
+        text: "Instead of pretending to have all the answers, this leader asks thought-provoking questions that help the team solve complex challenges together.",
         type: "rating",
-        category: "Capabilities",
+        category: "Leadership",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
-      // Culture (Team & Norms)
       {
         id: "18",
-        text: "Builds trust and openness within the team.",
+        text: "This leader helps us clearly see how our team’s daily efforts directly impact and rely on other parts of the business.",
         type: "rating",
-        category: "Culture",
+        category: "Leadership",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
+
+      // LAYER 7: SIGNATURE CONTRIBUTION (Outcomes & Alignment)
       {
         id: "19",
-        text: "Encourages diverse perspectives and collaboration.",
+        text: "This leader communicates with authentic presence and builds highly effective partnerships across different areas of the organization.",
         type: "rating",
-        category: "Culture",
+        category: "Signature Contribution",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "20",
-        text: "Gives and seeks feedback regularly to improve performance.",
+        text: "This leader ensures our team’s daily efforts are perfectly aligned with our true purpose, quickly identifying and correcting areas where work is being duplicated or wasted.",
         type: "rating",
-        category: "Culture",
+        category: "Signature Contribution",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
       {
         id: "21",
-        text: "Acts in ways that strengthen a healthy culture.",
+        text: "When operational friction or dropped handoffs occur between teams, this leader steps in immediately to rebuild collaboration and smooth out the transition points.",
         type: "rating",
-        category: "Culture",
+        category: "Signature Contribution",
         scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
       },
-      // Personal Brand (Impact & Reputation)
+
+      // OPEN-TEXT ALIGNMENT PROMPTS
       {
         id: "22",
-        text: "Communicates with clarity and presence.",
-        type: "rating",
-        category: "Personal Brand",
-        scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
+        text: "What are this leader's greatest strengths in creating clarity, stability, and trust for the team?",
+        type: "text",
+        category: "Open Questions"
       },
       {
         id: "23",
-        text: "Builds strong working relationships across levels.",
-        type: "rating",
-        category: "Personal Brand",
-        scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
+        text: "Where could this leader make a small behavioral shift to reduce system friction or better protect the team's mental bandwidth?",
+        type: "text",
+        category: "Open Questions"
       },
       {
         id: "24",
-        text: "Follows through on commitments and builds trust.",
-        type: "rating",
-        category: "Personal Brand",
-        scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
-      },
-      // Alignment (Outcome)
-      {
-        id: "25",
-        text: "Regularly checks for areas where people, systems, and purpose may be out of sync.",
-        type: "rating",
-        category: "Alignment",
-        scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
-      },
-      {
-        id: "26",
-        text: "Takes action to realign when friction is identified.",
-        type: "rating",
-        category: "Alignment",
-        scale: { min: 1, max: 7, labels: { 1: "Strongly Disagree", 7: "Strongly Agree" } }
-      },
-      // Open Text Questions
-      {
-        id: "27",
-        text: "What are this leader's greatest strengths?",
-        type: "text",
-        category: "Open Questions"
-      },
-      {
-        id: "28",
-        text: "Where could they make a small shift to create better alignment and flow?",
-        type: "text",
-        category: "Open Questions"
-      },
-      {
-        id: "29",
-        text: "Any other feedback you'd like to share?",
+        text: "Any other feedback or observations you would like to share regarding this leader's alignment?",
         type: "text",
         category: "Open Questions"
       }
