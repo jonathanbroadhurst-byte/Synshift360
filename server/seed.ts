@@ -6,12 +6,11 @@ export async function seedDatabase() {
   try {
     console.log("Starting database seeding...");
 
-    // SAFETY SWITCH: If a survey already exists, stop immediately to prevent duplication
-    const existingSurveys = await db.select().from(surveys).limit(1);
-    if (existingSurveys.length > 0) {
-      console.log("Database already contains data. Skipping seeding safely.");
-      return;
-    }
+    console.log("Clearing old test data safely...");
+    // Delete old entries in correct order to respect database relationships
+    await db.delete(surveys);
+    await db.delete(users);
+    await db.delete(organizations);
 
     // Create sample organization
     const [organization] = await db.insert(organizations).values({
