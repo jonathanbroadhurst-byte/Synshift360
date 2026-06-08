@@ -6,6 +6,13 @@ export async function seedDatabase() {
   try {
     console.log("Starting database seeding...");
 
+    // SAFETY SWITCH: If a survey already exists, stop immediately to prevent duplication
+    const existingSurveys = await db.select().from(surveys).limit(1);
+    if (existingSurveys.length > 0) {
+      console.log("Database already contains data. Skipping seeding safely.");
+      return;
+    }
+
     // Create sample organization
     const [organization] = await db.insert(organizations).values({
       name: "Demo Organization",
@@ -237,30 +244,11 @@ export async function seedDatabase() {
     }).returning();
 
     console.log("Created SyncShift 360 Survey:", survey.title);
-
     console.log("\nDatabase seeding completed successfully!");
-    console.log("\nTest Accounts:");
-    console.log("Admin: admin@demo.com / admin123");
-    console.log("Leader: leader@demo.com / leader123");
     
-    return {
-      organization,
-      adminUser,
-      leaderUser,
-      survey
-    };
-
+    return { organization, adminUser, leaderUser, survey };
   } catch (error) {
     console.error("Error seeding database:", error);
     throw error;
   }
 }
-
-// Run if called directly
-seedDatabase().then(() => {
-  console.log("Seeding completed");
-  process.exit(0);
-}).catch((error) => {
-  console.error("Seeding failed:", error);
-  process.exit(1);
-});
