@@ -12,7 +12,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>; // Updated to return user profile safely
   logout: () => void;
   isLoading: boolean;
 }
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
@@ -71,15 +71,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', data.token);
     setUser(data.user);
     
-    // Redirect based on user role
+    // REDIRECT MATRIX: Clean division between administrators and managers
     const userRole = data.user?.role;
     if (userRole === 'owner') {
       window.location.href = '/owner';
     } else if (userRole === 'admin' || userRole === 'org_admin') {
       window.location.href = '/admin';
+    } else if (userRole === 'leader') {
+      window.location.href = '/dashboard'; // Direct path to the dedicated Leader Portal
     } else {
-      window.location.href = '/admin';
+      window.location.href = '/'; // Generic fallback for standard participants
     }
+
+    return data.user;
   };
 
   const logout = () => {
