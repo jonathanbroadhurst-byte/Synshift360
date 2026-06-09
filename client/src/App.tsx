@@ -30,6 +30,7 @@ function Router() {
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/admin" component={Dashboard} />
       <Route path="/owner" component={OwnerDashboard} />
+      <Route path="/dashboard" component={LeaderDashboard} />
       <Route path="/login" component={Login} />
       <Route path="/report/:reportId" component={Report} />
       <Route path="/organizations" component={Organizations} />
