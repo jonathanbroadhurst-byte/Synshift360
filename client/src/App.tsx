@@ -18,6 +18,7 @@ import Surveys from "@/pages/surveys";
 import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
 import { AuthProvider } from "@/lib/auth";
+import LeaderDashboard from "@/pages/leader-dashboard";
 
 function Router() {
   return (
