@@ -184,11 +184,12 @@ export default function Survey() {
                       <SelectValue placeholder="Select your relationship..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Manager">Manager / Senior Leader</SelectItem>
-                      <SelectItem value="Peer">Peer / Colleague</SelectItem>
-                      <SelectItem value="Direct Report">Direct Report</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
+  <SelectItem value="Self">Self (Leader Assessment)</SelectItem>
+  <SelectItem value="Manager">Manager / Senior Leader</SelectItem>
+  <SelectItem value="Peer">Peer / Colleague</SelectItem>
+  <SelectItem value="Direct Report">Direct Report</SelectItem>
+  <SelectItem value="Other">Other</SelectItem>
+</SelectContent>
                   </Select>
                 </div>
 
