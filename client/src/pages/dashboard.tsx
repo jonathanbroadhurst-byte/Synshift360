@@ -7,10 +7,25 @@ import ReportsTable from '@/components/tables/reports-table';
 import ReportPreviewModal from '@/components/modals/report-preview-modal';
 import SurveyProgress from '@/components/progress/survey-progress';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query'; // Hook to locate active surveys automatically
+import { useLocation } from 'wouter'; // Routing tool to jump between pages
 
 export default function Dashboard() {
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
+
+  // Automatically fetch active survey deployment details from the server database
+  const { data: surveyCycles } = useQuery<any[]>({
+    queryKey: ['/api/survey-cycles'],
+  });
+
+  // Dynamically find whichever survey process is currently collecting live responses
+  const activeCycle = surveyCycles?.find(
+    (cycle) => cycle.status === 'active' || cycle.isActive === true
+  );
+  
+  const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
   const handlePreviewReport = (reportId: number) => {
     setSelectedReportId(reportId);
@@ -31,6 +46,27 @@ export default function Dashboard() {
           <Header />
           
           <div className="flex-1 p-8 space-y-8">
+            
+            {/* LEADER SELF-ASSESSMENT ACTION BANNER */}
+            {activeCycle && (
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-blue-500/20 transition-all">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <span>📋</span> Complete Your Leader Self-Assessment
+                  </h2>
+                  <p className="text-blue-100 text-sm max-w-2xl">
+                    Establish your personal baseline layout for the live <strong className="text-white">{activeCycle.title || 'SyncShift Framework'}</strong> framework. Your inputs are safely categorized separately from external team stakeholder metrics.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setLocation(`/survey/${inviteCode}`)}
+                  className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-sm px-6 py-3 rounded-lg text-sm shrink-0 border-none transition-colors duration-150"
+                >
+                  Start Self-Assessment →
+                </button>
+              </div>
+            )}
+
             <StatsGrid />
             
             <SurveyProgress />
