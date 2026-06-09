@@ -133,7 +133,13 @@ export default function LeaderDashboard() {
                       <span className="text-gray-700">Collected Submissions</span>
                       <span className="text-blue-700 font-bold">{stakeholderFeedbacks.length} responses</span>
                     </div>
-                    <Progress value={currentProgressPercent} className="h-2.5 bg-gray-100 text-blue-600" />
+                    {/* CUSTOM BUILT BULLETPROOF HTML PROGRESS BAR */}
+                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mt-2">
+                      <div 
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+                        style={{ width: `${currentProgressPercent}%` }}
+                      ></div>
+                    </div>
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 text-xs text-gray-500 space-y-1">
