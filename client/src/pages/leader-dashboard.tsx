@@ -3,7 +3,6 @@ import Header from '@/components/layout/header';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 
 export default function LeaderDashboard() {
   const { user, logout } = useAuth();
