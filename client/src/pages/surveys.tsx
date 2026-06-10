@@ -111,7 +111,6 @@ export default function Surveys() {
     } catch (e) { console.error(e); }
   };
 
-  // BULLETPROOF CASE-INSENSITIVE CSV EXTRACTOR LAYER
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -123,7 +122,6 @@ export default function Surveys() {
         try {
           const participants = results.data
             .map((row: any) => {
-              // Flexible key matching helper function
               const matchValue = (keys: string[]) => {
                 const targetKey = Object.keys(row).find(k => keys.includes(k.trim()));
                 return targetKey ? row[targetKey]?.toString().trim() : '';
@@ -273,9 +271,18 @@ export default function Surveys() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-gray-600">Submissions:</span><span className="font-medium">{cycle.responseCount || 0}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-600">End Date:</span><span className="font-medium">{new Date(cycle.endDate).toLocaleDateString()}</span></div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">Submissions:</span><span className="font-medium">{cycle.responseCount || 0}</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">End Date:</span><span className="font-medium">{new Date(cycle.endDate).toLocaleDateString()}</span></div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => setRespondentsCycleId(cycle.id)}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          View Respondents ({cycle.responseCount || 0})
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -346,7 +353,6 @@ export default function Surveys() {
                     </div>
                   </div>
 
-                  {/* LIVE PARTICIPANTS PREVIEW CONTAINER */}
                   {participantData.length > 0 && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <p className="text-sm font-medium text-green-800 mb-2">
@@ -358,3 +364,91 @@ export default function Surveys() {
                             <div className="font-medium">{p.name || 'Anonymous User'}</div>
                             <div className="text-green-600">{p.jobTitle} • {p.relationship}</div>
                             <div className="text-green-500">{p.email}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="inviteEmails" className="text-xs text-gray-500">Or enter emails manually (optional)</Label>
+                    <Input
+                      id="inviteEmails"
+                      value={inviteEmails}
+                      onChange={(e) => setInviteEmails(e.target.value)}
+                      placeholder="email1@company.com, email2@company.com"
+                      disabled={participantData.length > 0}
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={createSurveyCycleMutation.isPending} className="bg-blue-600 text-white hover:bg-blue-700">
+                      {createSurveyCycleMutation.isPending ? "Deploying..." : "Deploy Survey Loop"}
+                    </Button>
+                  </div>
+
+                </form>
+              </DialogContent>
+            </Dialog>
+
+          </div>
+        </main>
+      </div>
+
+      {/* RESTORED RESPONDENTS TRACKING TABLE MODAL BLOCK */}
+      <Dialog open={!!respondentsCycleId} onOpenChange={(open) => { if (!open) setRespondentsCycleId(null); }}>
+        <DialogContent className="max-w-2xl bg-white">
+          <DialogHeader>
+            <DialogTitle>Survey Respondents</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Tracked participation baseline. Answers remain fully aggregated to safeguard confidentiality.
+            </p>
+            {respondentsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-gray-500 text-sm">Loading respondents data...</p>
+              </div>
+            ) : respondents && respondents.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Relationship</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {respondents.map((r: any) => (
+                      <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="py-3 px-4">{r.respondentName || <span className="text-gray-400 italic">Unknown</span>}</td>
+                        <td className="py-3 px-4 text-gray-600">{r.respondentEmail || <span className="text-gray-400 italic">—</span>}</td>
+                        <td className="py-3 px-4">
+                          {r.respondentRelationship ? (
+                            <Badge variant="outline" className="text-xs">{r.respondentRelationship}</Badge>
+                          ) : <span className="text-gray-400 italic">—</span>}
+                        </td>
+                        <td className="py-3 px-4 text-gray-500 text-xs">
+                          {r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p>No feedback responses submitted yet for this specific loop.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </RequireAuth>
+  );
+}
