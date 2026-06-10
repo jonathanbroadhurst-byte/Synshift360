@@ -51,7 +51,6 @@ export default function Surveys() {
   const cyclesArray = Array.isArray(cycles) ? cycles : (cycles as any)?.cycles || [];
   const leadersArray = Array.isArray(leaders) ? leaders : [];
 
-  // FIXED: Converted to run directly through the native application request pipeline
   const { data: respondents, isLoading: respondentsLoading } = useQuery<any[]>({
     queryKey: [`/api/survey-cycles/${respondentsCycleId}/respondents`],
     enabled: !!respondentsCycleId,
@@ -268,7 +267,8 @@ export default function Surveys() {
             </div>
 
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogContent className="max-w-md bg-white max-h-[85vh] overflow-y-auto">
+              {/* ACCESSIBILITY SUPPRESSION LAYER LINKED INLINE */}
+              <DialogContent className="max-w-md bg-white max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
                 <DialogHeader>
                   <DialogTitle>Start New Survey Cycle</DialogTitle>
                 </DialogHeader>
@@ -374,7 +374,8 @@ export default function Surveys() {
       </div>
 
       <Dialog open={!!respondentsCycleId} onOpenChange={(open) => { if (!open) setRespondentsCycleId(null); }}>
-        <DialogContent className="max-w-2xl bg-white">
+        {/* ACCESSIBILITY SUPPRESSION LAYER LINKED INLINE */}
+        <DialogContent className="max-w-2xl bg-white" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Survey Respondents</DialogTitle>
           </DialogHeader>
