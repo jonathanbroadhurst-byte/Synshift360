@@ -347,6 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CUSTOM BACKEND GENERATION FOR ADMIN WORKSPACE DEPLOYMENTS
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Survey cycle request body:', req.body);
@@ -355,15 +356,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate: new Date(req.body.endDate)
       };
       const cycleData = insertSurveyCycleSchema.parse(requestData);
-      console.log('Parsed cycle data:', cycleData);
       const cycle = await storage.createSurveyCycle(cycleData);
+
+      // Auto-generate token if not supplied directly in form
+      const generatedToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await storage.updateCycleInviteCode(cycle.id, generatedToken);
+      cycle.inviteCode = generatedToken; // Forward directly to user dashboard bundle
 
       await storage.logActivity({
         userId: req.user!.id,
         action: "create_survey_cycle",
         resourceType: "survey_cycle",
         resourceId: cycle.id,
-        details: { title: cycle.title },
+        details: { title: cycle.title, inviteCode: generatedToken },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
       });
@@ -400,7 +405,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PROGRESS ENDPOINT MOVED HERE (PRIORITIZED ABOVE VARIABLE MATCH)
   app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
@@ -472,7 +476,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'pending'
         };
         
-        console.log('Creating invitation for:', invitationData);
         const invitation = await storage.createSurveyInvitation(invitationData);
         invitations.push(invitation);
 
@@ -489,7 +492,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateSurveyCycleStats(parseInt(cycleId));
 
-      console.log(`Created ${invitations.length} invitations`);
       res.status(201).json({ 
         message: `${invitations.length} invitations created`,
         invitations: invitations 
@@ -528,7 +530,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'pending'
         };
         
-        console.log('Creating bulk invitation for:', invitationData);
         const invitation = await storage.createSurveyInvitation(invitationData);
         invitations.push(invitation);
 
@@ -550,7 +551,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateSurveyCycleStats(parseInt(cycleId));
 
-      console.log(`Created ${invitations.length} bulk invitations`);
       res.status(201).json({ 
         message: `${invitations.length} invitations created with participant details`,
         invitations: invitations 
@@ -584,8 +584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { inviteCode, responses, respondentName, respondentEmail, respondentRelationship } = req.body;
       
-      console.log('Survey response submission:', { inviteCode, responseCount: responses?.length, respondentName });
-      
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
       if (!cycle) {
         return res.status(404).json({ message: "Invalid survey code" });
@@ -611,7 +609,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateSurveyCycleStats(cycle.id);
 
-      console.log('Survey response submitted successfully');
       res.status(201).json({ message: "Response submitted successfully" });
     } catch (error: any) {
       console.error('Survey response submission error:', error);
