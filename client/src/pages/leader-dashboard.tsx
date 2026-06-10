@@ -8,14 +8,14 @@ export default function LeaderDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch active surveys available within the leader's specific organization
+  // Fetch active surveys available within the platform
   const { data: surveyCycles, isLoading } = useQuery<any[]>({
     queryKey: ['/api/survey-cycles'],
   });
 
-  // Find the live survey assigned to this execution cycle
+  // SMART FILTER: Find the live survey that is active AND assigned explicitly to THIS logged-in leader
   const activeCycle = surveyCycles?.find(
-    (cycle) => cycle.status === 'active' || cycle.isActive === true
+    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && cycle.leaderId === user?.id
   );
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
@@ -26,11 +26,9 @@ export default function LeaderDashboard() {
     enabled: !!activeCycle,
   });
 
-  // Filter out the leader's self-assessment to find the exact stakeholder feedback count
   const stakeholderFeedbacks = responses?.filter(r => r.cycleId === activeCycle?.id && r.respondentRelationship !== 'Self') || [];
   const selfAssessmentComplete = responses?.some(r => r.cycleId === activeCycle?.id && r.respondentRelationship === 'Self');
 
-  // Let's establish a healthy target metric for a balanced 360 review (e.g., 8 external raters)
   const targetResponses = 8;
   const currentProgressPercent = Math.min(Math.round((stakeholderFeedbacks.length / targetResponses) * 100), 100);
 
@@ -45,7 +43,7 @@ export default function LeaderDashboard() {
   return (
     <RequireAuth roles={['leader', 'admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Simple Navigation Header - Completely separated from Admin menus */}
+        {/* Navigation Header */}
         <nav className="bg-white border-b shadow-sm sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-6 lg:px-8 h-16 flex justify-between items-center">
             <div className="flex items-center space-x-2">
@@ -70,7 +68,6 @@ export default function LeaderDashboard() {
         {/* Main Content Hub */}
         <main className="flex-1 max-w-5xl w-full mx-auto p-6 sm:p-8 space-y-8">
           
-          {/* Welcome Header Hero */}
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               Welcome back, {user?.firstName || 'Leader'}
@@ -81,10 +78,9 @@ export default function LeaderDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Primary Column: Core Evaluation Management */}
             <div className="md:col-span-2 space-y-6">
               
-              {/* Card A: Self-Assessment Launch Block */}
+              {/* Step 1: Self-Assessment Launch Block */}
               <Card className="border-none shadow-md overflow-hidden bg-white">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
                   <h3 className="text-lg font-bold flex items-center gap-2">
@@ -116,7 +112,7 @@ export default function LeaderDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Card B: Live Stakeholder Anonymity Track Matrix */}
+              {/* Step 2: Live Stakeholder Anonymity Track Matrix */}
               <Card className="shadow-md border-none bg-white">
                 <CardHeader>
                   <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -133,7 +129,6 @@ export default function LeaderDashboard() {
                       <span className="text-gray-700">Collected Submissions</span>
                       <span className="text-blue-700 font-bold">{stakeholderFeedbacks.length} responses</span>
                     </div>
-                    {/* CUSTOM BUILT BULLETPROOF HTML PROGRESS BAR */}
                     <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mt-2">
                       <div 
                         className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
@@ -152,7 +147,7 @@ export default function LeaderDashboard() {
               </Card>
             </div>
 
-            {/* Secondary Column: Insights & Report Outputs */}
+            {/* Diagnostic Reports Column */}
             <div className="space-y-6">
               <Card className="shadow-md border-none bg-white h-full">
                 <CardHeader>
@@ -164,8 +159,6 @@ export default function LeaderDashboard() {
                   <p className="text-xs text-gray-600">
                     Your executive breakdown vectors, non-linear disruption charts, and operational alignment pathways populate below once active loops conclude.
                   </p>
-                  
-                  {/* Placeholder state for report generation */}
                   <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center space-y-2">
                     <span className="text-2xl block">🔒</span>
                     <p className="text-sm font-medium text-gray-800">Report Pending Compilation</p>
