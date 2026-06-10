@@ -33,12 +33,10 @@ async function sendQuantumEmail(toEmail: string, firstName: string, surveyTitle:
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Extend Request interface to include user
 interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
-// Middleware for authentication
 const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -60,15 +58,11 @@ const authenticateToken = async (req: AuthenticatedRequest, res: Response, next:
   }
 };
 
-// Middleware for role-based access
-// Role hierarchy: owner > admin/org_admin > leader > participant
-// 'owner' role has access to everything
 const requireRole = (roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
-    // Owner role has access to all routes
     if (req.user.role === 'owner') {
       return next();
     }
@@ -79,7 +73,6 @@ const requireRole = (roles: string[]) => {
   };
 };
 
-// Middleware for owner-only routes
 const requireOwner = () => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user || req.user.role !== 'owner') {
@@ -89,19 +82,16 @@ const requireOwner = () => {
   };
 };
 
-// Hash password utility
 const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, 10);
 };
 
-// Generate anonymous hash for responses
 const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Download participant guide
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
     const filePath = path.join(process.cwd(), 'Survey_Participant_Guide.docx');
     
@@ -117,7 +107,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fileStream.pipe(res);
   });
 
-  // Authentication routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
@@ -129,7 +118,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
       
-      // Log login activity
       await storage.logActivity({
         userId: user.id,
         action: "login",
@@ -160,13 +148,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = insertUserSchema.parse(req.body);
       
-      // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Hash password
       const hashedPassword = await hashPassword(userData.password);
       
       const user = await storage.createUser({
@@ -174,7 +160,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
       });
 
-      // Log registration activity
       await storage.logActivity({
         userId: user.id,
         action: "register",
@@ -204,7 +189,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: req.user });
   });
 
-  // Dashboard routes
   app.get("/api/dashboard/stats", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await storage.getDashboardStats();
@@ -224,7 +208,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Organization routes
   app.get("/api/organizations", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizations = await storage.getOrganizations();
@@ -255,7 +238,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Survey routes
   app.post("/api/surveys", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const surveyData = insertSurveySchema.parse(req.body);
@@ -290,7 +272,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Personal survey creation (no auth required)
   app.post("/api/surveys/personal", async (req: Request, res: Response) => {
     try {
       const { contactData, surveyData } = req.body;
@@ -337,10 +318,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: organization.id,
         title: surveyData.title,
         status: 'active',
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
       
-      // Update invite code using storage method
       await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
       console.log('Personal survey created successfully:', { code: inviteCode, cycleId: cycle.id });
@@ -367,11 +347,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Survey cycle routes
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Survey cycle request body:', req.body);
-      // Convert endDate string to Date object
       const requestData = {
         ...req.body,
         endDate: new Date(req.body.endDate)
@@ -399,7 +377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/survey-cycles", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      // Get cycles with organization and survey details
       const cycles = await db.select({
         id: surveyCycles.id,
         title: surveyCycles.title,
@@ -423,11 +400,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PROGRESS ENDPOINT MOVED HERE (PRIORITIZED ABOVE VARIABLE MATCH)
+  app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
+      res.json(cyclesWithProgress);
+    } catch (error) {
+      console.error('Failed to fetch cycles progress:', error);
+      res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
   app.get("/api/survey-cycles/:inviteCode", async (req: Request, res: Response) => {
     try {
       const { inviteCode } = req.params;
       
-      // Get cycle with leader and survey details
       const [cycle] = await db.select({
         id: surveyCycles.id,
         title: surveyCycles.title,
@@ -461,12 +448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Survey invitation routes
   app.post("/api/survey-invitations", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Survey invitation request body:', req.body);
-      
-      // Handle both single email and bulk email formats
       const { cycleId, participantEmails } = req.body;
       
       if (!cycleId) {
@@ -479,7 +463,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const invitations = [];
       
-      // Create invitation for each email
       for (const email of participantEmails) {
         if (!email || !email.trim()) continue;
         
@@ -504,7 +487,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update cycle stats
       await storage.updateSurveyCycleStats(parseInt(cycleId));
 
       console.log(`Created ${invitations.length} invitations`);
@@ -518,11 +500,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk survey invitations with full participant details (from spreadsheet upload)
   app.post("/api/survey-invitations/bulk", authenticateToken, requireRole(['admin', 'org_admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Bulk survey invitation request:', req.body);
-      
       const { cycleId, participants } = req.body;
       
       if (!cycleId) {
@@ -568,7 +548,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update cycle stats
       await storage.updateSurveyCycleStats(parseInt(cycleId));
 
       console.log(`Created ${invitations.length} bulk invitations`);
@@ -601,14 +580,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Survey response routes
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
       const { inviteCode, responses, respondentName, respondentEmail, respondentRelationship } = req.body;
       
       console.log('Survey response submission:', { inviteCode, responseCount: responses?.length, respondentName });
       
-      // Get survey cycle by invite code
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
       if (!cycle) {
         return res.status(404).json({ message: "Invalid survey code" });
@@ -618,7 +595,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Survey is no longer active" });
       }
 
-      // Generate anonymous hash for this response
       const timestamp = new Date().toISOString();
       const responseHash = generateResponseHash(`anonymous-${timestamp}`, cycle.id);
 
@@ -627,12 +603,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invitationId: null,
         responses,
         responseHash,
+        disabled: false,
         respondentName: respondentName || null,
         respondentEmail: respondentEmail || null,
         respondentRelationship: respondentRelationship || null,
       });
 
-      // Update cycle stats
       await storage.updateSurveyCycleStats(cycle.id);
 
       console.log('Survey response submitted successfully');
@@ -640,17 +616,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Survey response submission error:', error);
       res.status(400).json({ message: "Failed to submit response", details: error.message });
-    }
-  });
-
-  // Progress tracking routes
-  app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
-      res.json(cyclesWithProgress);
-    } catch (error) {
-      console.error('Failed to fetch cycles progress:', error);
-      res.status(500).json({ message: "Failed to fetch survey progress" });
     }
   });
 
@@ -686,7 +651,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const progress = await storage.getCycleProgress(cycleId);
       
-      // Get leader info
       let leaderName = 'Unknown';
       if (cycle.leaderId) {
         const leader = await storage.getUser(cycle.leaderId);
@@ -706,7 +670,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Report routes
   app.get("/api/reports/pending", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const reports = await storage.getPendingReports();
@@ -724,9 +687,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
-
-      // For demo purposes, allow public access to report 1 (Jon Smith's report)
-      // In production, this would have proper authentication and authorization
 
       res.json(report);
     } catch (error) {
@@ -776,7 +736,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate report from survey cycle responses
   app.post("/api/reports/generate/:cycleId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.cycleId);
@@ -792,7 +751,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No responses available for report generation" });
       }
 
-      // Analyze responses and generate report content
       const analysisResult = analyzeResponses(responses);
       
       const report = await storage.createReport({
@@ -823,7 +781,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quantum 360 routes
   app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
     try {
       const quantumSurvey = await storage.getSurveyByType("quantum");
@@ -842,27 +799,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leaderName, leaderEmail, title } = req.body;
       
-      // Get Quantum survey by type (not hardcoded ID)
       const quantumSurvey = await storage.getSurveyByType("quantum");
       if (!quantumSurvey) {
         console.error("Quantum survey template not found - ensure seed-quantum.ts has been run");
         return res.status(404).json({ message: "Quantum survey template not found. Please contact support." });
       }
 
-      // Parse leader name into first and last name
       const nameParts = leaderName.split(' ');
       const firstName = nameParts[0] || leaderName;
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Check if user already exists
       let existingUser = await storage.getUserByEmail(leaderEmail);
       
       if (!existingUser) {
-        // Create new user for this leader
         const newUser = await storage.createUser({
           username: leaderEmail.split('@')[0],
           email: leaderEmail,
-          password: await bcrypt.hash('quantum360', 10), // Temporary password
+          password: await bcrypt.hash('quantum360', 10),
           firstName,
           lastName,
           role: 'leader',
@@ -872,20 +825,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingUser = newUser;
       }
 
-      // Generate unique invite code
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // Create survey cycle using storage interface
       const cycle = await storage.createSurveyCycle({
         surveyId: quantumSurvey.id,
         leaderId: existingUser.id,
         organizationId: 1,
         title: title || "Quantum Leadership Assessment",
         status: 'active',
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
       
-      // Update invite code using storage method
       await storage.updateCycleInviteCode(cycle.id, inviteCode);
 
       let emailSent = false;
@@ -920,11 +870,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ============================================
-  // OWNER DASHBOARD ROUTES
-  // ============================================
-
-  // Get all organizations with usage metrics (for billing)
   app.get("/api/owner/organizations/usage", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
@@ -935,11 +880,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all users (for owner to manage)
   app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const allUsers = await storage.getAllUsers();
-      // Don't return passwords
       const sanitizedUsers = allUsers.map(({ password, ...user }) => user);
       res.json(sanitizedUsers);
     } catch (error) {
@@ -948,7 +891,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user role (assign org_admin, admin, etc.)
   app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
@@ -983,7 +925,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get organization admins
   app.get("/api/owner/organizations/:orgId/admins", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
@@ -1000,21 +941,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Helper function to analyze survey responses and generate insights
 function analyzeResponses(responses: any[]): {
   executiveSummary: string;
   strengths: any[];
   developmentAreas: any[];
   statistics: any;
 } {
-  // This would contain sophisticated analysis logic
-  // For now, providing a basic structure
-  
   const totalResponses = responses.length;
   const averageRatings: { [key: string]: number } = {};
   const themes: { [key: string]: number } = {};
   
-  // Analyze response patterns
   responses.forEach(response => {
     if (response.responses && Array.isArray(response.responses)) {
       response.responses.forEach((answer: any) => {
@@ -1026,10 +962,9 @@ function analyzeResponses(responses: any[]): {
         }
         
         if (answer.type === 'text' && answer.value) {
-          // Simple keyword analysis for themes
           const words = answer.value.toLowerCase().split(' ');
           words.forEach((word: string) => {
-            if (word.length > 4) { // Filter short words
+            if (word.length > 4) {
               themes[word] = (themes[word] || 0) + 1;
             }
           });
@@ -1038,12 +973,10 @@ function analyzeResponses(responses: any[]): {
     }
   });
 
-  // Calculate averages
   Object.keys(averageRatings).forEach(key => {
     averageRatings[key] = averageRatings[key] / totalResponses;
   });
 
-  // Generate insights
   const topThemes = Object.entries(themes)
     .sort(([,a], [,b]) => b - a)
     .slice(0, 10)
