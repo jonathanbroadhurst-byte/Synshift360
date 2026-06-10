@@ -69,7 +69,6 @@ const requireRole = (roles: string[]) => {
   };
 };
 
-// RESTORED MIDDLEWARE GATEWAY
 const requireOwner = () => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user || req.user.role !== 'owner') {
@@ -79,76 +78,33 @@ const requireOwner = () => {
   };
 };
 
-const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, 10);
-};
-
 const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
+// SMART LOOKUP SEEDER: Connects mock data loops directly to your existing tables
 async function seedDefaultWorkspaceState() {
   try {
-    const existingUsers = await db.select().from(users);
-    if (existingUsers.length > 0) {
-      console.log("Database state verified healthy - skip seeding sequence.");
+    // 1. Verify if our target test loop is already loaded
+    const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
+    if (existingCycle) {
+      console.log("Persistent simulation loop 'LFM9GU' verified active.");
       return;
     }
 
-    console.log("Empty database platform baseline identified. Starting auto-seed configuration...");
+    console.log("Simulation metrics loop missing. Starting data matching sequence...");
 
-    const [org] = await db.insert(organizations).values({
-      name: "Demo Organization",
-      isActive: true
-    }).returning();
+    // 2. Fetch the records built by your native setup script
+    const [org] = await db.select().from(organizations).limit(1);
+    const [janeLeader] = await db.select().from(users).where(eq(users.email, "leader@demo.com"));
+    const [survey] = await db.select().from(surveys).limit(1);
 
-    const adminPassword = await bcrypt.hash("admin123", 10);
-    const leaderPassword = await bcrypt.hash("leader123", 10);
-
-    const [adminUser] = await db.insert(users).values({
-      username: "admin",
-      email: "admin@demo.com",
-      password: adminPassword,
-      firstName: "Admin",
-      lastName: "User",
-      role: "admin",
-      organizationId: org.id,
-      position: "System Architect"
-    }).returning();
-
-    const [janeLeader] = await db.insert(users).values({
-      username: "jane.leader",
-      email: "leader@demo.com",
-      password: leaderPassword,
-      firstName: "Jane",
-      lastName: "Leader",
-      role: "leader",
-      organizationId: org.id,
-      position: "Managing Director"
-    }).returning();
-
-    const mockQuestions = [];
-    const categories = ["MOTIVES", "THINKING", "BEHAVIOURS", "CONNECTIONS"];
-    
-    for (let i = 1; i <= 24; i++) {
-      const cat = categories[(i - 1) % categories.length];
-      mockQuestions.push({
-        id: i.toString(),
-        text: `${i}. This leader demonstrates strong, strategic alignment pathways while steering organizational performance factors under complex criteria.`,
-        type: "rating",
-        category: cat
-      });
+    if (!org || !janeLeader || !survey) {
+      console.log("Core database elements aren't ready yet. Deferring data seed injection.");
+      return;
     }
 
-    const [survey] = await db.insert(surveys).values({
-      title: "SyncShift Organisation Alignment",
-      description: "Comprehensive 360 professional evaluation tool.",
-      organizationId: org.id,
-      createdBy: adminUser.id,
-      questions: JSON.stringify(mockQuestions),
-      surveyType: "syncshift"
-    }).returning();
-
+    // 3. Mount the permanent active loop card
     const [cycle] = await db.insert(surveyCycles).values({
       surveyId: survey.id,
       leaderId: janeLeader.id,
@@ -161,6 +117,11 @@ async function seedDefaultWorkspaceState() {
       totalResponses: 3
     }).returning();
 
+    // 4. Extract questions to generate accurate scoring sets
+    const mockQuestions = typeof survey.questions === 'string' 
+      ? JSON.parse(survey.questions) 
+      : (Array.isArray(survey.questions) ? survey.questions : []);
+
     const simulatedRoles = [
       { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
       { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
@@ -168,8 +129,8 @@ async function seedDefaultWorkspaceState() {
     ];
 
     for (const stakeholder of simulatedRoles) {
-      const calculatedAnswers = mockQuestions.map(q => ({
-        questionId: q.id,
+      const calculatedAnswers = mockQuestions.map((q: any) => ({
+        questionId: q.id || "1",
         type: "rating",
         value: stakeholder.type === "Self" ? "6" : stakeholder.type === "Peer" ? "5" : "7"
       }));
@@ -186,14 +147,15 @@ async function seedDefaultWorkspaceState() {
       });
     }
 
-    console.log("Auto-seed verification completed. Workspace data persistence locked successfully.");
+    console.log("Smart simulation loop and 3 mock responses bound successfully!");
   } catch (error) {
-    console.error("Critical fault detected inside database boot seed execution:", error);
+    console.error("Fault encountered during smart lookup seeder execution:", error);
   }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Trigger our secure relational mapping seeder
   await seedDefaultWorkspaceState();
 
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
@@ -401,6 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
       res.json(cyclesWithProgress);
     } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Failed to fetch survey progress" });
     }
   });
@@ -535,165 +498,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/:id", async (req: Request, res: Response) => {
-    try {
-      const report = await storage.getReport(parseInt(req.params.id));
-      if (!report) return res.status(404).json({ message: "Report not found" });
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch report" });
-    }
-  });
-
-  app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
-      res.json({ message: "Report approved successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to approve report" });
-    }
-  });
-
-  app.post("/api/reports/:id/release", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      await storage.updateReportStatus(parseInt(req.params.id), "released", req.user!.id);
-      res.json({ message: "Report released successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to release report" });
-    }
-  });
-
-  app.post("/api/reports/generate/:cycleId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const cycleId = parseInt(req.params.cycleId);
-      const cycle = await storage.getSurveyCycle(cycleId);
-      if (!cycle) return res.status(404).json({ message: "Survey cycle not found" });
-
-      const responses = await storage.getResponsesByCycle(cycleId);
-      if (responses.length === 0) return res.status(400).json({ message: "No responses found" });
-
-      const analysisResult = analyzeResponses(responses);
-      const report = await storage.createReport({
-        cycleId,
-        leaderId: cycle.leaderId,
-        organizationId: cycle.organizationId,
-        title: `360 Feedback Report - ${cycle.title}`,
-        executiveSummary: analysisResult.executiveSummary,
-        strengths: analysisResult.strengths,
-        developmentAreas: analysisResult.developmentAreas,
-        statistics: analysisResult.statistics,
-        status: "pending",
-      });
-
-      res.status(201).json(report);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate report" });
-    }
-  });
-
-  app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
-    try {
-      const quantumSurvey = await storage.getSurveyByType("quantum");
-      if (!quantumSurvey) return res.status(404).json({ message: "Quantum survey not found" });
-      res.json(quantumSurvey);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch Quantum survey" });
-    }
-  });
-
-  app.post("/api/quantum360/create-cycle", async (req: Request, res: Response) => {
-    try {
-      const { leaderName, leaderEmail, title } = req.body;
-      const quantumSurvey = await storage.getSurveyByType("quantum");
-      if (!quantumSurvey) return res.status(404).json({ message: "Quantum survey template missing" });
-
-      const nameParts = leaderName.split(' ');
-      const firstName = nameParts[0] || leaderName;
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      let existingUser = await storage.getUserByEmail(leaderEmail);
-      if (!existingUser) {
-        existingUser = await storage.createUser({
-          username: leaderEmail.split('@')[0],
-          email: leaderEmail,
-          password: await bcrypt.hash('quantum360', 10),
-          firstName,
-          lastName,
-          role: 'leader',
-          organizationId: 1,
-          isActive: true
-        });
-      }
-
-      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const cycle = await storage.createSurveyCycle({
-        surveyId: quantumSurvey.id,
-        leaderId: existingUser.id,
-        organizationId: 1,
-        title: title || "Quantum Leadership Assessment",
-        status: 'active',
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      });
-      
-      await storage.updateCycleInviteCode(cycle.id, inviteCode);
-      res.status(201).json({ cycle, inviteCode });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create Quantum cycle" });
-    }
-  });
-
-  app.get("/api/quantum360/reports/:cycleId", async (req: Request, res: Response) => {
-    try {
-      const [report] = await db.select().from(reports).where(eq(reports.cycleId, parseInt(req.params.cycleId)));
-      if (!report) return res.status(404).json({ message: "Quantum report not found" });
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch Quantum report" });
-    }
-  });
-
-  app.get("/api/owner/organizations/usage", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
-      res.json(orgsWithUsage);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch usage metrics" });
-    }
-  });
-
-  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const allUsers = await storage.getAllUsers();
-      res.json(allUsers.map(({ password, ...user }) => user));
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user accounts" });
-    }
-  });
-
-  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const { role } = req.body;
-      const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ message: "User missing" });
-
-      await storage.updateUserRole(userId, role);
-      res.json({ message: "User role updated successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to modify permission tier" });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
-}
-
-function analyzeResponses(responses: any[]): any {
-  const totalResponses = responses.length;
-  return {
-    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
-    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
-    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
-    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
-  };
-}
+  app.get("/api/reports/:
