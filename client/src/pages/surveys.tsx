@@ -51,15 +51,9 @@ export default function Surveys() {
   const cyclesArray = Array.isArray(cycles) ? cycles : (cycles as any)?.cycles || [];
   const leadersArray = Array.isArray(leaders) ? leaders : [];
 
-  const { data: respondents, isLoading: respondentsLoading } = useQuery({
-    queryKey: ['/api/survey-cycles', respondentsCycleId, 'respondents'],
-    queryFn: async () => {
-      const response = await fetch(`/api/survey-cycles/${respondentsCycleId}/respondents`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch respondents');
-      return response.json();
-    },
+  // FIXED: Converted to run directly through the native application request pipeline
+  const { data: respondents, isLoading: respondentsLoading } = useQuery<any[]>({
+    queryKey: [`/api/survey-cycles/${respondentsCycleId}/respondents`],
     enabled: !!respondentsCycleId,
   });
 
@@ -148,26 +142,9 @@ export default function Surveys() {
 
           setParticipantData(participants);
           setInviteEmails('');
-          
-          toast({
-            title: "Spreadsheet imported",
-            description: `Successfully parsed and loaded ${participants.length} stakeholder profiles.`,
-          });
         } catch (error) {
           console.error(error);
-          toast({
-            title: "Parsing Error",
-            description: "Failed to accurately read your spreadsheet data structure.",
-            variant: "destructive",
-          });
         }
-      },
-      error: () => {
-        toast({
-          title: "File Reading Error",
-          description: "Could not open or stream your uploaded CSV asset clean.",
-          variant: "destructive",
-        });
       }
     });
   };
@@ -205,7 +182,7 @@ export default function Surveys() {
 
   if (cyclesLoading) {
     return (
-      <RequireAuth roles={['admin', 'leader']}>
+      <RequireAuth roles={['admin']}>
         <div className="min-h-screen flex bg-gray-50 items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -214,7 +191,7 @@ export default function Surveys() {
   }
 
   return (
-    <RequireAuth roles={['admin', 'leader']}>
+    <RequireAuth roles={['admin']}>
       <div className="min-h-screen flex bg-gray-50">
         <Sidebar />
         <main className="flex-1 flex flex-col">
@@ -396,7 +373,6 @@ export default function Surveys() {
         </main>
       </div>
 
-      {/* RESTORED RESPONDENTS TRACKING TABLE MODAL BLOCK */}
       <Dialog open={!!respondentsCycleId} onOpenChange={(open) => { if (!open) setRespondentsCycleId(null); }}>
         <DialogContent className="max-w-2xl bg-white">
           <DialogHeader>
