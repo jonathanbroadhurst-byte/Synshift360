@@ -69,6 +69,16 @@ const requireRole = (roles: string[]) => {
   };
 };
 
+// RESTORED MIDDLEWARE GATEWAY
+const requireOwner = () => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user || req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Owner access required' });
+    }
+    next();
+  };
+};
+
 const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, 10);
 };
@@ -77,7 +87,6 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
-// PERSISTENCE AUTO-SEEDER UTILITY LAYER
 async function seedDefaultWorkspaceState() {
   try {
     const existingUsers = await db.select().from(users);
@@ -88,17 +97,14 @@ async function seedDefaultWorkspaceState() {
 
     console.log("Empty database platform baseline identified. Starting auto-seed configuration...");
 
-    // 1. Core Corporate Framework Entity
     const [org] = await db.insert(organizations).values({
       name: "Demo Organization",
       isActive: true
     }).returning();
 
-    // 2. Encryption Layer Signatures
     const adminPassword = await bcrypt.hash("admin123", 10);
     const leaderPassword = await bcrypt.hash("leader123", 10);
 
-    // 3. User Authentication Framework
     const [adminUser] = await db.insert(users).values({
       username: "admin",
       email: "admin@demo.com",
@@ -121,7 +127,6 @@ async function seedDefaultWorkspaceState() {
       position: "Managing Director"
     }).returning();
 
-    // 4. Build standard 24 structural diagnostic fields
     const mockQuestions = [];
     const categories = ["MOTIVES", "THINKING", "BEHAVIOURS", "CONNECTIONS"];
     
@@ -144,7 +149,6 @@ async function seedDefaultWorkspaceState() {
       surveyType: "syncshift"
     }).returning();
 
-    // 5. Permanent Test Survey Loop (Locked Code Framework)
     const [cycle] = await db.insert(surveyCycles).values({
       surveyId: survey.id,
       leaderId: janeLeader.id,
@@ -157,7 +161,6 @@ async function seedDefaultWorkspaceState() {
       totalResponses: 3
     }).returning();
 
-    // 6. Generate individual responses to mock data fields instantly
     const simulatedRoles = [
       { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
       { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
@@ -168,7 +171,6 @@ async function seedDefaultWorkspaceState() {
       const calculatedAnswers = mockQuestions.map(q => ({
         questionId: q.id,
         type: "rating",
-        // Give clean variations (e.g., self scores higher, peer scores realistically middle-ground)
         value: stakeholder.type === "Self" ? "6" : stakeholder.type === "Peer" ? "5" : "7"
       }));
 
@@ -192,7 +194,6 @@ async function seedDefaultWorkspaceState() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Fire our recovery seeder automatically upon container start
   await seedDefaultWorkspaceState();
 
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
@@ -555,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reports/:id/release", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      await storage.updateReportStatus(parseInt(inc(req.params.id)), "released", req.user!.id);
+      await storage.updateReportStatus(parseInt(req.params.id), "released", req.user!.id);
       res.json({ message: "Report released successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to release report" });
