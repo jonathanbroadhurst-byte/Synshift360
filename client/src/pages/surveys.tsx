@@ -42,12 +42,10 @@ export default function Surveys() {
     queryKey: ['/api/organizations'],
   });
 
-  // Query to pull corporate leaders from the backend route
   const { data: leaders } = useQuery({
     queryKey: ['/api/users/leaders'],
   });
 
-  // Safe normalization loops to handle array parsing
   const orgsArray = Array.isArray(organizations) ? organizations : (organizations as any)?.organizations || [];
   const surveysArray = Array.isArray(surveys) ? surveys : (surveys as any)?.surveys || [];
   const cyclesArray = Array.isArray(cycles) ? cycles : (cycles as any)?.cycles || [];
@@ -113,23 +111,65 @@ export default function Surveys() {
     } catch (e) { console.error(e); }
   };
 
+  // BULLETPROOF CASE-INSENSITIVE CSV EXTRACTOR LAYER
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
     Papa.parse(file, {
       header: true,
+      skipEmptyLines: true,
       complete: (results) => {
-        const participants = results.data
-          .filter((row: any) => row.email && row.email.trim())
-          .map((row: any) => ({
-            name: row.name || row.Name || '',
-            jobTitle: row.jobTitle || row['Job Title'] || '',
-            department: row.department || row.Department || '',
-            email: row.email || row.Email || '',
-            relationship: row.relationship || row.Relationship || 'Peer'
-          }));
-        setParticipantData(participants);
-        setInviteEmails('');
+        try {
+          const participants = results.data
+            .map((row: any) => {
+              // Flexible key matching helper function
+              const matchValue = (keys: string[]) => {
+                const targetKey = Object.keys(row).find(k => keys.includes(k.trim()));
+                return targetKey ? row[targetKey]?.toString().trim() : '';
+              };
+
+              return {
+                name: matchValue(['name', 'Name', 'NAME']),
+                jobTitle: matchValue(['jobTitle', 'Job Title', 'job_title', 'position', 'Position', 'POSITION']),
+                department: matchValue(['department', 'Department', 'DEPARTMENT', 'dept', 'Dept']),
+                email: matchValue(['email', 'Email', 'EMAIL']),
+                relationship: matchValue(['relationship', 'Relationship', 'RELATIONSHIP', 'type', 'Type']) || 'Peer'
+              };
+            })
+            .filter((p: any) => p.email && p.email.length > 0);
+
+          if (participants.length === 0) {
+            toast({
+              title: "Import Warning",
+              description: "No matching records found. Please ensure your spreadsheet contains an 'email' column header.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          setParticipantData(participants);
+          setInviteEmails('');
+          
+          toast({
+            title: "Spreadsheet imported",
+            description: `Successfully parsed and loaded ${participants.length} stakeholder profiles.`,
+          });
+        } catch (error) {
+          console.error(error);
+          toast({
+            title: "Parsing Error",
+            description: "Failed to accurately read your spreadsheet data structure.",
+            variant: "destructive",
+          });
+        }
+      },
+      error: () => {
+        toast({
+          title: "File Reading Error",
+          description: "Could not open or stream your uploaded CSV asset clean.",
+          variant: "destructive",
+        });
       }
     });
   };
@@ -142,6 +182,7 @@ export default function Surveys() {
     a.href = url;
     a.download = 'participant_template.csv';
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleCreateSurveyCycle = (e: React.FormEvent) => {
@@ -192,7 +233,6 @@ export default function Surveys() {
               </Button>
             </div>
 
-            {/* Template Metrics Grid */}
             <div className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Survey Templates</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -215,7 +255,6 @@ export default function Surveys() {
               </div>
             </div>
 
-            {/* Deployed Active Loops Summary */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Active Survey Cycles</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -244,7 +283,6 @@ export default function Surveys() {
               </div>
             </div>
 
-            {/* Creation Wizard Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogContent className="max-w-md bg-white max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
@@ -267,7 +305,6 @@ export default function Surveys() {
                     </Select>
                   </div>
 
-                  {/* TARGET LEADER DROP-DOWN SELECTOR REGION */}
                   <div>
                     <Label htmlFor="leader">Target Evaluated Leader</Label>
                     <Select value={selectedLeaderId} onValueChange={setSelectedLeaderId} required>
@@ -309,20 +346,15 @@ export default function Surveys() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createSurveyCycleMutation.isPending} className="bg-blue-600 text-white hover:bg-blue-700">
-                      {createSurveyCycleMutation.isPending ? "Deploying..." : "Deploy Survey Loop"}
-                    </Button>
-                  </div>
-
-                </form>
-              </DialogContent>
-            </Dialog>
-
-          </div>
-        </main>
-      </div>
-    </RequireAuth>
-  );
-}
+                  {/* LIVE PARTICIPANTS PREVIEW CONTAINER */}
+                  {participantData.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm font-medium text-green-800 mb-2">
+                        {participantData.length} participants loaded from spreadsheet
+                      </p>
+                      <div className="max-h-40 overflow-y-auto space-y-2">
+                        {participantData.map((p, index) => (
+                          <div key={index} className="text-xs text-green-700 pb-1 border-b border-green-100 last:border-0">
+                            <div className="font-medium">{p.name || 'Anonymous User'}</div>
+                            <div className="text-green-600">{p.jobTitle} • {p.relationship}</div>
+                            <div className="text-green-500">{p.email}</div>
