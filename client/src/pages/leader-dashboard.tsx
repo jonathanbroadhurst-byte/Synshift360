@@ -1,5 +1,4 @@
 import { RequireAuth, useAuth } from '@/lib/auth';
-import Header from '@/components/layout/header';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,31 +7,39 @@ export default function LeaderDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch active surveys available within the platform
-  const { data: surveyCycles, isLoading } = useQuery<any[]>({
+  const { data: surveyCycles, isLoading: cyclesLoading } = useQuery<any[]>({
     queryKey: ['/api/survey-cycles'],
   });
 
-  // SMART FILTER: Find the live survey that is active AND assigned explicitly to THIS logged-in leader
   const activeCycle = surveyCycles?.find(
     (cycle) => (cycle.status === 'active' || cycle.isActive === true) && cycle.leaderId === user?.id
   );
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
-  // Fetch response metrics safely to build our live tracker
-  const { data: responses } = useQuery<any[]>({
-    queryKey: ['/api/survey-responses'],
+  // Fetch secure aggregate summary stats without leaking individual data entries
+  const { data: summaryMetrics, isLoading: summaryLoading } = useQuery<{
+    selfAssessmentComplete: boolean;
+    stakeholderCount: number;
+  }>({
+    queryKey: ['/api/survey-cycles', activeCycle?.id, 'leader-summary'],
+    queryFn: async () => {
+      const response = await fetch(`/api/survey-cycles/${activeCycle.id}/leader-summary`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch summary');
+      return response.json();
+    },
     enabled: !!activeCycle,
   });
 
-  const stakeholderFeedbacks = responses?.filter(r => r.cycleId === activeCycle?.id && r.respondentRelationship !== 'Self') || [];
-  const selfAssessmentComplete = responses?.some(r => r.cycleId === activeCycle?.id && r.respondentRelationship === 'Self');
+  const stakeholderCount = summaryMetrics?.stakeholderCount || 0;
+  const selfAssessmentComplete = summaryMetrics?.selfAssessmentComplete || false;
 
   const targetResponses = 8;
-  const currentProgressPercent = Math.min(Math.round((stakeholderFeedbacks.length / targetResponses) * 100), 100);
+  const currentProgressPercent = Math.min(Math.round((stakeholderCount / targetResponses) * 100), 100);
 
-  if (isLoading) {
+  if (cyclesLoading || (activeCycle && summaryLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -43,7 +50,7 @@ export default function LeaderDashboard() {
   return (
     <RequireAuth roles={['leader', 'admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Navigation Header */}
+        
         <nav className="bg-white border-b shadow-sm sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-6 lg:px-8 h-16 flex justify-between items-center">
             <div className="flex items-center space-x-2">
@@ -65,7 +72,6 @@ export default function LeaderDashboard() {
           </div>
         </nav>
 
-        {/* Main Content Hub */}
         <main className="flex-1 max-w-5xl w-full mx-auto p-6 sm:p-8 space-y-8">
           
           <div className="space-y-1">
@@ -80,7 +86,6 @@ export default function LeaderDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-6">
               
-              {/* Step 1: Self-Assessment Launch Block */}
               <Card className="border-none shadow-md overflow-hidden bg-white">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
                   <h3 className="text-lg font-bold flex items-center gap-2">
@@ -112,7 +117,6 @@ export default function LeaderDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Step 2: Live Stakeholder Anonymity Track Matrix */}
               <Card className="shadow-md border-none bg-white">
                 <CardHeader>
                   <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -127,7 +131,7 @@ export default function LeaderDashboard() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
                       <span className="text-gray-700">Collected Submissions</span>
-                      <span className="text-blue-700 font-bold">{stakeholderFeedbacks.length} responses</span>
+                      <span className="text-blue-700 font-bold">{stakeholderCount} responses</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mt-2">
                       <div 
@@ -147,7 +151,6 @@ export default function LeaderDashboard() {
               </Card>
             </div>
 
-            {/* Diagnostic Reports Column */}
             <div className="space-y-6">
               <Card className="shadow-md border-none bg-white h-full">
                 <CardHeader>
