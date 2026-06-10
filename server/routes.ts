@@ -82,49 +82,68 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
-// RELATIONAL SEEDER: Auto-populates response table rows for ALL deployed cycles
+// BALANCED AUTO-SEEDER: Guarantees a fresh active loop populated with responses on boot
 async function seedDefaultWorkspaceState() {
   try {
-    const allCycles = await db.select().from(surveyCycles);
-    
-    for (const cycle of allCycles) {
-      const existingResponses = await db.select().from(surveyResponses).where(eq(surveyResponses.cycleId, cycle.id));
-      if (existingResponses.length > 0) continue;
-
-      console.log(`Injecting missing evaluation rows for cycle: ${cycle.title} (${cycle.inviteCode})`);
-
-      const [survey] = await db.select().from(surveys).where(eq(surveys.id, cycle.surveyId));
-      const mockQuestions = survey && typeof survey.questions === 'string' 
-        ? JSON.parse(survey.questions) 
-        : (survey && Array.isArray(survey.questions) ? survey.questions : []);
-
-      const simulatedRoles = [
-        { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
-        { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
-        { name: "Robert Report", email: "robert@company.com", type: "Direct Report" }
-      ];
-
-      for (const stakeholder of simulatedRoles) {
-        const calculatedAnswers = mockQuestions.map((q: any) => ({
-          questionId: q.id || "1",
-          type: "rating",
-          value: stakeholder.type === "Self" ? "6" : stakeholder.type === "Peer" ? "5" : "7"
-        }));
-
-        await db.insert(surveyResponses).values({
-          cycleId: cycle.id,
-          invitationId: null,
-          responses: JSON.stringify(calculatedAnswers),
-          responseHash: crypto.createHash('sha256').update(`${stakeholder.email}-${Date.now()}-${cycle.id}`).digest('hex'),
-          disabled: false,
-          respondentName: stakeholder.name,
-          respondentEmail: stakeholder.email,
-          respondentRelationship: stakeholder.type
-        });
-      }
-
-      await storage.updateSurveyCycleStats(cycle.id);
+    const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
+    if (existingCycle) {
+      console.log("Persistent simulation loop 'LFM9GU' verified active.");
+      return;
     }
+
+    console.log("Simulation metrics loop missing. Rebuilding persistent workflow state...");
+
+    const [org] = await db.select().from(organizations).limit(1);
+    const [janeLeader] = await db.select().from(users).where(eq(users.email, "leader@demo.com"));
+    const [survey] = await db.select().from(surveys).limit(1);
+
+    if (!org || !janeLeader || !survey) {
+      console.log("Native data structure values not fully compiled yet. Deferring seed.");
+      return;
+    }
+
+    const [cycle] = await db.insert(surveyCycles).values({
+      surveyId: survey.id,
+      leaderId: janeLeader.id,
+      organizationId: org.id,
+      title: "SyncShift Organization Review",
+      status: "active",
+      endDate: new Date("2026-12-31"),
+      inviteCode: "LFM9GU",
+      totalInvites: 3,
+      totalResponses: 3
+    }).returning();
+
+    const mockQuestions = typeof survey.questions === 'string' 
+      ? JSON.parse(survey.questions) 
+      : (Array.isArray(survey.questions) ? survey.questions : []);
+
+    const simulatedRoles = [
+      { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
+      { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
+      { name: "Robert Report", email: "robert@company.com", type: "Direct Report" }
+    ];
+
+    for (const stakeholder of simulatedRoles) {
+      const calculatedAnswers = mockQuestions.map((q: any) => ({
+        questionId: q.id || "1",
+        type: "rating",
+        value: stakeholder.type === "Self" ? "6" : stakeholder.type === "Peer" ? "5" : "7"
+      }));
+
+      await db.insert(surveyResponses).values({
+        cycleId: cycle.id,
+        invitationId: null,
+        responses: JSON.stringify(calculatedAnswers),
+        responseHash: crypto.createHash('sha256').update(`${stakeholder.email}-${Date.now()}-${cycle.id}`).digest('hex'),
+        disabled: false,
+        respondentName: stakeholder.name,
+        respondentEmail: stakeholder.email,
+        respondentRelationship: stakeholder.type
+      });
+    }
+
+    console.log("Smart simulation loop 'LFM9GU' and 3 evaluation elements deployed successfully!");
   } catch (error) {
     console.error("Fault encountered during smart lookup seeder execution:", error);
   }
@@ -343,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CONFIDENTIAL HIGHLIGHT METRICS PATHWAY FOR MANAGERS
+  // CONFIDENTIAL HIGHLIGHT SUMMARY MATRIX FOR EXECUTIVE PORTALS
   app.get("/api/survey-cycles/:id/leader-summary", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.id);
