@@ -17,19 +17,12 @@ export default function LeaderDashboard() {
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
-  // Fetch secure aggregate summary stats without leaking individual data entries
+  // FIXED: Migrated to use the application's clean query pipeline string pattern
   const { data: summaryMetrics, isLoading: summaryLoading } = useQuery<{
     selfAssessmentComplete: boolean;
     stakeholderCount: number;
   }>({
-    queryKey: ['/api/survey-cycles', activeCycle?.id, 'leader-summary'],
-    queryFn: async () => {
-      const response = await fetch(`/api/survey-cycles/${activeCycle.id}/leader-summary`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch summary');
-      return response.json();
-    },
+    queryKey: [`/api/survey-cycles/${activeCycle?.id}/leader-summary`],
     enabled: !!activeCycle,
   });
 
