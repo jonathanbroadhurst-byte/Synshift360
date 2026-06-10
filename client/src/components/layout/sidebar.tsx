@@ -1,138 +1,76 @@
-import { Link, useLocation } from 'wouter';
+import { useLink, useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth';
+import { 
+  LayoutDashboard, 
+  Building2, 
+  ClipboardList, 
+  BarChart3, 
+  Users2, 
+  ShieldCheck 
+} from 'lucide-react';
 
 export default function Sidebar() {
-  const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { user } = useAuth();
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
+  // Define our navigation directory matrix
+  const menuItems = [
+    { name: 'Admin Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin'] },
+    { name: 'Organizations', path: '/organizations', icon: Building2, roles: ['admin'] },
+    { name: 'Survey Management', path: '/surveys', icon: ClipboardList, roles: ['admin'] },
+    { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin', 'leader'] },
+    { name: 'User Management', path: '/users', icon: Users2, roles: ['admin'] },
+    { name: 'GDPR Compliance', path: '/gdpr', icon: ShieldCheck, roles: ['admin'] },
+  ];
 
-  const isActive = (path: string) => {
-    return location === path;
-  };
+  // Filter out panels that don't match the current user's authorization tier
+  const allowedItems = menuItems.filter(item => item.roles.includes(user?.role || ''));
 
   return (
-    <aside className="w-64 bg-white shadow-material flex flex-col">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <i className="fas fa-users text-white text-lg"></i>
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-secondary">360 Feedback</h1>
-            <p className="text-sm text-gray-500">Enterprise Platform</p>
-          </div>
-        </div>
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+      {/* Platform Branding Header */}
+      <div className="p-6 border-b border-gray-100">
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">360 Feedback</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Enterprise Platform</p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
-        {user?.role === 'owner' && (
-          <Link href="/owner">
-            <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-              isActive('/owner') 
-                ? 'bg-purple-100 text-purple-700 font-medium' 
-                : 'text-purple-600 hover:bg-purple-50'
-            }`}>
-              <i className="fas fa-crown w-5"></i>
-              <span>Owner Dashboard</span>
-            </span>
-          </Link>
-        )}
+      {/* Dynamic Role-Gated Navigation Menu */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {allowedItems.map((item) => {
+          const isActive = location === item.path;
+          const Icon = item.icon;
 
-        <Link href="/admin">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/admin') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-tachometer-alt w-5"></i>
-            <span>Admin Dashboard</span>
-          </span>
-        </Link>
-        
-        <Link href="/organizations">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/organizations') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-building w-5"></i>
-            <span>Organizations</span>
-          </span>
-        </Link>
-        
-        <Link href="/surveys">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/surveys') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-clipboard-list w-5"></i>
-            <span>Survey Management</span>
-          </span>
-        </Link>
-        
-        <Link href="/reports">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/reports') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-chart-bar w-5"></i>
-            <span>Reports</span>
-          </span>
-        </Link>
-        
-        <Link href="/users">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/users') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-user-cog w-5"></i>
-            <span>User Management</span>
-          </span>
-        </Link>
-        
-        <Link href="/compliance">
-          <span className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
-            isActive('/compliance') 
-              ? 'bg-primary/10 text-primary font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}>
-            <i className="fas fa-shield-alt w-5"></i>
-            <span>GDPR Compliance</span>
-          </span>
-        </Link>
+          return (
+            <button
+              key={item.path}
+              onClick={() => setLocation(item.path)}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150 border-none text-left ${
+                isActive
+                  ? 'bg-blue-50 text-blue-700 shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+              <span>{item.name}</span>
+            </button>
+          );
+        })}
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user ? getInitials(user.firstName, user.lastName) : 'U'}
-            </span>
+      {/* Dynamic Profile Identity Footnote */}
+      <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+        <div className="flex items-center space-x-3 px-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm capitalize">
+            {user?.firstName?.charAt(0) || 'U'}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-secondary truncate">
-              {user ? `${user.firstName} ${user.lastName}` : 'User'}
+          <div className="truncate">
+            <p className="text-sm font-semibold text-gray-900 truncate">
+              {user?.firstName || 'User'} {user?.lastName || ''}
             </p>
-            <p className="text-xs text-gray-500">
-              {user?.role === 'owner' ? 'Platform Owner' : 
-               user?.role === 'admin' ? 'Administrator' : 
-               user?.role === 'org_admin' ? 'Org Administrator' :
-               user?.role}
+            <p className="text-xs text-gray-500 capitalize font-medium">
+              {user?.role === 'admin' ? 'Administrator' : user?.role || 'Participant'}
             </p>
           </div>
-          <button 
-            onClick={logout}
-            className="text-gray-400 hover:text-gray-600"
-            title="Logout"
-          >
-            <i className="fas fa-sign-out-alt"></i>
-          </button>
         </div>
       </div>
     </aside>
