@@ -347,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // INTEGRATED UX PATH: Fetch available corporate managers for target selectors
+  // Fetch available corporate managers for target selectors
   app.get("/api/users/leaders", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const leaders = await db.select({
@@ -397,6 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // UPDATED PATH: Delivers leaderId mappings so dashboards can filter metrics safely
   app.get("/api/survey-cycles", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycles = await db.select({
@@ -409,6 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invitedCount: surveyCycles.totalInvites,
         organizationName: organizations.name,
         surveyTitle: surveys.title,
+        leaderId: surveyCycles.leaderId, // Wired securely here
       })
       .from(surveyCycles)
       .leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id))
