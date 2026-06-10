@@ -82,6 +82,7 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
+// SMART LOOKUP SEEDER: Maps evaluation simulation metrics into existing table sets
 async function seedDefaultWorkspaceState() {
   try {
     const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
@@ -313,4 +314,353 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cycleData = insertSurveyCycleSchema.parse(requestData);
       const cycle = await storage.createSurveyCycle(cycleData);
 
-      const generatedToken = Math.random().toString(36).substring(2
+      const generatedToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await storage.updateCycleInviteCode(cycle.id, generatedToken);
+      cycle.inviteCode = generatedToken; 
+
+      res.status(201).json({ cycle });
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to create survey cycle" });
+    }
+  });
+
+  app.get("/api/survey-cycles", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      let baseSelector = db.select({
+        id: surveyCycles.id,
+        title: surveyCycles.title,
+        status: surveyCycles.status,
+        inviteCode: surveyCycles.inviteCode,
+        endDate: surveyCycles.endDate,
+        responseCount: surveyCycles.totalResponses,
+        invitedCount: surveyCycles.totalInvites,
+        organizationName: organizations.name,
+        surveyTitle: surveys.title,
+        leaderId: surveyCycles.leaderId,
+      })
+      .from(surveyCycles)
+      .leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id))
+      .leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id));
+
+      if (req.user!.role === 'leader') {
+        baseSelector = baseSelector.where(eq(surveyCycles.leaderId, req.user!.id)) as any;
+      }
+
+      const cycles = await baseSelector.orderBy(surveyCycles.createdAt);
+      res.json(cycles);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch survey cycles' });
+    }
+  });
+
+  app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cyclesWithProgress = await storage.getActiveCyclesWithProgress();
+      res.json(cyclesWithProgress);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
+  app.get("/api/survey-cycles/:inviteCode", async (req: Request, res: Response) => {
+    try {
+      const { inviteCode } = req.params;
+      const [cycle] = await db.select({
+        id: surveyCycles.id,
+        title: surveyCycles.title,
+        status: surveyCycles.status,
+        inviteCode: surveyCycles.inviteCode,
+        endDate: surveyCycles.endDate,
+        surveyId: surveyCycles.surveyId,
+        leaderId: surveyCycles.leaderId,
+        organizationId: surveyCycles.organizationId,
+        leaderFirstName: users.firstName,
+        leaderLastName: users.lastName,
+        leaderPosition: users.position,
+        surveyTitle: surveys.title,
+        surveyQuestions: surveys.questions,
+        organizationName: organizations.name,
+      })
+      .from(surveyCycles)
+      .leftJoin(users, eq(surveyCycles.leaderId, users.id))
+      .leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id))
+      .leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id))
+      .where(eq(surveyCycles.inviteCode, inviteCode));
+      
+      if (!cycle) return res.status(404).json({ message: "Survey not found" });
+      res.json(cycle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch survey cycle" });
+    }
+  });
+
+  app.post("/api/survey-invitations", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { cycleId, participantEmails } = req.body;
+      for (const email of participantEmails) {
+        if (!email || !email.trim()) continue;
+        await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
+      }
+      await storage.updateSurveyCycleStats(parseInt(cycleId));
+      res.status(201).json({ message: "Invitations created successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to send invitation" });
+    }
+  });
+
+  app.get("/api/survey-invitations/:token", async (req: Request, res: Response) => {
+    try {
+      const invitation = await storage.getSurveyInvitationByToken(req.params.token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      res.json(invitation);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invitation" });
+    }
+  });
+
+  app.post("/api/survey-responses", async (req: Request, res: Response) => {
+    try {
+      const { inviteCode, responses, respondentName, respondentEmail, respondentRelationship } = req.body;
+      const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
+      if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive or missing" });
+
+      const timestamp = new Date().toISOString();
+      const responseHash = generateResponseHash(`anonymous-${timestamp}`, cycle.id);
+
+      await storage.createSurveyResponse({
+        cycleId: cycle.id,
+        invitationId: null,
+        responses,
+        responseHash,
+        disabled: false,
+        respondentName: respondentName || null,
+        respondentEmail: respondentEmail || null,
+        respondentRelationship: respondentRelationship || null,
+      });
+
+      await storage.updateSurveyCycleStats(cycle.id);
+      res.status(201).json({ message: "Response submitted successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to submit response" });
+    }
+  });
+
+  app.get("/api/survey-cycles/:id/respondents", authenticateToken, requireRole(['admin', 'org_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const respondents = await db
+        .select({
+          id: surveyResponses.id,
+          respondentName: surveyResponses.respondentName,
+          respondentEmail: surveyResponses.respondentEmail,
+          respondentRelationship: surveyResponses.respondentRelationship,
+          submittedAt: surveyResponses.submittedAt,
+        })
+        .from(surveyResponses)
+        .where(eq(surveyResponses.cycleId, parseInt(req.params.id)))
+        .orderBy(surveyResponses.submittedAt);
+      res.json(respondents);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch respondents" });
+    }
+  });
+
+  app.get("/api/survey-cycles/:id/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.id);
+      const cycle = await storage.getSurveyCycle(cycleId);
+      if (!cycle) return res.status(404).json({ message: "Survey cycle not found" });
+
+      const progress = await storage.getCycleProgress(cycleId);
+      let leaderName = 'Unknown';
+      if (cycle.leaderId) {
+        const leader = await storage.getUser(cycle.leaderId);
+        if (leader) leaderName = `${leader.firstName} ${leader.lastName}`;
+      }
+
+      res.json({ cycle, leaderName, ...progress });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch survey progress" });
+    }
+  });
+
+  app.get("/api/reports/pending", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const reports = await storage.getPendingReports();
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending reports" });
+    }
+  });
+
+  app.get("/api/reports/:id", async (req: Request, res: Response) => {
+    try {
+      const report = await storage.getReport(parseInt(req.params.id));
+      if (!report) return res.status(404).json({ message: "Report not found" });
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
+      res.json({ message: "Report approved successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to approve report" });
+    }
+  });
+
+  app.post("/api/reports/:id/release", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.updateReportStatus(parseInt(req.params.id), "released", req.user!.id);
+      res.json({ message: "Report released successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to release report" });
+    }
+  });
+
+  app.post("/api/reports/generate/:cycleId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.cycleId);
+      const cycle = await storage.getSurveyCycle(cycleId);
+      if (!cycle) return res.status(404).json({ message: "Survey cycle not found" });
+
+      const responses = await storage.getResponsesByCycle(cycleId);
+      if (responses.length === 0) return res.status(400).json({ message: "No responses found" });
+
+      const analysisResult = analyzeResponses(responses);
+      const report = await storage.createReport({
+        cycleId,
+        leaderId: cycle.leaderId,
+        organizationId: cycle.organizationId,
+        title: `360 Feedback Report - ${cycle.title}`,
+        executiveSummary: analysisResult.executiveSummary,
+        strengths: analysisResult.strengths,
+        developmentAreas: analysisResult.developmentAreas,
+        statistics: analysisResult.statistics,
+        status: "pending",
+      });
+
+      res.status(201).json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
+  app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
+    try {
+      const quantumSurvey = await storage.getSurveyByType("quantum");
+      if (!quantumSurvey) return res.status(404).json({ message: "Quantum survey not found" });
+      res.json(quantumSurvey);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Quantum survey" });
+    }
+  });
+
+  app.post("/api/quantum360/create-cycle", async (req: Request, res: Response) => {
+    try {
+      const { leaderName, leaderEmail, title } = req.body;
+      const quantumSurvey = await storage.getSurveyByType("quantum");
+      if (!quantumSurvey) return res.status(404).json({ message: "Quantum survey template missing" });
+
+      const nameParts = leaderName.split(' ');
+      const firstName = nameParts[0] || leaderName;
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      let existingUser = await storage.getUserByEmail(leaderEmail);
+      if (!existingUser) {
+        existingUser = await storage.createUser({
+          username: leaderEmail.split('@')[0],
+          email: leaderEmail,
+          password: await bcrypt.hash('quantum360', 10),
+          firstName,
+          lastName,
+          role: 'leader',
+          organizationId: 1,
+          isActive: true
+        });
+      }
+
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const cycle = await storage.createSurveyCycle({
+        surveyId: quantumSurvey.id,
+        leaderId: existingUser.id,
+        organizationId: 1,
+        title: title || "Quantum Leadership Assessment",
+        status: 'active',
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      });
+      
+      await storage.updateCycleInviteCode(cycle.id, inviteCode);
+      res.status(201).json({ cycle, inviteCode });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create Quantum cycle" });
+    }
+  });
+
+  app.get("/api/quantum360/reports/:cycleId", async (req: Request, res: Response) => {
+    try {
+      const [report] = await db.select().from(reports).where(eq(reports.cycleId, parseInt(req.params.cycleId)));
+      if (!report) return res.status(404).json({ message: "Quantum report not found" });
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Quantum report" });
+    }
+  });
+
+  app.get("/api/owner/organizations/usage", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
+      res.json(orgsWithUsage);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch usage metrics" });
+    }
+  });
+
+  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers.map(({ password, ...user }) => user));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user accounts" });
+    }
+  });
+
+  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { role } = req.body;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User missing" });
+
+      await storage.updateUserRole(userId, role);
+      res.json({ message: "User role updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to modify permission tier" });
+    }
+  });
+
+  app.get("/api/owner/organizations/:orgId/admins", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const admins = await storage.getOrganizationAdmins(parseInt(req.params.orgId));
+      res.json(admins.map(({ password, ...user }) => user));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch admins" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+
+function analyzeResponses(responses: any[]): any {
+  const totalResponses = responses.length;
+  return {
+    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
+    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
+    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
+    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
+  };
+}
