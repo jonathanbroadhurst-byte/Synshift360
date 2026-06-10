@@ -347,7 +347,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CUSTOM BACKEND GENERATION FOR ADMIN WORKSPACE DEPLOYMENTS
+  // INTEGRATED UX PATH: Fetch available corporate managers for target selectors
+  app.get("/api/users/leaders", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const leaders = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.role, 'leader'));
+      
+      res.json(leaders);
+    } catch (error) {
+      console.error('Failed to fetch leaders:', error);
+      res.status(500).json({ message: "Failed to fetch leaders list" });
+    }
+  });
+
   app.post("/api/survey-cycles", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       console.log('Survey cycle request body:', req.body);
@@ -358,10 +376,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cycleData = insertSurveyCycleSchema.parse(requestData);
       const cycle = await storage.createSurveyCycle(cycleData);
 
-      // Auto-generate token if not supplied directly in form
       const generatedToken = Math.random().toString(36).substring(2, 8).toUpperCase();
       await storage.updateCycleInviteCode(cycle.id, generatedToken);
-      cycle.inviteCode = generatedToken; // Forward directly to user dashboard bundle
+      cycle.inviteCode = generatedToken; 
 
       await storage.logActivity({
         userId: req.user!.id,
