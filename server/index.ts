@@ -2,7 +2,12 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
+import { users } from "@shared/schema";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Environment variable validation
 function validateEnvironment() {
@@ -41,6 +46,54 @@ function validateEnvironment() {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// ⚡ PRIORITY AUTHENTICATION INTERCEPTOR: Bypasses static serving and route conflicts completely
+app.post(["/api/login", "/api/auth/login"], async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    
+    log(`🔐 LIVE LOGIN INTERCEPT: Verifying credentials for explicit request to: ${req.path}`);
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    // 1. Point lookups directly to live table cells to bypass abstract repository configuration layers
+    const [user] = await db.select().from(users).where(eq(users.email, email.trim())).limit(1);
+    
+    if (!user) {
+      log(`❌ LOGIN REJECTED: No matching profile rows found for ${email}`);
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // 2. Compute cryptographically safe salt comparisons matching 'admin123'
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      log(`❌ LOGIN REJECTED: Decryption verification failure for ${email}`);
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    log(`✅ LOGIN GRANTED: Session keys generated for Master Entity: ${email}`);
+
+    // 3. Seal authorization cookies via signed JSON Web Tokens
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    
+    return res.json({ 
+      token, 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        firstName: user.firstName, 
+        lastName: user.lastName, 
+        role: user.role,
+        organizationId: user.organizationId 
+      } 
+    });
+  } catch (error) {
+    console.error("Critical Runtime Authentication Crash:", error);
+    return res.status(500).json({ message: "Login failed" });
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -82,7 +135,7 @@ app.use((req, res, next) => {
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     log("⚡ Column 'quantum_credits' verified or injected successfully.");
     
-    // 🏁 Seeding complete! Registering main backend API routes...
+    // 🏁 Registering main backend API routes...
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
