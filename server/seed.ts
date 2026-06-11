@@ -34,7 +34,7 @@ export async function seedDatabase() {
     // ⚡ FIXED: Add const [adminUser] = and append .returning() at the bottom
     const [adminUser] = await db.insert(users).values({
       email: "admin@demo.com",
-      username: "admin",
+      username: "admin@demo.com",
       password: await bcrypt.hash("admin123", 10),
       role: "owner",
       organizationId: organization.id,
@@ -48,7 +48,7 @@ export async function seedDatabase() {
     const leaderPassword = await bcrypt.hash("leader123", 10);
     const [leaderUser] = await db.insert(users).values({
       email: "leader@demo.com",
-      username: "leader",
+      username: "leader@demo.com",
       firstName: "Jane",
       lastName: "Leader",
       password: leaderPassword,
