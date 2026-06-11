@@ -1,10 +1,15 @@
+import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { users, organizations, surveys } from "@shared/schema";
 import bcrypt from "bcrypt";
-import { sql } from "drizzle-orm";
 
 export async function seedDatabase() {
   try {
+    // ⚡ EMERGENCY INJECTION: Force Postgres to add the column before any seeds or truncates run
+    console.log("🔍 Checking database columns directly from seeder context...");
+    await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
+    console.log("⚡ Column 'quantum_credits' verified or injected successfully.");
+
     console.log("Starting database seeding...");
 
     console.log("Clearing old test data safely via cascade...");
@@ -15,9 +20,12 @@ export async function seedDatabase() {
       name: "Demo Organization",
       domain: "demo.com",
       isActive: true,
+      quantumCredits: 0, // Explicitly setting the new schema field to 0 for the demo account
     }).returning();
 
     console.log("Created organization:", organization.name);
+    
+    // ... the rest of your original seeding rows continue undisturbed below here
 
     // Create admin user
     const hashedPassword = await bcrypt.hash("admin123", 10);
