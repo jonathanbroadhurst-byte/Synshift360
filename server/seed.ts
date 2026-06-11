@@ -31,17 +31,15 @@ export async function seedDatabase() {
     // ... the rest of your original seeding rows continue undisturbed below here
 
     // Create admin user
-    const hashedPassword = await bcrypt.hash("admin123", 10);
-    const [adminUser] = await db.insert(users).values({
-      email: "admin@demo.com",
-      username: "admin",
-      firstName: "Admin",
-      lastName: "User",
-      password: hashedPassword,
-      role: "admin",
-      organizationId: organization.id,
-    }).returning();
-
+    await db.insert(users).values({
+  email: "admin@demo.com",
+  username: "admin",
+  password: await bcrypt.hash("admin123", 10),
+  role: "owner", // ⚡ CHANGE THIS FROM "admin" TO "owner"
+  organizationId: organization.id,
+  firstName: "Platform",
+  lastName: "Owner"
+});
     console.log("Created admin user:", adminUser.email);
 
     // Create sample leader
