@@ -12,6 +12,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import * as mailjetEmail from "./mailjet";
 import * as resendEmail from "./resend";
+import { generateSyncShiftReportData } from "./services/reporting";
 
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
@@ -362,7 +363,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CONFIDENTIAL HIGHLIGHT SUMMARY MATRIX FOR EXECUTIVE PORTALS
   app.get("/api/survey-cycles/:id/leader-summary", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.id);
@@ -504,6 +504,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(reports);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch pending reports" });
+    }
+  });
+
+  // DYNAMIC COMPRESSED METRICS PIPELINE FOR THE SYNCSHIFT 1:1 TAXONOMY
+  app.get("/api/reports/:cycleId/metrics", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.cycleId);
+      if (isNaN(cycleId)) return res.status(400).json({ message: "Invalid evaluation tracking ID" });
+
+      const processedMetrics = await generateSyncShiftReportData(cycleId);
+      return res.json(processedMetrics);
+    } catch (error: any) {
+      console.error("Aggregation Failure:", error);
+      return res.status(500).json({ message: error.message || "Internal data compiling exception" });
     }
   });
 
