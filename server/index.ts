@@ -50,20 +50,17 @@ app.use(express.urlencoded({ extended: false }));
 // ⚡ PRIORITY AUTHENTICATION INTERCEPTOR: Bypasses static serving and route conflicts completely
 app.post(["/api/login", "/api/auth/login"], async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    // 1. ADDED FLEXIBILITY: Check req.body directly OR nested within a data object
+    const email = req.body.email || req.body.data?.email;
+    const password = req.body.password || req.body.data?.password;
     
-    log(`🔐 LIVE LOGIN INTERCEPT: Verifying credentials for explicit request to: ${req.path}`);
+    // DEBUG: See exactly what structure is hitting your server
+    console.log(`🚨 LOGIN DEBUG: Headers: ${JSON.stringify(req.headers['content-type'])}`);
+    console.log(`🚨 LOGIN DEBUG: Body contents: ${JSON.stringify(req.body)}`);
 
     if (!email || !password) {
+      console.log(`❌ LOGIN REJECTED: Missing credentials. Received email: ${email}, pass: ${!!password}`);
       return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    // 1. Point lookups directly to live table cells to bypass abstract repository configuration layers
-    const [user] = await db.select().from(users).where(eq(users.email, email.trim())).limit(1);
-    
-    if (!user) {
-      log(`❌ LOGIN REJECTED: No matching profile rows found for ${email}`);
-      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // 2. Compute cryptographically safe salt comparisons matching 'admin123'
