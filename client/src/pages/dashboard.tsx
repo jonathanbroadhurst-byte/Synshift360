@@ -38,7 +38,7 @@ export default function Dashboard() {
   };
 
   return (
-    <RequireAuth roles={['admin']}>
+    <RequireAuth roles={['admin', 'owner']}>
       <div className="min-h-screen flex bg-gray-50">
         <Sidebar />
         
