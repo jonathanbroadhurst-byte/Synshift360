@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { users, organizations } from "@shared/schema";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt"; // ✅ FIXED: Changed from bcryptjs to native bcrypt
 
 async function seedDatabase() {
   console.log("Executing pristine database context seeding...");
@@ -24,7 +24,7 @@ async function seedDatabase() {
     // 3. Seed Master Platform Owner profile
     const [adminUser] = await db.insert(users).values({
       email: "admin@demo.com",
-      username: "admin@demo.com", // Matches form login inputs exactly
+      username: "admin@demo.com",
       password: await bcrypt.hash("admin123", 10),
       role: "owner",
       organizationId: organization.id,
@@ -38,7 +38,7 @@ async function seedDatabase() {
     const leaderPassword = await bcrypt.hash("leader123", 10);
     const [leader] = await db.insert(users).values({
       email: "leader@demo.com",
-      username: "leader@demo.com", // Matches form login inputs exactly
+      username: "leader@demo.com",
       password: leaderPassword,
       role: "leader",
       organizationId: organization.id,
