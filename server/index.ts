@@ -51,8 +51,17 @@ app.use(express.urlencoded({ extended: false }));
 app.post(["/api/login", "/api/auth/login"], async (req: Request, res: Response) => {
   try {
     // 1. ADDED FLEXIBILITY: Check req.body directly OR nested within a data object
-    const email = req.body.email || req.body.data?.email;
-    const password = req.body.password || req.body.data?.password;
+    // Update this line:
+const { email, username, password } = req.body;
+
+// And update the lookup logic to handle both:
+const targetEmail = email || username;
+
+if (!targetEmail || !password) {
+  return res.status(400).json({ message: "Email/Username and password are required" });
+}
+
+const [user] = await db.select().from(users).where(eq(users.email, targetEmail.trim())).limit(1);
     
     // DEBUG: See exactly what structure is hitting your server
     console.log(`🚨 LOGIN DEBUG: Headers: ${JSON.stringify(req.headers['content-type'])}`);
