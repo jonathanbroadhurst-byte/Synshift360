@@ -9,6 +9,8 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   domain: text("domain").unique(),
   isActive: boolean("is_active").default(true),
+  // ADD THIS LINE HERE:
+  quantumCredits: integer("quantum_credits").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
