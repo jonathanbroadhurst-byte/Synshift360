@@ -30,16 +30,18 @@ export async function seedDatabase() {
     
     // ... the rest of your original seeding rows continue undisturbed below here
 
-    // Create admin user
-    await db.insert(users).values({
-  email: "admin@demo.com",
-  username: "admin",
-  password: await bcrypt.hash("admin123", 10),
-  role: "owner", // ⚡ CHANGE THIS FROM "admin" TO "owner"
-  organizationId: organization.id,
-  firstName: "Platform",
-  lastName: "Owner"
-});
+   // Create admin user
+    // ⚡ FIXED: Add const [adminUser] = and append .returning() at the bottom
+    const [adminUser] = await db.insert(users).values({
+      email: "admin@demo.com",
+      username: "admin",
+      password: await bcrypt.hash("admin123", 10),
+      role: "owner",
+      organizationId: organization.id,
+      firstName: "Platform",
+      lastName: "Owner"
+    }).returning();
+
     console.log("Created admin user:", adminUser.email);
 
     // Create sample leader
