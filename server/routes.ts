@@ -13,6 +13,7 @@ import { z } from "zod";
 import * as mailjetEmail from "./mailjet";
 import * as resendEmail from "./resend";
 import { generateSyncShiftReportData } from "./services/reporting";
+import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
 
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
@@ -518,6 +519,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Aggregation Failure:", error);
       return res.status(500).json({ message: error.message || "Internal data compiling exception" });
+    }
+  });
+
+  // EXECUTIVE GENERATION PIPELINE FOR THE DETAILED DUAL-LINE PDF ASSETS
+  app.get("/api/reports/:cycleId/download", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const cycleId = parseInt(req.params.cycleId);
+      if (isNaN(cycleId)) return res.status(400).json({ message: "Invalid tracking ID" });
+
+      const processedMetrics = await generateSyncShiftReportData(cycleId);
+      
+      const cycle = await storage.getSurveyCycle(cycleId);
+      let leaderName = "Jane Leader";
+      let orgName = "SyncShift Workspace";
+      
+      if (cycle?.leaderId) {
+        const leader = await storage.getUser(cycle.leaderId);
+        if (leader) leaderName = `${leader.firstName} ${leader.lastName}`;
+      }
+      if (cycle?.organizationId) {
+        const org = await db.select().from(organizations).where(eq(organizations.id, cycle.organizationId)).limit(1);
+        if (org[0]) orgName = org[0].name;
+      }
+
+      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, leaderName, orgName);
+
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_Report_${leaderName.replace(/\s+/g, "_")}.html"`);
+      return res.send(reportHtml);
+    } catch (error: any) {
+      console.error("PDF Streaming Exception:", error);
+      return res.status(500).json({ message: "Failed to assemble executive asset pipeline." });
     }
   });
 
