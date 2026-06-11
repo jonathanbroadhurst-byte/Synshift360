@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Copy, Check, RefreshCw } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -14,9 +14,10 @@ export default function Quantum360Start() {
   const [leaderName, setLeaderName] = useState("");
   const [leaderEmail, setLeaderEmail] = useState("");
   const [title, setTitle] = useState("");
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // ⚡ NEW STATES: Track generation state so the admin stays on this screen
+  // ⚡ SEAMLESS STATE CONTROLLER: Prevents redirecting away from the admin context
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -28,16 +29,11 @@ export default function Quantum360Start() {
     onSuccess: (data) => {
       toast({
         title: "Assessment Created",
-        description: `Your Quantum 360 assessment has been created with code: ${data.inviteCode}`,
+        description: `Your Quantum 360 assessment has been created successfully.`,
       });
       
-      // ✅ FIXED: Save the token in state and flip the success flag instead of redirecting
       setGeneratedCode(data.inviteCode);
       setIsSuccess(true);
-    },
-  });
-      // Redirect to survey page
-      setLocation(`/survey/${data.inviteCode}`);
     },
     onError: () => {
       toast({
@@ -61,6 +57,23 @@ export default function Quantum360Start() {
     createCycleMutation.mutate({ leaderName, leaderEmail, title: title || "Quantum Leadership Assessment" });
   };
 
+  const handleCopy = () => {
+    if (generatedCode) {
+      navigator.clipboard.writeText(generatedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({ description: "Token code copied to clipboard!" });
+    }
+  };
+
+  const handleResetForm = () => {
+    setIsSuccess(false);
+    setGeneratedCode(null);
+    setLeaderName("");
+    setLeaderEmail("");
+    setTitle("");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
       <div className="max-w-4xl mx-auto px-6 py-16">
@@ -77,81 +90,119 @@ export default function Quantum360Start() {
           </p>
         </div>
 
-        {/* Form Card */}
-        <Card className="p-8 md:p-12 bg-gray-800/50 border-gray-700">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="leaderName" className="text-white text-base mb-2 block">
-                Leader Name *
-              </Label>
-              <Input
-                id="leaderName"
-                type="text"
-                value={leaderName}
-                onChange={(e) => setLeaderName(e.target.value)}
-                placeholder="Enter leader's full name"
-                className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
-                data-testid="input-leader-name"
-                required
-              />
-            </div>
+        {/* Dynamic Card Container Switch */}
+        <Card className="bg-gray-800/50 border-gray-700 overflow-hidden">
+          {isSuccess ? (
+            /* 🚀 SUCCESS PANEL: Rendered immediately upon generation loop completion */
+            <div className="p-8 md:p-12 text-center flex flex-col items-center justify-center space-y-6">
+              <div className="h-16 w-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400">
+                <Check className="w-8 h-8" />
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Assessment Cycle Live!</h2>
+                <p className="text-gray-400 max-w-md mx-auto text-sm">
+                  The framework metrics are primed. Share this invite code with peers, direct reports, and managers to accumulate multi-perspective feedback loops.
+                </p>
+              </div>
 
-            <div>
-              <Label htmlFor="leaderEmail" className="text-white text-base mb-2 block">
-                Leader Email *
-              </Label>
-              <Input
-                id="leaderEmail"
-                type="email"
-                value={leaderEmail}
-                onChange={(e) => setLeaderEmail(e.target.value)}
-                placeholder="leader@example.com"
-                className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
-                data-testid="input-leader-email"
-                required
-              />
-            </div>
+              <div 
+                onClick={handleCopy}
+                className="bg-gray-900/80 hover:bg-gray-950 border border-gray-700 rounded-xl p-6 font-mono text-4xl md:text-5xl font-bold tracking-widest text-orange-500 cursor-pointer transition-all flex items-center justify-center gap-4 group select-all w-full max-w-md relative"
+              >
+                <span>{generatedCode}</span>
+                {copied ? (
+                  <Check className="w-6 h-6 text-green-400 absolute right-4" />
+                ) : (
+                  <Copy className="w-5 h-5 text-gray-500 group-hover:text-gray-300 absolute right-4 transition-colors" />
+                )}
+              </div>
 
-            <div>
-              <Label htmlFor="title" className="text-white text-base mb-2 block">
-                Assessment Title (Optional)
-              </Label>
-              <Input
-                id="title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Q1 2025 Leadership Review"
-                className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
-                data-testid="input-assessment-title"
-              />
+              <Button 
+                onClick={handleResetForm}
+                variant="outline"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white mt-4"
+              >
+                <RefreshCw className="mr-2 w-4 h-4" /> Create Another Cycle
+              </Button>
             </div>
+          ) : (
+            /* 📝 CONFIGURATION INPUT PANEL: Standard layout display */
+            <CardContent className="p-8 md:p-12">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <Label htmlFor="leaderName" className="text-white text-base mb-2 block">
+                    Leader Name *
+                  </Label>
+                  <Input
+                    id="leaderName"
+                    type="text"
+                    value={leaderName}
+                    onChange={(e) => setLeaderName(e.target.value)}
+                    placeholder="Enter leader's full name"
+                    className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
+                    data-testid="input-leader-name"
+                    required
+                  />
+                </div>
 
-            <div className="bg-gradient-to-r from-orange-500/10 to-pink-600/10 border border-orange-500/20 rounded-lg p-4">
-              <h3 className="text-white font-semibold mb-2">What's Included:</h3>
-              <ul className="text-gray-300 text-sm space-y-1">
-                <li>✓ 10 Core Leadership Competencies</li>
-                <li>✓ 30 Behavioral Questions (1-10 Scale)</li>
-                <li>✓ Maturity Level Classification</li>
-                <li>✓ 9-Box Performance Grid</li>
-                <li>✓ Comprehensive Development Report</li>
-              </ul>
-            </div>
+                <div>
+                  <Label htmlFor="leaderEmail" className="text-white text-base mb-2 block">
+                    Leader Email *
+                  </Label>
+                  <Input
+                    id="leaderEmail"
+                    type="email"
+                    value={leaderEmail}
+                    onChange={(e) => setLeaderEmail(e.target.value)}
+                    placeholder="leader@example.com"
+                    className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
+                    data-testid="input-leader-email"
+                    required
+                  />
+                </div>
 
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:from-orange-600 hover:to-pink-700"
-              disabled={createCycleMutation.isPending}
-              data-testid="button-create-assessment"
-            >
-              {createCycleMutation.isPending ? "Creating..." : (
-                <>
-                  Create Assessment <ArrowRight className="ml-2 w-5 h-5" />
-                </>
-              )}
-            </Button>
-          </form>
+                <div>
+                  <Label htmlFor="title" className="text-white text-base mb-2 block">
+                    Assessment Title (Optional)
+                  </Label>
+                  <Input
+                    id="title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., Q1 2025 Leadership Review"
+                    className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-500"
+                    data-testid="input-assessment-title"
+                  />
+                </div>
+
+                <div className="bg-gradient-to-r from-orange-500/10 to-pink-600/10 border border-orange-500/20 rounded-lg p-4">
+                  <h3 className="text-white font-semibold mb-2">What's Included:</h3>
+                  <ul className="text-gray-300 text-sm space-y-1">
+                    <li>✓ 6 Core Framework Leadership Pillars</li>
+                    <li>✓ Custom Question Matrix Seeding</li>
+                    <li>✓ Continuous Anonymized Response Tracking</li>
+                    <li>✓ Dynamic Interactive Report Compiling</li>
+                  </ul>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:from-orange-600 hover:to-pink-700"
+                  disabled={createCycleMutation.isPending}
+                  data-testid="button-create-assessment"
+                >
+                  {createCycleMutation.isPending ? "Creating..." : (
+                    <>
+                      Create Assessment <ArrowRight className="ml-2 w-5 h-5" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          )}
         </Card>
 
         {/* Back Link */}
