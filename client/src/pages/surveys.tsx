@@ -160,47 +160,44 @@ export default function Surveys() {
   };
 
   const handleDownloadReport = async (cycleId: number, title: string) => {
-  try {
-    // Pull the verified active session token
-    const token = localStorage.getItem("auth_token");
-    
-    if (!token) {
-      alert("Authentication session missing. Please log in again.");
-      return;
-    }
-
-    const response = await fetch(`/api/reports/${cycleId}/download`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`
+    try {
+      const token = localStorage.getItem("auth_token");
+      
+      if (!token) {
+        alert("Authentication session missing. Please log in again.");
+        return;
       }
-    });
 
-    if (!response.ok) {
-      if (response.status === 500) {
-        throw new Error("Minimum response threshold not met or server data error.");
+      const response = await fetch(`/api/reports/${cycleId}/download`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 500) {
+          throw new Error("Minimum response threshold not met or server data error.");
+        }
+        throw new Error("Failed to fetch the compiled executive asset.");
       }
-      throw new Error("Failed to fetch the compiled executive asset.");
-    }
 
-    // Convert the authenticated stream into a browser file download
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `SyncShift_Executive_Report_${title.replace(/\s+/g, "_")}.html`;
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    // Memory cleanup
-    window.URL.revokeObjectURL(url);
-    link.remove();
-  } catch (error: any) {
-    console.error("Report Download Error:", error);
-    alert(error.message || "Could not download the report at this time.");
-  }
-};
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SyncShift_Executive_Report_${title.replace(/\s+/g, "_")}.html`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      window.URL.revokeObjectURL(url);
+      link.remove();
+    } catch (error: any) {
+      console.error("Report Download Error:", error);
+      alert(error.message || "Could not download the report at this time.");
+    }
+  };
 
   const handleCreateSurveyCycle = (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +290,7 @@ export default function Surveys() {
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm"><span className="text-gray-600">Submissions:</span><span className="font-medium">{cycle.responseCount || 0}</span></div>
                         <div className="flex justify-between text-sm"><span className="text-gray-600">End Date:</span><span className="font-medium">{new Date(cycle.endDate).toLocaleDateString()}</span></div>
+                        
                         <Button
                           variant="outline"
                           size="sm"
@@ -302,6 +300,15 @@ export default function Surveys() {
                           <Users className="w-4 h-4 mr-2" />
                           View Respondents ({cycle.responseCount || 0})
                         </Button>
+
+                        <Button
+                          size="sm"
+                          className="w-full mt-2 bg-amber-600 text-white hover:bg-amber-700 font-medium"
+                          onClick={() => handleDownloadReport(cycle.id, cycle.title)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download SyncShift Report
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -310,7 +317,6 @@ export default function Surveys() {
             </div>
 
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              {/* ACCESSIBILITY SUPPRESSION LAYER LINKED INLINE */}
               <DialogContent className="max-w-md bg-white max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
                 <DialogHeader>
                   <DialogTitle>Start New Survey Cycle</DialogTitle>
@@ -417,7 +423,6 @@ export default function Surveys() {
       </div>
 
       <Dialog open={!!respondentsCycleId} onOpenChange={(open) => { if (!open) setRespondentsCycleId(null); }}>
-        {/* ACCESSIBILITY SUPPRESSION LAYER LINKED INLINE */}
         <DialogContent className="max-w-2xl bg-white" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Survey Respondents</DialogTitle>
