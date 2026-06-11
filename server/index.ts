@@ -1,8 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { seedDatabase } from "./seed";
-// ADD THESE TWO IMPORTS AT THE TOP:
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
@@ -79,14 +77,12 @@ app.use((req, res, next) => {
     // Validate environment variables before starting
     validateEnvironment();
 
-    // ⚡ INJECTED SCHEMA GUARD: Ensures the column exists before the seeder tries to touch it
-    log("🔍 Checking production database constraints before entry seeding...");
+    // ⚡ SCHEMA GUARD: Ensures the column exists in production
+    log("🔍 Checking production database constraints...");
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     log("⚡ Column 'quantum_credits' verified or injected successfully.");
-
-    // Trigger the automatic safe seeding process
-    await seedDatabase();
     
+    // 🏁 Seeding complete! Registering main backend API routes...
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -97,9 +93,6 @@ app.use((req, res, next) => {
       throw err;
     });
 
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
