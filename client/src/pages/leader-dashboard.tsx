@@ -32,6 +32,47 @@ export default function LeaderDashboard() {
   const targetResponses = 8;
   const currentProgressPercent = Math.min(Math.round((stakeholderCount / targetResponses) * 100), 100);
 
+  // Dynamic state gate: Verifies multi-rater safety anonymity rule before unlocking profile assets
+  const isReportUnlocked = selfAssessmentComplete && stakeholderCount >= 3;
+
+  const handleDownloadReport = async () => {
+    if (!activeCycle?.id) return;
+    try {
+      const token = localStorage.getItem("auth_token");
+      
+      if (!token) {
+        alert("Authentication session missing. Please log in again.");
+        return;
+      }
+
+      const response = await fetch(`/api/reports/${activeCycle.id}/download`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch the compiled executive asset.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SyncShift_Profile_${activeCycle.title.replace(/\s+/g, "_")}.html`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      window.URL.revokeObjectURL(url);
+      link.remove();
+    } catch (error: any) {
+      console.error("Report Download Error:", error);
+      alert(error.message || "Could not download your profile at this time.");
+    }
+  };
+
   if (cyclesLoading || (activeCycle && summaryLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -155,11 +196,30 @@ export default function LeaderDashboard() {
                   <p className="text-xs text-gray-600">
                     Your executive breakdown vectors, non-linear disruption charts, and operational alignment pathways populate below once active loops conclude.
                   </p>
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center space-y-2">
-                    <span className="text-2xl block">🔒</span>
-                    <p className="text-sm font-medium text-gray-800">Report Pending Compilation</p>
-                    <p className="text-xs text-gray-400">Awaiting external feedback thresholds to unlock dashboard assets safely.</p>
-                  </div>
+                  
+                  {isReportUnlocked ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center space-y-3">
+                      <span className="text-3xl block" role="img" aria-label="unlocked">🔓</span>
+                      <p className="text-sm font-bold text-amber-900">Your SyncShift Profile is Ready!</p>
+                      <p className="text-xs text-amber-700">All baseline confidentiality parameters cleared. You can now access your interactive dual-line system alignment report.</p>
+                      <button
+                        onClick={handleDownloadReport}
+                        className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 border-none"
+                      >
+                        <span>📥</span> Download Profile Report
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center space-y-2 bg-gray-50/30">
+                      <span className="text-2xl block" role="img" aria-label="locked">🔒</span>
+                      <p className="text-sm font-medium text-gray-800">Report Pending Compilation</p>
+                      <p className="text-xs text-gray-400 leading-normal">
+                        {!selfAssessmentComplete 
+                          ? "Please complete your Step 1 Self-Assessment to activate core model mappings." 
+                          : `Awaiting minimum anonymity thresholds. Need 3+ external raters (Current progress: ${stakeholderCount}/3).`}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
