@@ -28,12 +28,12 @@ export default function Login() {
         description: "Welcome back to SyncShift!",
       });
 
-      // SMART ROUTING: Check the user's role and send them to their dedicated workspace
-      if (userProfile?.role === 'admin') {
-        setLocation('/admin'); // Corporate deployment suite
-      } else {
-        setLocation('/dashboard'); // Clean, focused Leader Portal
-      }
+      // SMART ROUTING: Both Platform Owners and Corporate Admins go to the master suite
+if (userProfile?.role === 'admin' || userProfile?.role === 'owner') {
+  setLocation('/admin'); // Unified corporate deployment suite
+} else {
+  setLocation('/dashboard'); // Clean, focused Leader Portal for survey participants
+}
 
     } catch (error) {
       toast({
