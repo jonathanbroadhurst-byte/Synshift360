@@ -48,10 +48,9 @@ async function seedDatabase() {
     }).returning();
 
     console.log("Created leader user:", leader.email);
-    console.log("🎉 Database seeding routine executed successfully!");
+    console.log("🎉 Database seeding routine executed successfully! Passing control to Express server...");
     
-    // ⚡ FORCE GRACEFUL EXIT: Stop the script process here so it doesn't bleed into the server engine
-    process.exit(0);
+    // ✅ No process.exit(0) here! Let the file finish executing so index.ts can start the server.
     
   } catch (error) {
     console.error("❌ Critical exception during seeder execution:", error);
