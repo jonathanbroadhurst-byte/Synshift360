@@ -14,14 +14,16 @@ export default function Sidebar() {
   const { user } = useAuth();
 
   // Define our navigation directory matrix
-  const menuItems = [
-    { name: 'Admin Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin'] },
-    { name: 'Organizations', path: '/organizations', icon: Building2, roles: ['admin'] },
-    { name: 'Survey Management', path: '/surveys', icon: ClipboardList, roles: ['admin'] },
-    { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin', 'leader'] },
-    { name: 'User Management', path: '/users', icon: Users2, roles: ['admin'] },
-    { name: 'GDPR Compliance', path: '/gdpr', icon: ShieldCheck, roles: ['admin'] },
-  ];
+  // Define our navigation directory matrix
+const menuItems = [
+  // ✅ FIXED: Updated path to '/admin' and added 'owner' to permissions
+  { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['admin', 'owner'] },
+  { name: 'Organizations', path: '/organizations', icon: Building2, roles: ['admin', 'owner'] },
+  { name: 'Survey Management', path: '/surveys', icon: ClipboardList, roles: ['admin', 'owner'] },
+  { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin', 'leader', 'owner'] },
+  { name: 'User Management', path: '/users', icon: Users2, roles: ['admin', 'owner'] },
+  { name: 'GDPR Compliance', path: '/gdpr', icon: ShieldCheck, roles: ['admin', 'owner'] },
+];
 
   // Filter out panels that don't match the current user's authorization tier
   const allowedItems = menuItems.filter(item => item.roles.includes(user?.role || ''));
