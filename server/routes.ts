@@ -8,12 +8,23 @@ import path from "path";
 import fs from "fs";
 import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertSurveyCycleSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, type User, users, surveys, organizations, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import * as mailjetEmail from "./mailjet";
 import * as resendEmail from "./resend";
 import { generateSyncShiftReportData } from "./services/reporting";
 import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
+
+// SELF-HEALING DATABASE SCHEMA LAYER: Safely ensures table columns exist without drizzle-kit in production
+async function ensureSchemaUpToDate() {
+  try {
+    console.log("🔍 Checking database column structure alignments...");
+    await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
+    console.log("⚡ Column 'quantum_credits' verified or injected successfully.");
+  } catch (error) {
+    console.error("⚠️ Schema auto-alignment encountered an issue (it may already be up to date):", error);
+  }
+}
 
 // AUTO-SEEDER: Guarantees the master Quantum 360 framework template row is registered on server boot
 async function ensureQuantumTemplateExists() {
@@ -27,7 +38,6 @@ async function ensureQuantumTemplateExists() {
     if (existingTemplate.length === 0) {
       console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
       
-      // FIXED: Passing raw object array structures to fully clear strict JSONB TypeScript validation
       await db.insert(surveys).values({
         title: "Quantum Leadership Calibration 360",
         surveyType: "quantum", 
@@ -188,6 +198,8 @@ async function seedDefaultWorkspaceState() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Executing database structure assurances and pre-seeds sequentially on server spin-up
+  await ensureSchemaUpToDate();
   await ensureQuantumTemplateExists();
   await seedDefaultWorkspaceState();
 
@@ -598,6 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // FIXED: Restored original report status update code parameters
   app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
