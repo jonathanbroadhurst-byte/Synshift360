@@ -123,7 +123,9 @@ async function seedDefaultWorkspaceState() {
     const simulatedRoles = [
       { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
       { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
-      { name: "Robert Report", email: "robert@company.com", type: "Direct Report" }
+      { name: "Robert Report", email: "robert@company.com", type: "Direct Report" },
+      // ADD THIS THIRD EXTERNAL PROFILE TO UNLOCK THE FIREWALL:
+      { name: "David Director", email: "david@company.com", type: "Manager" }
     ];
 
     for (const stakeholder of simulatedRoles) {
