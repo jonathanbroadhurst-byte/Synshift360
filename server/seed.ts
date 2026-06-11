@@ -7,13 +7,12 @@ async function seedDatabase() {
   console.log("Executing pristine database context seeding...");
   
   try {
-    // ⚡ Safe cascading truncate blocks foreign key panics entirely
     console.log("Performing safe cascading database clear...");
     await db.execute(sql`TRUNCATE TABLE ${users} CASCADE;`);
     await db.execute(sql`TRUNCATE TABLE ${organizations} CASCADE;`);
     console.log("Database cleared successfully.");
 
-    // Create organization
+    // 1. Seed corporate tenant profile
     const [organization] = await db.insert(organizations).values({
       name: "Demo Organization",
       domain: "demo.com",
@@ -21,7 +20,9 @@ async function seedDatabase() {
       quantumCredits: 5,
     }).returning();
 
-    // Create admin user
+    console.log("Created organization:", organization.name);
+
+    // 2. Seed Master Platform Owner profile
     const [adminUser] = await db.insert(users).values({
       email: "admin@demo.com",
       username: "admin@demo.com",
@@ -34,7 +35,7 @@ async function seedDatabase() {
 
     console.log("Created owner admin user:", adminUser.email);
 
-    // Create sample leader
+    // 3. Seed Corporate Assessment Target Leader profile
     const leaderPassword = await bcrypt.hash("leader123", 10);
     const [leader] = await db.insert(users).values({
       email: "leader@demo.com",
@@ -49,12 +50,16 @@ async function seedDatabase() {
     console.log("Created leader user:", leader.email);
     console.log("🎉 Database seeding routine executed successfully!");
     
+    // ⚡ FORCE GRACEFUL EXIT: Stop the script process here so it doesn't bleed into the server engine
+    process.exit(0);
+    
   } catch (error) {
     console.error("❌ Critical exception during seeder execution:", error);
-    throw error;
+    process.exit(1);
   }
 }
 
+// Fire the initialization engine
 seedDatabase().catch((err) => {
   console.error("Seeder subsystem process failure:", err);
   process.exit(1);
