@@ -71,17 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', data.token);
     setUser(data.user);
     
-    // REDIRECT MATRIX: Clean division between administrators and managers
-    const userRole = data.user?.role;
-    if (userRole === 'owner') {
-      window.location.href = '/owner';
-    } else if (userRole === 'admin' || userRole === 'org_admin') {
-      window.location.href = '/admin';
-    } else if (userRole === 'leader') {
-      window.location.href = '/dashboard'; // Direct path to the dedicated Leader Portal
-    } else {
-      window.location.href = '/'; // Generic fallback for standard participants
-    }
+   // REDIRECT MATRIX: Unified landing strip for owners and admins on entry
+const userRole = data.user?.role;
+const currentPath = window.location.pathname;
+
+// ⚡ Only enforce default landing routing if the user is currently on the login page or root path
+if (currentPath === '/login' || currentPath === '/') {
+  if (userRole === 'owner' || userRole === 'admin' || userRole === 'org_admin') {
+    window.location.href = '/admin'; // Both land on the master suite automatically
+  } else if (userRole === 'leader') {
+    window.location.href = '/dashboard';
+  }
+// ✅ LEAVE ALONE: If they are already inside the app browsing other pages, do not hijack their window object!
 
     return data.user;
   };
