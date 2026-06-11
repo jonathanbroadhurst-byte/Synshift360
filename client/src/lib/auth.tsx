@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode, useEffect } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,19 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 2. Secure Login Mutation Handler
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
+      // ⚡ PASSPORT STRATEGY COUPLING: Map 'email' state directly onto the 'username' key for backend processing
+      const res = await apiRequest("POST", "/api/login", {
+        username: credentials.email,
+        password: credentials.password
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || "Invalid credentials provided.");
       }
       return res.json();
     },
-    onSuccess: (data: { user: User }) => {
+    onSuccess: (data: any) => {
+      // ⚡ DEFENSIVE PARSING: Extract user profile whether server returns it flat or nested under .user
+      const userProfile = data.user ? data.user : data;
+      
       // Seed query client cache immediately to reflect live authenticated user status
-      queryClient.setQueryData(["/api/user"], data.user);
+      queryClient.setQueryData(["/api/user"], userProfile);
 
-      // ⚡ SMART REDIRECT MATRIX: Only route if user is explicitly logging in or on root path
-      const userRole = data.user?.role;
+      const userRole = userProfile?.role;
       const currentPath = window.location.pathname;
 
       if (currentPath === '/login' || currentPath === '/') {
@@ -88,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const result = await loginMutation.mutateAsync({ email, password });
-    return result.user;
+    return result.user ? result.user : result;
   };
 
   const logout = async () => {
@@ -128,7 +134,6 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   }
 
   if (roles && !roles.includes(user.role)) {
-    // If authenticated user attempts to access an unauthorized route, deflect safely based on tier
     if (user.role === 'owner' || user.role === 'admin' || user.role === 'org_admin') {
       setTimeout(() => setLocation("/admin"), 0);
     } else {
