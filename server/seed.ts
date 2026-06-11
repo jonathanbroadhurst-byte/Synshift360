@@ -7,13 +7,13 @@ async function seedDatabase() {
   console.log("Executing pristine database context seeding...");
   
   try {
-    // 1. Force a cascading wipe to clear surveys, responses, and users cleanly without foreign key blocks
+    // ⚡ Safe cascading truncate blocks foreign key panics entirely
     console.log("Performing safe cascading database clear...");
     await db.execute(sql`TRUNCATE TABLE ${users} CASCADE;`);
     await db.execute(sql`TRUNCATE TABLE ${organizations} CASCADE;`);
     console.log("Database cleared successfully.");
 
-    // 2. Seed default corporate tenant profile
+    // Create organization
     const [organization] = await db.insert(organizations).values({
       name: "Demo Organization",
       domain: "demo.com",
@@ -21,9 +21,7 @@ async function seedDatabase() {
       quantumCredits: 5,
     }).returning();
 
-    console.log("Created organization:", organization.name);
-
-    // 3. Seed Master Platform Owner profile
+    // Create admin user
     const [adminUser] = await db.insert(users).values({
       email: "admin@demo.com",
       username: "admin@demo.com",
@@ -36,7 +34,7 @@ async function seedDatabase() {
 
     console.log("Created owner admin user:", adminUser.email);
 
-    // 4. Seed Corporate Assessment Target Leader profile
+    // Create sample leader
     const leaderPassword = await bcrypt.hash("leader123", 10);
     const [leader] = await db.insert(users).values({
       email: "leader@demo.com",
@@ -57,7 +55,6 @@ async function seedDatabase() {
   }
 }
 
-// Fire the initialization engine
 seedDatabase().catch((err) => {
   console.error("Seeder subsystem process failure:", err);
   process.exit(1);
