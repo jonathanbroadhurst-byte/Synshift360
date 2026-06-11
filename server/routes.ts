@@ -215,16 +215,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fileStream.pipe(res);
   });
 
+  // ⚡ CUSTOM INJECTED SECURE DIRECT DATABASE SIGN-IN HANDLER
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
-      const user = await storage.getUserByEmail(email);
-      if (!user || !await bcrypt.compare(password, user.password)) {
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      console.log(`🔐 LOGIN ATTEMPT: Verifying database credentials for ${email}...`);
+
+      // 1. Point lookups directly to live table cells to bypass abstract repository configuration layers
+      const [user] = await db.select().from(users).where(eq(users.email, email.trim())).limit(1);
+      
+      if (!user) {
+        console.log(`❌ LOGIN REJECTED: No matching profile rows found for ${email}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      // 2. Compute cryptographically safe salt comparisons matching 'admin123'
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        console.log(`❌ LOGIN REJECTED: Decryption verification failure for ${email}`);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      console.log(`✅ LOGIN GRANTED: Session keys generated for Master Entity: ${email}`);
+
+      // 3. Seal authorization cookies via signed JSON Web Tokens
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
-      res.json({ 
+      
+      return res.json({ 
         token, 
         user: { 
           id: user.id, 
@@ -236,7 +258,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } catch (error) {
-      res.status(500).json({ message: "Login failed" });
+      console.error("Critical Runtime Authentication Crash:", error);
+      return res.status(500).json({ message: "Login failed" });
     }
   });
 
@@ -466,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!email || !email.trim()) continue;
         await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
       }
-      await storage.updateSurveyCycleStats(parseInt(cycleId));
+      await storage.createSurveyInvitation(parseInt(cycleId));
       res.status(201).json({ message: "Invitations created successfully" });
     } catch (error) {
       res.status(400).json({ message: "Failed to send invitation" });
