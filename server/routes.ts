@@ -15,6 +15,37 @@ import * as resendEmail from "./resend";
 import { generateSyncShiftReportData } from "./services/reporting";
 import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
 
+// Add this check and insert block inside your server initialization sequence
+async function ensureQuantumTemplateExists() {
+  // Check if the baseline template is already registered
+  const existingTemplate = await db
+    .select()
+    .from(surveys)
+    .where(eq(surveys.type, "quantum360"))
+    .limit(1);
+
+  if (existingTemplate.length === 0) {
+    console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
+    
+    // Insert the master template row that the creation form looks for
+    await db.insert(surveys).values({
+      title: "Quantum Leadership Calibration 360",
+      type: "quantum360",
+      isActive: true,
+      // The 30 structural questions compressed as a JSON string or object matching your schema
+      questions: JSON.stringify([
+        { id: 1, pillar: "Direction", text: "Articulates long-range vision amid high volatility.", scale: 10 },
+        { id: 2, pillar: "Systems", text: "Optimizes infrastructure loops for execution flow.", scale: 10 },
+        // ... your remaining framework question layout records
+      ]),
+      createdAt: new Date(),
+    });
+    console.log("🎯 Quantum 360 master framework initialized successfully.");
+  }
+}
+
+// Ensure this function executes right as the Express app starts up listeners
+
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
     return mailjetEmail.sendSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
