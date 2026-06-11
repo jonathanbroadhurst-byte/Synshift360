@@ -18,20 +18,20 @@ import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
 // AUTO-SEEDER: Guarantees the master Quantum 360 framework template row is registered on server boot
 async function ensureQuantumTemplateExists() {
   try {
-    // Aligned to look for "quantum" matching storage filter layers
+    // FIXED: Updated from surveys.type to surveys.surveyType
     const existingTemplate = await db
       .select()
       .from(surveys)
-      .where(eq(surveys.type, "quantum"))
+      .where(eq(surveys.surveyType, "quantum"))
       .limit(1);
 
     if (existingTemplate.length === 0) {
       console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
       
-      // Insert the master template row that the creation form looks for
+      // FIXED: Updated from type to surveyType
       await db.insert(surveys).values({
         title: "Quantum Leadership Calibration 360",
-        type: "quantum", // Matches backend layout lookups
+        surveyType: "quantum", 
         isActive: true,
         // Seeds a default framework question layout mapped cleanly across core pillars
         questions: JSON.stringify([
@@ -51,6 +51,7 @@ async function ensureQuantumTemplateExists() {
   } catch (error) {
     console.error("Fault encountered during template pre-seeder execution:", error);
   }
+}
 }
 
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
