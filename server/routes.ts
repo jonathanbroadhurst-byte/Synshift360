@@ -15,36 +15,43 @@ import * as resendEmail from "./resend";
 import { generateSyncShiftReportData } from "./services/reporting";
 import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
 
-// Add this check and insert block inside your server initialization sequence
+// AUTO-SEEDER: Guarantees the master Quantum 360 framework template row is registered on server boot
 async function ensureQuantumTemplateExists() {
-  // Check if the baseline template is already registered
-  const existingTemplate = await db
-    .select()
-    .from(surveys)
-    .where(eq(surveys.type, "quantum360"))
-    .limit(1);
+  try {
+    // Aligned to look for "quantum" matching storage filter layers
+    const existingTemplate = await db
+      .select()
+      .from(surveys)
+      .where(eq(surveys.type, "quantum"))
+      .limit(1);
 
-  if (existingTemplate.length === 0) {
-    console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
-    
-    // Insert the master template row that the creation form looks for
-    await db.insert(surveys).values({
-      title: "Quantum Leadership Calibration 360",
-      type: "quantum360",
-      isActive: true,
-      // The 30 structural questions compressed as a JSON string or object matching your schema
-      questions: JSON.stringify([
-        { id: 1, pillar: "Direction", text: "Articulates long-range vision amid high volatility.", scale: 10 },
-        { id: 2, pillar: "Systems", text: "Optimizes infrastructure loops for execution flow.", scale: 10 },
-        // ... your remaining framework question layout records
-      ]),
-      createdAt: new Date(),
-    });
-    console.log("🎯 Quantum 360 master framework initialized successfully.");
+    if (existingTemplate.length === 0) {
+      console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
+      
+      // Insert the master template row that the creation form looks for
+      await db.insert(surveys).values({
+        title: "Quantum Leadership Calibration 360",
+        type: "quantum", // Matches backend layout lookups
+        isActive: true,
+        // Seeds a default framework question layout mapped cleanly across core pillars
+        questions: JSON.stringify([
+          { id: 1, pillar: "Direction", text: "Articulates long-range vision amid high volatility.", scale: 10 },
+          { id: 2, pillar: "Systems", text: "Optimizes infrastructure loops for execution flow.", scale: 10 },
+          { id: 3, pillar: "Purpose", text: "Aligns structural choices with shared core intentions.", scale: 10 },
+          { id: 4, pillar: "Skills", text: "Demonstrates strategic dexterity under changing demands.", scale: 10 },
+          { id: 5, pillar: "Team", text: "Cultivates structural safety and relational trust parameters.", scale: 10 },
+          { id: 6, pillar: "Impact", text: "Translates leadership behaviors into measurable corporate momentum.", scale: 10 }
+        ]),
+        createdAt: new Date(),
+      });
+      console.log("🎯 Quantum 360 master framework initialized successfully.");
+    } else {
+      console.log("Persistent framework template 'quantum' verified active.");
+    }
+  } catch (error) {
+    console.error("Fault encountered during template pre-seeder execution:", error);
   }
 }
-
-// Ensure this function executes right as the Express app starts up listeners
 
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
@@ -178,7 +185,7 @@ async function seedDefaultWorkspaceState() {
       });
     }
 
-    console.log("Smart simulation loop 'LFM9GU' and 3 evaluation elements deployed successfully!");
+    console.log("Smart simulation loop 'LFM9GU' and 4 evaluation elements deployed successfully!");
   } catch (error) {
     console.error("Fault encountered during smart lookup seeder execution:", error);
   }
@@ -186,6 +193,8 @@ async function seedDefaultWorkspaceState() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // FIXED: Executing database pre-seeds sequentially on server spin-up
+  await ensureQuantumTemplateExists();
   await seedDefaultWorkspaceState();
 
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
@@ -450,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!email || !email.trim()) continue;
         await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
       }
-      await storage.updateSurveyCycleStats(parseInt(cycleId));
+      await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
       res.status(201).json({ message: "Invitations created successfully" });
     } catch (error: any) {
       res.status(400).json({ message: "Failed to send invitation" });
@@ -599,10 +608,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
-      res.json({ message: "Report approved successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to approve report" });
+      const { cycleId, participantEmails } = req.body;
+      for (const email of participantEmails) {
+        if (!email || !email.trim()) continue;
+        await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
+      }
+      await storage.updateSurveyCycleStats(parseInt(cycleId));
+      res.status(201).json({ message: "Invitations created successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to send invitation" });
     }
   });
 
