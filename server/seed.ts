@@ -1,14 +1,16 @@
 import { db } from "./db";
 import { users, organizations } from "@shared/schema";
-import bcrypt from "bcrypt"; // ✅ FIXED: Changed from bcryptjs to native bcrypt
+import { sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 async function seedDatabase() {
   console.log("Executing pristine database context seeding...");
   
   try {
-    // 1. Clear out any sticky historical record conflicts safely
-    await db.delete(users);
-    await db.delete(organizations);
+    // 1. Force a cascading wipe to clear surveys, responses, and users cleanly without foreign key blocks
+    console.log("Performing safe cascading database clear...");
+    await db.execute(sql`TRUNCATE TABLE ${users} CASCADE;`);
+    await db.execute(sql`TRUNCATE TABLE ${organizations} CASCADE;`);
     console.log("Database cleared successfully.");
 
     // 2. Seed default corporate tenant profile
