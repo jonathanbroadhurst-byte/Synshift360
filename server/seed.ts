@@ -3,7 +3,7 @@ import { users, organizations } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
-async function seedDatabase() {
+export async function seedDatabase() {
   console.log("Executing pristine database context seeding...");
   
   try {
@@ -48,18 +48,10 @@ async function seedDatabase() {
     }).returning();
 
     console.log("Created leader user:", leader.email);
-    console.log("🎉 Database seeding routine executed successfully! Passing control to Express server...");
-    
-    // ✅ No process.exit(0) here! Let the file finish executing so index.ts can start the server.
+    console.log("🎉 Database seeding routine executed successfully!");
     
   } catch (error) {
     console.error("❌ Critical exception during seeder execution:", error);
-    process.exit(1);
+    throw error;
   }
 }
-
-// Fire the initialization engine
-seedDatabase().catch((err) => {
-  console.error("Seeder subsystem process failure:", err);
-  process.exit(1);
-});
