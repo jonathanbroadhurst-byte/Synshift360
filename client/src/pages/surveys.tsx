@@ -159,6 +159,49 @@ export default function Surveys() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleDownloadReport = async (cycleId: number, title: string) => {
+  try {
+    // Pull the verified active session token
+    const token = localStorage.getItem("auth_token");
+    
+    if (!token) {
+      alert("Authentication session missing. Please log in again.");
+      return;
+    }
+
+    const response = await fetch(`/api/reports/${cycleId}/download`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 500) {
+        throw new Error("Minimum response threshold not met or server data error.");
+      }
+      throw new Error("Failed to fetch the compiled executive asset.");
+    }
+
+    // Convert the authenticated stream into a browser file download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `SyncShift_Executive_Report_${title.replace(/\s+/g, "_")}.html`;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    // Memory cleanup
+    window.URL.revokeObjectURL(url);
+    link.remove();
+  } catch (error: any) {
+    console.error("Report Download Error:", error);
+    alert(error.message || "Could not download the report at this time.");
+  }
+};
+
   const handleCreateSurveyCycle = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCycleTitle.trim() || !selectedSurveyId || !selectedLeaderId || !selectedOrganizationId || !endDate) {
