@@ -5,25 +5,28 @@ import bcrypt from "bcrypt";
 
 export async function seedDatabase() {
   try {
-    // ⚡ EMERGENCY INJECTION: Force Postgres to add the column before any seeds or truncates run
+    // 1. Emergency Guard: Ensure the database column physically exists before doing anything else
     console.log("🔍 Checking database columns directly from seeder context...");
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     console.log("⚡ Column 'quantum_credits' verified or injected successfully.");
 
     console.log("Starting database seeding...");
+    console.log("Clearing old test data safely via cascade and resetting ID counters...");
+    
+    // 2. Clean Slate: Wipe the data and force all auto-increment IDs back to 1 in a single shot
+    await db.execute(sql`TRUNCATE TABLE survey_cycles, surveys, users, organizations RESTART IDENTITY CASCADE;`);
 
-    console.log("Clearing old test data safely via cascade...");
-    await db.execute(sql`TRUNCATE TABLE survey_cycles, surveys, users, organizations CASCADE;`);
-
-    // Create sample organization
+    // 3. Insert fresh seed data mapping cleanly to ID 1
     const [organization] = await db.insert(organizations).values({
       name: "Demo Organization",
       domain: "demo.com",
       isActive: true,
-      quantumCredits: 0, // Explicitly setting the new schema field to 0 for the demo account
+      quantumCredits: 5, // Giving your baseline demo account 5 complimentary credits to test with!
     }).returning();
 
     console.log("Created organization:", organization.name);
+    
+    // ... the rest of your original data row inserts continue smoothly below here
     
     // ... the rest of your original seeding rows continue undisturbed below here
 
