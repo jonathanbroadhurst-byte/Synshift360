@@ -198,10 +198,11 @@ async function seedDefaultWorkspaceState() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Executing database structure assurances and pre-seeds sequentially on server spin-up
-  await ensureSchemaUpToDate();
-  await ensureQuantumTemplateExists();
-  await seedDefaultWorkspaceState();
+  // NON-BLOCKING INITIALIZATION: Fires sequences in the background so the server passes health pings instantly
+  ensureSchemaUpToDate()
+    .then(() => ensureQuantumTemplateExists())
+    .then(() => seedDefaultWorkspaceState())
+    .catch(err => console.error("Background DB alignment exception:", err));
 
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
     const filePath = path.join(process.cwd(), 'Survey_Participant_Guide.docx');
@@ -610,7 +611,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // FIXED: Restored original report status update code parameters
   app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
