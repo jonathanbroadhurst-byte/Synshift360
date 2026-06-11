@@ -16,6 +16,10 @@ export default function Quantum360Start() {
   const [title, setTitle] = useState("");
   const { toast } = useToast();
 
+  // ⚡ NEW STATES: Track generation state so the admin stays on this screen
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+
   const createCycleMutation = useMutation({
     mutationFn: async (data: { leaderName: string; leaderEmail: string; title: string }) => {
       const response = await apiRequest('POST', '/api/quantum360/create-cycle', data);
@@ -26,6 +30,12 @@ export default function Quantum360Start() {
         title: "Assessment Created",
         description: `Your Quantum 360 assessment has been created with code: ${data.inviteCode}`,
       });
+      
+      // ✅ FIXED: Save the token in state and flip the success flag instead of redirecting
+      setGeneratedCode(data.inviteCode);
+      setIsSuccess(true);
+    },
+  });
       // Redirect to survey page
       setLocation(`/survey/${data.inviteCode}`);
     },
