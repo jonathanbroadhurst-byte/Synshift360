@@ -216,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ⚡ CUSTOM INJECTED SECURE DIRECT DATABASE SIGN-IN HANDLER
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
+  app.post("/api/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
       
