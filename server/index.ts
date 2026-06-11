@@ -2,6 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
+// ADD THESE TWO IMPORTS AT THE TOP:
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // Environment variable validation
 function validateEnvironment() {
@@ -74,10 +77,15 @@ app.use((req, res, next) => {
 (async () => {
   try {
     // Validate environment variables before starting
-validateEnvironment();
+    validateEnvironment();
 
-// Tigger the automatic safe seeding process
-await seedDatabase();
+    // ⚡ INJECTED SCHEMA GUARD: Ensures the column exists before the seeder tries to touch it
+    log("🔍 Checking production database constraints before entry seeding...");
+    await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
+    log("⚡ Column 'quantum_credits' verified or injected successfully.");
+
+    // Trigger the automatic safe seeding process
+    await seedDatabase();
     
     const server = await registerRoutes(app);
 
