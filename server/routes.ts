@@ -18,7 +18,6 @@ import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
 // AUTO-SEEDER: Guarantees the master Quantum 360 framework template row is registered on server boot
 async function ensureQuantumTemplateExists() {
   try {
-    // FIXED: Updated from surveys.type to surveys.surveyType
     const existingTemplate = await db
       .select()
       .from(surveys)
@@ -28,21 +27,19 @@ async function ensureQuantumTemplateExists() {
     if (existingTemplate.length === 0) {
       console.log("🌱 Baseline Quantum 360 template missing. Seeding configuration...");
       
-      // FIXED: Updated from type to surveyType
+      // FIXED: Passing raw object array structures to fully clear strict JSONB TypeScript validation
       await db.insert(surveys).values({
         title: "Quantum Leadership Calibration 360",
         surveyType: "quantum", 
         isActive: true,
-        // Seeds a default framework question layout mapped cleanly across core pillars
-        questions: JSON.stringify([
+        questions: [
           { id: 1, pillar: "Direction", text: "Articulates long-range vision amid high volatility.", scale: 10 },
           { id: 2, pillar: "Systems", text: "Optimizes infrastructure loops for execution flow.", scale: 10 },
           { id: 3, pillar: "Purpose", text: "Aligns structural choices with shared core intentions.", scale: 10 },
           { id: 4, pillar: "Skills", text: "Demonstrates strategic dexterity under changing demands.", scale: 10 },
           { id: 5, pillar: "Team", text: "Cultivates structural safety and relational trust parameters.", scale: 10 },
           { id: 6, pillar: "Impact", text: "Translates leadership behaviors into measurable corporate momentum.", scale: 10 }
-        ]),
-        createdAt: new Date(),
+        ]
       });
       console.log("🎯 Quantum 360 master framework initialized successfully.");
     } else {
@@ -51,7 +48,6 @@ async function ensureQuantumTemplateExists() {
   } catch (error) {
     console.error("Fault encountered during template pre-seeder execution:", error);
   }
-}
 }
 
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
@@ -123,7 +119,6 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
-// BALANCED AUTO-SEEDER: Guarantees a fresh active loop populated with responses on boot
 async function seedDefaultWorkspaceState() {
   try {
     const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
@@ -163,7 +158,6 @@ async function seedDefaultWorkspaceState() {
       { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
       { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
       { name: "Robert Report", email: "robert@company.com", type: "Direct Report" },
-      // ADD THIS THIRD EXTERNAL PROFILE TO UNLOCK THE FIREWALL:
       { name: "David Director", email: "david@company.com", type: "Manager" }
     ];
 
@@ -194,7 +188,6 @@ async function seedDefaultWorkspaceState() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // FIXED: Executing database pre-seeds sequentially on server spin-up
   await ensureQuantumTemplateExists();
   await seedDefaultWorkspaceState();
 
@@ -339,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateCycleInviteCode(cycle.id, inviteCode);
       res.status(201).json({ success: true, surveyCode: inviteCode, cycle });
-    } catch (error: any) {
+    } catch (error) {
       res.status(400).json({ message: "Failed to create personal survey" });
     }
   });
@@ -364,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cycle.inviteCode = generatedToken; 
 
       res.status(201).json({ cycle });
-    } catch (error: any) {
+    } catch (error) {
       res.status(400).json({ message: "Failed to create survey cycle" });
     }
   });
@@ -460,9 +453,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!email || !email.trim()) continue;
         await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
       }
-      await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
+      await storage.updateSurveyCycleStats(parseInt(cycleId));
       res.status(201).json({ message: "Invitations created successfully" });
-    } catch (error: any) {
+    } catch (error) {
       res.status(400).json({ message: "Failed to send invitation" });
     }
   });
@@ -499,7 +492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateSurveyCycleStats(cycle.id);
       res.status(201).json({ message: "Response submitted successfully" });
-    } catch (error: any) {
+    } catch (error) {
       res.status(400).json({ message: "Failed to submit response" });
     }
   });
@@ -551,7 +544,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DYNAMIC COMPRESSED METRICS PIPELINE FOR THE SYNCSHIFT 1:1 TAXONOMY
   app.get("/api/reports/:cycleId/metrics", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.cycleId);
@@ -565,7 +557,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // EXECUTIVE GENERATION PIPELINE FOR THE DETAILED DUAL-LINE PDF ASSETS
   app.get("/api/reports/:cycleId/download", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.cycleId);
@@ -609,15 +600,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { cycleId, participantEmails } = req.body;
-      for (const email of participantEmails) {
-        if (!email || !email.trim()) continue;
-        await storage.createSurveyInvitation({ cycleId: parseInt(cycleId), email: email.trim(), status: 'pending' });
-      }
-      await storage.updateSurveyCycleStats(parseInt(cycleId));
-      res.status(201).json({ message: "Invitations created successfully" });
-    } catch (error: any) {
-      res.status(400).json({ message: "Failed to send invitation" });
+      await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
+      res.json({ message: "Report approved successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to approve report" });
     }
   });
 
@@ -748,6 +734,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "User role updated successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to modify permission tier" });
+    }
+  });
+
+  // OWNER ONLY: Manually allocate premium Quantum assessment credits to a client organization
+  app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const { creditsToAllocate } = req.body;
+
+      if (isNaN(orgId) || typeof creditsToAllocate !== 'number') {
+        return res.status(400).json({ message: "Invalid payload parameters. 'creditsToAllocate' must be a valid number." });
+      }
+
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) return res.status(404).json({ message: "Target client organization not found." });
+
+      const currentCredits = org.quantumCredits ?? 0;
+      const updatedCredits = currentCredits + creditsToAllocate;
+
+      if (updatedCredits < 0) {
+        return res.status(400).json({ message: "Operation rejected. Client credit balance cannot fall below zero." });
+      }
+
+      await db.update(organizations)
+        .set({ quantumCredits: updatedCredits })
+        .where(eq(organizations.id, orgId));
+
+      console.log(`💳 CONSULTANT BILLING: Allocated ${creditsToAllocate} credits to ${org.name}. New operational balance: ${updatedCredits}`);
+
+      return res.json({ 
+        success: true, 
+        message: `Successfully allocated ${creditsToAllocate} credits to ${org.name}.`,
+        organizationId: orgId,
+        newBalance: updatedCredits 
+      });
+    } catch (error) {
+      console.error("Owner Credit Allocation Failure:", error);
+      return res.status(500).json({ message: "Failed to process premium token credit transaction." });
     }
   });
 
