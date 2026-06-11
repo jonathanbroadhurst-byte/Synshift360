@@ -1,342 +1,211 @@
-import { RequireAuth } from '@/lib/auth';
-import Sidebar from '@/components/layout/sidebar';
-import Header from '@/components/layout/header';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { queryClient, apiRequest } from '@/lib/queryClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Building2, Users, FileCheck, Clock, TrendingUp, 
-  DollarSign, UserCog, ChevronDown, ChevronUp 
-} from 'lucide-react';
-import { useState } from 'react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Shield, Coins, Plus, Minus, Building2, Layers, Loader2 } from "lucide-react";
 
 interface OrganizationUsage {
-  organization: {
-    id: number;
-    name: string;
-    domain: string | null;
-    isActive: boolean;
-  };
-  activeSurveys: number;
-  totalParticipants: number;
-  completedResponses: number;
-  pendingResponses: number;
-}
-
-interface UserData {
   id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  organizationId: number | null;
-  position: string | null;
-  department: string | null;
+  name: string;
+  domain: string;
   isActive: boolean;
+  quantumCredits: number;
+  totalCyclesCreated?: number;
+  activeCyclesCount?: number;
 }
 
 export default function OwnerDashboard() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [expandedOrg, setExpandedOrg] = useState<number | null>(null);
+  
+  // Tracks allocation amounts per organization ID locally
+  const [creditInputs, setCreditInputs] = useState<Record<number, string>>({});
 
-  const { data: orgsUsage, isLoading: orgsLoading } = useQuery<OrganizationUsage[]>({
-    queryKey: ['/api/owner/organizations/usage'],
+  // 1. Fetch all tenant organizations along with their system usage metrics
+  const { data: organizations, isLoading } = useQuery<OrganizationUsage[]>({
+    queryKey: ["/api/owner/organizations/usage"],
   });
 
-  const { data: allUsers, isLoading: usersLoading } = useQuery<UserData[]>({
-    queryKey: ['/api/owner/users'],
-  });
-
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
-      return apiRequest('PATCH', `/api/owner/users/${userId}/role`, { role });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/owner/users'] });
-      toast({
-        title: "Role Updated",
-        description: "User role has been updated successfully.",
+  // 2. Mutation handler to securely allocate or deduct token values
+  const allocateCreditsMutation = useMutation({
+    mutationFn: async ({ orgId, amount }: { orgId: number; amount: number }) => {
+      const res = await apiRequest("PATCH", `/api/owner/organizations/${orgId}/credits`, {
+        creditsToAllocate: amount,
       });
+      return res.json();
     },
-    onError: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Error",
-        description: "Failed to update user role.",
+        title: "Transaction Complete",
+        description: data.message || "Organization credit ledger successfully modified.",
+      });
+      // Invalidate the query loop to instantly force a visual UI refresh of data rows
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/organizations/usage"] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Transaction Rejected",
+        description: err.message || "Failed to update corporate credit balance.",
         variant: "destructive",
       });
     },
   });
 
-  const totalOrgs = orgsUsage?.length || 0;
-  const totalActiveSurveys = orgsUsage?.reduce((sum, org) => sum + org.activeSurveys, 0) || 0;
-  const totalParticipants = orgsUsage?.reduce((sum, org) => sum + org.totalParticipants, 0) || 0;
-  const totalCompleted = orgsUsage?.reduce((sum, org) => sum + org.completedResponses, 0) || 0;
-
-  const getOrgUsers = (orgId: number) => {
-    return allUsers?.filter(u => u.organizationId === orgId) || [];
+  const handleInputChange = (orgId: number, value: string) => {
+    setCreditInputs((prev) => ({ ...prev, [orgId]: value }));
   };
 
-  return (
-    <RequireAuth roles={['owner']}>
-      <div className="min-h-screen flex bg-gray-50">
-        <Sidebar />
-        
-        <main className="flex-1 flex flex-col">
-          <Header />
-          
-          <div className="flex-1 p-8 space-y-8">
-            <div>
-              <h1 className="text-2xl font-bold text-secondary" data-testid="text-page-title">Platform Owner Dashboard</h1>
-              <p className="text-gray-600">Manage organizations, view usage metrics, and assign administrators</p>
-            </div>
+  const executeAllocation = (orgId: number, isAddition: boolean) => {
+    const rawValue = creditInputs[orgId];
+    const parsedAmount = parseInt(rawValue, 10);
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card data-testid="card-total-orgs">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Total Organizations</p>
-                      <p className="text-3xl font-bold text-secondary" data-testid="text-total-orgs">{totalOrgs}</p>
-                    </div>
-                    <Building2 className="h-10 w-10 text-blue-500 opacity-80" />
-                  </div>
-                </CardContent>
-              </Card>
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please input a positive whole number token value.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-              <Card data-testid="card-active-surveys">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Active Surveys</p>
-                      <p className="text-3xl font-bold text-secondary" data-testid="text-active-surveys">{totalActiveSurveys}</p>
-                    </div>
-                    <TrendingUp className="h-10 w-10 text-green-500 opacity-80" />
-                  </div>
-                </CardContent>
-              </Card>
+    // Multiply by -1 if the administrator clicked the deduct/minus configuration button
+    const finalAllocationDelta = isAddition ? parsedAmount : parsedAmount * -1;
 
-              <Card data-testid="card-total-participants">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Total Participants</p>
-                      <p className="text-3xl font-bold text-secondary" data-testid="text-total-participants">{totalParticipants}</p>
-                    </div>
-                    <Users className="h-10 w-10 text-purple-500 opacity-80" />
-                  </div>
-                </CardContent>
-              </Card>
+    allocateCreditsMutation.mutate({
+      orgId,
+      amount: finalAllocationDelta,
+    });
 
-              <Card data-testid="card-completed-responses">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Completed Responses</p>
-                      <p className="text-3xl font-bold text-secondary" data-testid="text-completed-responses">{totalCompleted}</p>
-                    </div>
-                    <FileCheck className="h-10 w-10 text-emerald-500 opacity-80" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+    // Reset input fields cleanly upon firing request parameters
+    setCreditInputs((prev) => ({ ...prev, [orgId]: "" }));
+  };
 
-            <Card data-testid="card-org-usage">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Organization Usage & Billing
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {orgsLoading ? (
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-16 bg-gray-100 rounded-lg"></div>
-                    <div className="h-16 bg-gray-100 rounded-lg"></div>
-                  </div>
-                ) : orgsUsage && orgsUsage.length > 0 ? (
-                  <div className="space-y-4">
-                    {orgsUsage.map((orgData) => {
-                      const completionRate = orgData.totalParticipants > 0 
-                        ? Math.round((orgData.completedResponses / orgData.totalParticipants) * 100) 
-                        : 0;
-                      const isExpanded = expandedOrg === orgData.organization.id;
-                      const orgUsers = getOrgUsers(orgData.organization.id);
-
-                      return (
-                        <div 
-                          key={orgData.organization.id} 
-                          className="border rounded-lg overflow-hidden"
-                          data-testid={`org-row-${orgData.organization.id}`}
-                        >
-                          <div 
-                            className="p-4 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => setExpandedOrg(isExpanded ? null : orgData.organization.id)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <Building2 className="h-8 w-8 text-blue-500" />
-                                <div>
-                                  <h4 className="font-semibold text-secondary" data-testid={`text-org-name-${orgData.organization.id}`}>
-                                    {orgData.organization.name}
-                                  </h4>
-                                  <p className="text-sm text-gray-500">{orgData.organization.domain || 'No domain set'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-6">
-                                <div className="text-center">
-                                  <p className="text-2xl font-bold text-secondary" data-testid={`text-org-surveys-${orgData.organization.id}`}>
-                                    {orgData.activeSurveys}
-                                  </p>
-                                  <p className="text-xs text-gray-500">Active Surveys</p>
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-2xl font-bold text-secondary" data-testid={`text-org-participants-${orgData.organization.id}`}>
-                                    {orgData.totalParticipants}
-                                  </p>
-                                  <p className="text-xs text-gray-500">Participants</p>
-                                </div>
-                                <div className="text-center min-w-[100px]">
-                                  <div className="flex items-center gap-2">
-                                    <Progress value={completionRate} className="h-2 flex-1" />
-                                    <span className="text-sm font-medium" data-testid={`text-org-completion-${orgData.organization.id}`}>
-                                      {completionRate}%
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-gray-500">Completion Rate</p>
-                                </div>
-                                {orgData.activeSurveys > 0 ? (
-                                  <Badge className="bg-green-100 text-green-800">Active</Badge>
-                                ) : (
-                                  <Badge variant="secondary">Inactive</Badge>
-                                )}
-                                {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
-                              </div>
-                            </div>
-                          </div>
-
-                          {isExpanded && (
-                            <div className="border-t bg-gray-50 p-4">
-                              <h5 className="font-medium mb-3 flex items-center gap-2">
-                                <UserCog className="h-4 w-4" />
-                                Organization Users ({orgUsers.length})
-                              </h5>
-                              {orgUsers.length > 0 ? (
-                                <div className="space-y-2">
-                                  {orgUsers.map((user) => (
-                                    <div 
-                                      key={user.id} 
-                                      className="flex items-center justify-between bg-white p-3 rounded-lg border"
-                                      data-testid={`user-row-${user.id}`}
-                                    >
-                                      <div>
-                                        <p className="font-medium">{user.firstName} {user.lastName}</p>
-                                        <p className="text-sm text-gray-500">{user.email}</p>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Select
-                                          value={user.role}
-                                          onValueChange={(role) => updateRoleMutation.mutate({ userId: user.id, role })}
-                                          disabled={updateRoleMutation.isPending}
-                                        >
-                                          <SelectTrigger className="w-[140px]" data-testid={`select-role-${user.id}`}>
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="org_admin">Org Admin</SelectItem>
-                                            <SelectItem value="admin">Admin</SelectItem>
-                                            <SelectItem value="leader">Leader</SelectItem>
-                                            <SelectItem value="participant">Participant</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-gray-500 text-sm">No users assigned to this organization</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Building2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>No organizations found</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card data-testid="card-billing-summary">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Billing Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Organization</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-600">Active Surveys</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-600">Participants</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-600">Completed</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-600">Pending</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orgsUsage?.map((orgData) => (
-                        <tr key={orgData.organization.id} className="border-b hover:bg-gray-50" data-testid={`billing-row-${orgData.organization.id}`}>
-                          <td className="py-3 px-4 font-medium">{orgData.organization.name}</td>
-                          <td className="py-3 px-4 text-center">{orgData.activeSurveys}</td>
-                          <td className="py-3 px-4 text-center">{orgData.totalParticipants}</td>
-                          <td className="py-3 px-4 text-center text-green-600">{orgData.completedResponses}</td>
-                          <td className="py-3 px-4 text-center text-orange-600">{orgData.pendingResponses}</td>
-                          <td className="py-3 px-4 text-center">
-                            {orgData.activeSurveys > 0 ? (
-                              <Badge className="bg-green-100 text-green-800">Billable</Badge>
-                            ) : (
-                              <Badge variant="outline">No Activity</Badge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-gray-100 font-semibold">
-                        <td className="py-3 px-4">Total</td>
-                        <td className="py-3 px-4 text-center">{totalActiveSurveys}</td>
-                        <td className="py-3 px-4 text-center">{totalParticipants}</td>
-                        <td className="py-3 px-4 text-center text-green-600">{totalCompleted}</td>
-                        <td className="py-3 px-4 text-center text-orange-600">{orgsUsage?.reduce((sum, org) => sum + org.pendingResponses, 0) || 0}</td>
-                        <td className="py-3 px-4"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
       </div>
-    </RequireAuth>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6 md:p-12">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Header Layout Control Block */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6">
+          <div>
+            <div className="flex items-center gap-2 text-orange-500 font-mono text-sm uppercase tracking-widest mb-1">
+              <Shield className="w-4 h-4" /> Platform Owner Control Panel
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              Corporate Credit & Token Control
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-6 bg-gray-900/40 border border-gray-800 rounded-xl p-4 px-6">
+            <div className="flex items-center gap-3">
+              <Building2 className="text-gray-400 w-5 h-5" />
+              <div>
+                <div className="text-xs text-gray-500">Total Clients</div>
+                <div className="text-lg font-bold font-mono">{organizations?.length || 0}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Primary Data Metric Grid System */}
+        <Card className="bg-gray-900/30 border-gray-800 backdrop-blur-md overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2 text-xl">
+              <Coins className="w-5 h-5 text-orange-400" /> Client Organization Ledger
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Allocate premium assessment tokens, view dynamic cross-tenant subscription limits, and monitor live assessment loop volumes.
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <div className="rounded-xl border border-gray-800 bg-gray-950/50 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-gray-900/60 border-gray-800">
+                  <TableRow className="hover:bg-transparent border-gray-800">
+                    <TableHead className="text-gray-400 font-semibold">Client Name</TableHead>
+                    <TableHead className="text-gray-400 font-semibold">Domain Target</TableHead>
+                    <TableHead className="text-gray-400 font-semibold text-center">Active Cycles</TableHead>
+                    <TableHead className="text-gray-400 font-semibold text-center">Premium Balance</TableHead>
+                    <TableHead className="text-gray-400 font-semibold text-right pr-8">Modify Allocation</TableHead>
+                  </TableRow>
+                </TableHeader>
+                
+                <TableBody>
+                  {organizations && organizations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        No corporate client records compiled within system databases.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    organizations?.map((org) => (
+                      <TableRow key={org.id} className="border-gray-800/60 hover:bg-gray-900/20 transition-colors">
+                        <TableCell className="font-medium text-white flex items-center gap-2 py-4">
+                          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                          {org.name}
+                        </TableCell>
+                        <TableCell className="text-gray-400 font-mono text-sm">{org.domain}</TableCell>
+                        <TableCell className="text-center font-mono text-gray-300">
+                          {org.activeCyclesCount ?? org.totalCyclesCreated ?? 0}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold font-mono bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                            {org.quantumCredits} Credits
+                          </span>
+                        </TableCell>
+                        
+                        {/* Interactive Management Control Column */}
+                        <TableCell className="text-right py-3">
+                          <div className="flex items-center justify-end gap-2 max-w-xs ml-auto">
+                            <Input
+                              type="number"
+                              pattern="[0-9]*"
+                              min="1"
+                              placeholder="0"
+                              value={creditInputs[org.id] || ""}
+                              onChange={(e) => handleInputChange(org.id, e.target.value)}
+                              className="w-20 bg-gray-900 border-gray-700 text-white font-mono text-center focus-visible:ring-orange-500 h-9 placeholder:text-gray-600"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => executeAllocation(org.id, false)}
+                              disabled={allocateCreditsMutation.isPending}
+                              className="border-gray-700 text-gray-400 hover:text-red-400 hover:bg-red-500/10 h-9 w-9 p-0"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => executeAllocation(org.id, true)}
+                              disabled={allocateCreditsMutation.isPending}
+                              className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white h-9 px-3 font-semibold flex items-center gap-1"
+                            >
+                              <Plus className="w-4 h-4" /> Add
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
