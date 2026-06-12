@@ -29,21 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 1. Fetch current user context session from database
   const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/me"], // ⚡ FIXED ROUTE KEY
     queryFn: async () => {
       try {
-        // ⚡ FIX: Check for token so session survives page refresh
         const token = localStorage.getItem('token');
         if (!token) return null;
 
-        const res = await fetch("/api/user", {
+        // ⚡ FIXED ENDPOINT: Matching backend route
+        const res = await fetch("/api/auth/me", {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         
         if (res.status === 401) {
-          localStorage.removeItem('token'); // Cleanup dead token
+          localStorage.removeItem('token'); 
           return null;
         }
         if (!res.ok) throw new Error("Failed to load user session.");
@@ -71,15 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: (data: any) => {
-      // ⚡ THE MISSING LINK: Actually save the token to the browser!
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
 
       const userProfile = data.user ? data.user : data;
       
-      // Seed query client cache immediately to reflect live authenticated user status
-      queryClient.setQueryData(["/api/user"], userProfile);
+      // ⚡ FIXED ROUTE KEY: Seed query client cache immediately
+      queryClient.setQueryData(["/api/auth/me"], userProfile);
 
       const userRole = userProfile?.role;
       const currentPath = window.location.pathname;
@@ -97,13 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 3. Clear Session Logout Mutation Handler
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // ⚡ FIX: Destroy the token locally
       localStorage.removeItem('token');
-      // Attempt server-side logout (don't block if it fails)
       await apiRequest("POST", "/api/logout").catch(() => {});
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/user"], null);
+      // ⚡ FIXED ROUTE KEY
+      queryClient.setQueryData(["/api/auth/me"], null);
       setLocation("/login");
       toast({
         title: "Logged Out",
