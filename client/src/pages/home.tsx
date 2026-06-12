@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Key, Shield, Compass, Cpu, Target, Award, Users, TrendingUp, GitMerge } from 'lucide-react';
+import { ArrowRight, Key, Compass, Cpu, Target, Award, Users, TrendingUp, GitMerge } from 'lucide-react';
 
 export default function Home() {
   const [inviteCode, setInviteCode] = useState('');
@@ -18,24 +18,54 @@ export default function Home() {
   };
 
   const dimensions = [
-    { name: "Direction & Sense-Making", desc: "Calibrating systemic foresight and intent alignment.", icon: Compass },
-    { name: "Systems & Delivery", desc: "Evaluating execution architecture and infrastructure.", icon: Cpu },
-    { name: "Purpose & Authenticity", desc: "Assessing core motives and ethical anchors.", icon: Target },
-    { name: "Skills & Agility", desc: "Measuring operational dexterity and transformation.", icon: Award },
-    { name: "Team & Norms", desc: "Unpacking collaborative trust and interaction.", icon: Users },
-    { name: "Impact & Reputation", desc: "Isolating leadership presence and brand vectors.", icon: TrendingUp },
+    { 
+      name: "Direction & Sense-Making", 
+      desc: "Calibrating systemic long-range foresight, intent alignment, and corporate narrative framing.", 
+      expandedDesc: "We analyze how leadership frames intent and propagates narrative across the enterprise to ensure every node in your organization understands the long-term vector.",
+      icon: Compass 
+    },
+    { 
+      name: "Systems & Delivery", 
+      desc: "Evaluating execution architecture, structural deployment fluidities, and infrastructure scales.", 
+      expandedDesc: "This measures the friction within your delivery pipelines, looking at how effectively your structural architecture supports high-velocity execution.",
+      icon: Cpu 
+    },
+    { 
+      name: "Purpose & Authenticity", 
+      desc: "Assessing authentic values-driven focus, core motives, and foundational ethical anchors.", 
+      expandedDesc: "We isolate the gap between declared organizational values and the lived experience of employees to identify authenticity gaps.",
+      icon: Target 
+    },
+    { 
+      name: "Skills & Agility", 
+      desc: "Measuring operational dexterity, strategic cognitive capabilities, and workforce transformation tolerances.", 
+      expandedDesc: "This diagnostic evaluates the cognitive load your team can handle and their adaptability during periods of rapid structural transformation.",
+      icon: Award 
+    },
+    { 
+      name: "Team & Norms", 
+      desc: "Unpacking collaborative culture, structural trust indicators, and peer interaction baselines.", 
+      expandedDesc: "We track the health of peer interactions, looking specifically for 'trust silos' that might be throttling collaborative output.",
+      icon: Users 
+    },
+    { 
+      name: "Impact & Reputation", 
+      desc: "Isolating personal leadership presence outcomes, market credibility, and systemic brand vectors.", 
+      expandedDesc: "This measures your leadership brand's ripple effect, calculating how your internal performance translates into external market credibility.",
+      icon: TrendingUp 
+    },
   ];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
       
-      {/* Premium Header - Kept as is for consistency */}
+      {/* Premium Header */}
       <nav className="bg-[#0A192F] border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <span className="text-xl font-bold text-white tracking-tight">🌀 SyncShift</span>
           </div>
-          <Link href="/login"><span className="text-sm font-medium text-slate-300 hover:text-white cursor-pointer">Portal Login</span></Link>
+          <Link href="/login"><span className="text-sm font-medium text-slate-300 hover:text-white cursor-pointer transition-colors">Portal Login</span></Link>
         </div>
       </nav>
 
@@ -68,7 +98,7 @@ export default function Home() {
                     className="uppercase font-mono text-center text-lg h-12 bg-slate-50 border-slate-200"
                     maxLength={8} required
                   />
-                  <Button type="submit" className="w-full bg-[#0A192F] hover:bg-slate-800 h-11">
+                  <Button type="submit" className="w-full bg-[#0A192F] hover:bg-slate-800 h-11 transition-all">
                     Start Combined Review <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </form>
@@ -90,19 +120,39 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dimensions.map((dim, i) => (
-            <Card key={i} className="border-slate-200 shadow-sm hover:shadow-md transition-all">
-              <CardContent className="p-6 space-y-3">
-                <dim.icon className="w-6 h-6 text-[#0A192F]" />
-                <h4 className="font-bold text-sm text-slate-900">{dim.name}</h4>
-                <p className="text-xs text-slate-500">{dim.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {dimensions.map((dim, i) => {
+            const IconComponent = dim.icon;
+            return (
+              <Card key={i} className="group relative border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-default">
+                <CardContent className="p-6 space-y-4">
+                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-[#0A192F]">
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-900 tracking-tight">{dim.name}</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">{dim.desc}</p>
+                  </div>
+                </CardContent>
+
+                {/* Hover Callout Overlay */}
+                <div className="absolute inset-0 bg-[#0A192F]/95 text-white p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-2">Deep Dive</p>
+                  <p className="text-xs leading-relaxed text-slate-200">
+                    {dim.expandedDesc}
+                  </p>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      {/* Footer - Keep your existing footer here */}
+      {/* Footer */}
+      <footer className="bg-[#0A192F] py-8 mt-auto">
+        <div className="max-w-6xl mx-auto px-6 text-center text-xs text-slate-400">
+          <p>&copy; 2026 SyncShift. All rights reserved. Built with systemic dual-line integrity protocols.</p>
+        </div>
+      </footer>
     </div>
   );
 }
