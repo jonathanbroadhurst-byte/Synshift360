@@ -32,10 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/user");
-        if (res.status === 401) return null;
+        // ⚡ FIX: Check for token so session survives page refresh
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+
+        const res = await fetch("/api/user", {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (res.status === 401) {
+          localStorage.removeItem('token'); // Cleanup dead token
+          return null;
+        }
         if (!res.ok) throw new Error("Failed to load user session.");
-        return res.json();
+        
+        const data = await res.json();
+        return data.user ? data.user : data;
       } catch (err) {
         return null;
       }
@@ -46,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 2. Secure Login Mutation Handler
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      // ⚡ PASSPORT STRATEGY COUPLING: Map 'email' state directly onto the 'username' key for backend processing
       const res = await apiRequest("POST", "/api/login", {
         username: credentials.email,
         password: credentials.password
@@ -58,7 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: (data: any) => {
-      // ⚡ DEFENSIVE PARSING: Extract user profile whether server returns it flat or nested under .user
+      // ⚡ THE MISSING LINK: Actually save the token to the browser!
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
       const userProfile = data.user ? data.user : data;
       
       // Seed query client cache immediately to reflect live authenticated user status
@@ -80,7 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 3. Clear Session Logout Mutation Handler
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      // ⚡ FIX: Destroy the token locally
+      localStorage.removeItem('token');
+      // Attempt server-side logout (don't block if it fails)
+      await apiRequest("POST", "/api/logout").catch(() => {});
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
