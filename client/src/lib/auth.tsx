@@ -12,6 +12,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   organizationId?: number;
+  is_active?: boolean;
 }
 
 interface AuthContextType {
@@ -27,37 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // 1. Fetch current user context session from database
   const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/auth/me"], // ⚡ FIXED ROUTE KEY
+    queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return null;
-
-        // ⚡ FIXED ENDPOINT: Matching backend route
-        const res = await fetch("/api/auth/me", {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.status === 401) {
-          localStorage.removeItem('token'); 
-          return null;
-        }
+        const res = await fetch("/api/auth/me", { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.status === 401) { localStorage.removeItem('token'); return null; }
         if (!res.ok) throw new Error("Failed to load user session.");
-        
         const data = await res.json();
         return data.user ? data.user : data;
-      } catch (err) {
-        return null;
-      }
+      } catch (err) { return null; }
     },
     retry: false,
   });
 
-  // 2. Secure Login Mutation Handler
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
       const res = await apiRequest("POST", "/api/login", {
@@ -74,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.token) localStorage.setItem('token', data.token);
       const userProfile = data.user ? data.user : data;
 
-      // 🛡️ Security Check
       if (userProfile.is_active === false) {
         toast({ title: "Access Denied", description: "This account is disabled.", variant: "destructive" });
         return;
@@ -84,51 +69,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Redirect based on roles
       if (userProfile.role === 'owner') {
-        window.location.href = '/owner'; 
+        window.location.href = '/admin/owner-dashboard';
       } else if (userProfile.role === 'admin' || userProfile.role === 'org_admin') {
-        window.location.href = '/admin'; 
+        window.location.href = '/admin';
       } else {
         window.location.href = '/dashboard';
       }
-    }, // This closes the onSuccess function
-  }); // This closes the useMutation object
+    }
+  });
 
-      const userProfile = data.user ? data.user : data;
-      
-      // ⚡ FIXED ROUTE KEY: Seed query client cache immediately
-      queryClient.setQueryData(["/api/auth/me"], userProfile);
-
-      const userRole = userProfile?.role;
-      const currentPath = window.location.pathname;
-
-      if (currentPath === '/login' || currentPath === '/') {
-  // 1. Strict Owner access - the only one who gets the keys to the kingdom
-  if (userRole === 'owner') {
-    window.location.href = '/admin/owner-dashboard'; 
-  } 
-  // 2. Standard Admin access (no longer includes owner)
-  else if (userRole === 'admin' || userRole === 'org_admin') {
-    window.location.href = '/admin'; 
-  } 
-  // 3. Standard User access
-  else if (userRole === 'leader') {
-    window.location.href = '/dashboard';
-  }
-
-  // 3. Clear Session Logout Mutation Handler
   const logoutMutation = useMutation({
     mutationFn: async () => {
       localStorage.removeItem('token');
       await apiRequest("POST", "/api/logout").catch(() => {});
     },
     onSuccess: () => {
-      // ⚡ FIXED ROUTE KEY
       queryClient.setQueryData(["/api/auth/me"], null);
       setLocation("/login");
-      toast({
-        title: "Logged Out",
-        description: "Your session has been securely closed.",
-      });
+      toast({ title: "Logged Out", description: "Your session has been securely closed." });
     }
   });
 
@@ -151,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider schema context.");
+    throw new Error("useAuth must be used within an AuthProvider.");
   }
   return context;
 }
@@ -160,27 +118,12 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    setTimeout(() => setLocation("/login"), 0);
-    return null;
-  }
-
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!user) { setTimeout(() => setLocation("/login"), 0); return null; }
   if (roles && !roles.includes(user.role)) {
-    if (user.role === 'owner' || user.role === 'admin' || user.role === 'org_admin') {
-      setTimeout(() => setLocation("/admin"), 0);
-    } else {
-      setTimeout(() => setLocation("/dashboard"), 0);
-    }
+    if (user.role === 'owner' || user.role === 'admin' || user.role === 'org_admin') setTimeout(() => setLocation("/admin"), 0);
+    else setTimeout(() => setLocation("/dashboard"), 0);
     return null;
   }
-
   return <>{children}</>;
 }
