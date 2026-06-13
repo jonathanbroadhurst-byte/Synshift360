@@ -6,7 +6,6 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
-import { insertUserSchema, insertOrganizationSchema, insertSurveySchema, insertSurveyCycleSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, type User, users, surveys, organizations, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -14,6 +13,23 @@ import * as mailjetEmail from "./mailjet";
 import * as resendEmail from "./resend";
 import { generateSyncShiftReportData } from "./services/reporting";
 import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
+import { 
+  insertUserSchema, 
+  insertOrganizationSchema, 
+  insertSurveySchema, 
+  insertSurveyCycleSchema, 
+  insertSurveyInvitationSchema, 
+  insertSurveyResponseSchema, 
+  type User, 
+  users, 
+  surveys, 
+  organizations, 
+  surveyCycles, 
+  surveyInvitations, 
+  surveyResponses, 
+  reports, 
+  auditLog 
+} from "@shared/schema";
 
 // SELF-HEALING DATABASE SCHEMA LAYER: Safely ensures table columns exist without drizzle-kit in production
 async function ensureSchemaUpToDate() {
