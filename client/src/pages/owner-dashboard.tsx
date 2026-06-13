@@ -1,10 +1,6 @@
-// Inside OwnerDashboard.tsx
-const { data: orgs } = useQuery({ queryKey: ["/api/owner/organizations/usage"] });
-console.log("DEBUG: Data from API:", orgs); // 👈 Add this
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,7 +9,6 @@ import { Shield, Coins, Plus, Minus, Building2, Loader2 } from "lucide-react";
 
 export default function OwnerDashboard() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [creditInputs, setCreditInputs] = useState<Record<number, string>>({});
 
   // 1. Fetch tenant organizations along with their usage metrics
@@ -30,18 +25,11 @@ export default function OwnerDashboard() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Transaction Complete",
-        description: data.message || "Organization credit ledger successfully modified.",
-      });
+      alert(data.message || "Organization credit ledger successfully modified.");
       queryClient.invalidateQueries({ queryKey: ["/api/owner/organizations/usage"] });
     },
     onError: (err: any) => {
-      toast({
-        title: "Transaction Rejected",
-        description: err.message || "Failed to update corporate credit balance.",
-        variant: "destructive",
-      });
+      alert(err.message || "Failed to update corporate credit balance.");
     },
   });
 
@@ -54,11 +42,7 @@ export default function OwnerDashboard() {
     const parsedAmount = parseInt(rawValue, 10);
 
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please input a positive whole number token value.",
-        variant: "destructive",
-      });
+      alert("Please input a positive whole number token value.");
       return;
     }
 
