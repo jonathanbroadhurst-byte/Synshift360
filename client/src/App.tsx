@@ -29,6 +29,7 @@ function Router() {
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/admin" component={Dashboard} />
+      <Route path="/admin/owner-dashboard" component={OwnerDashboard} />
       <Route path="/owner" component={OwnerDashboard} />
       <Route path="/dashboard" component={LeaderDashboard} />
       <Route path="/login" component={Login} />
