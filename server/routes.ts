@@ -849,7 +849,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to process premium token credit transaction." });
     }
   });
+// OWNER ONLY: Provision a new Organization and its initial Admin
+  app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { orgName, domain, adminEmail, adminPassword } = req.body;
 
+      if (!orgName || !domain || !adminEmail || !adminPassword) {
+        return res.status(400).json({ message: "All fields are required." });
+      }
+
+      // 1. Create the Organization
+      const [newOrg] = await db.insert(organizations).values({
+        name: orgName,
+        domain: domain,
+        quantumCredits: 0
+      }).returning();
+
+      // 2. Hash password and create the Admin User
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      
+      await db.insert(users).values({
+        email: adminEmail,
+        username: adminEmail.split('@')[0],
+        password: hashedPassword,
+        role: 'org_admin',
+        organizationId: newOrg.id,
+        firstName: 'Admin', // They can change this later
+        lastName: 'User',
+        isActive: true
+      });
+
+      console.log(`🏢 PROVISIONED: Org '${orgName}' with admin '${adminEmail}'`);
+      return res.status(201).json({ 
+        message: "Client provisioned successfully", 
+        organization: newOrg 
+      });
+      
+    } catch (error: any) {
+      console.error("Provisioning Error:", error);
+      return res.status(500).json({ message: "Failed to provision client organization." });
+    }
+  });
   return httpServer;
 }
 
