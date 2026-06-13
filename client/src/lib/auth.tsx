@@ -71,9 +71,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: (data: any) => {
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
+  if (data.token) localStorage.setItem('token', data.token);
+  const userProfile = data.user ? data.user : data;
+
+  // 🛡️ Security Check
+  if (userProfile.is_active === false) {
+    toast({ title: "Access Denied", description: "This account is disabled.", variant: "destructive" });
+    return;
+  }
+
+  queryClient.setQueryData(["/api/auth/me"], userProfile);
+
+  // Redirect based on roles
+  if (userProfile.role === 'owner') {
+    window.location.href = '/owner'; 
+  } else if (userProfile.role === 'admin' || userProfile.role === 'org_admin') {
+    window.location.href = '/admin'; 
+  } else {
+    window.location.href = '/dashboard';
+  }
+},
 
       const userProfile = data.user ? data.user : data;
       
