@@ -1,3 +1,6 @@
+// Inside OwnerDashboard.tsx
+const { data: orgs } = useQuery({ queryKey: ["/api/owner/organizations/usage"] });
+console.log("DEBUG: Data from API:", orgs); // 👈 Add this
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
