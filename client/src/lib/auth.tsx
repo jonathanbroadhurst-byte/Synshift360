@@ -115,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/dashboard';
   }
 }
-}
   });
 
   // 3. Clear Session Logout Mutation Handler
