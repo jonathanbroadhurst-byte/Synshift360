@@ -114,8 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   else if (userRole === 'leader') {
     window.location.href = '/dashboard';
   }
-}
-  });
 
   // 3. Clear Session Logout Mutation Handler
   const logoutMutation = useMutation({
