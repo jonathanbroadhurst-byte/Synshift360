@@ -223,6 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: 'jonathan.broadhurst@me.com', // ⚠️ UPDATE THIS to your email
         password: hashedPassword,
         role: 'owner',
+        username: 'owner',
         is_active: true
       });
       res.send("Owner account created successfully!");
