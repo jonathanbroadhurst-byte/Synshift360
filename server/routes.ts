@@ -213,8 +213,26 @@ async function seedDefaultWorkspaceState() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // NON-BLOCKING INITIALIZATION: Fires sequences in the background so the server passes health pings instantly
+  const httpServer = createServer(app);
+
+  // --- TEMPORARY "BACKDOOR" SETUP ROUTE ---
+  app.get("/api/setup-owner", async (req: Request, res: Response) => {
+    try {
+      const hashedPassword = await bcrypt.hash('Fygt-abXT-XXwpM-BLRY', 10);
+      await db.insert(users).values({
+        email: 'your-email@example.com', // ⚠️ UPDATE THIS to your email
+        password: hashedPassword,
+        role: 'owner',
+        is_active: true
+      });
+      res.send("Owner account created successfully!");
+    } catch (error) {
+      console.error("Setup Error:", error);
+      res.status(500).send("Error creating owner account.");
+    }
+  });
+
+  // NON-BLOCKING INITIALIZATION: Fires sequences in the background
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => seedDefaultWorkspaceState())
@@ -230,6 +248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
   });
+  
+  // ... rest of your code ...
 
   // ⚡ CUSTOM INJECTED SECURE DIRECT DATABASE SIGN-IN HANDLER
   app.post("/api/login", async (req: Request, res: Response) => {
