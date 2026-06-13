@@ -220,7 +220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const hashedPassword = await bcrypt.hash('Fygt-abXT-XXwpM-BLRY', 10);
       await db.insert(users).values({
-        email: 'your-email@example.com', // ⚠️ UPDATE THIS to your email
+        email: 'jonathan.broadhurst@me.com', // ⚠️ UPDATE THIS to your email
         password: hashedPassword,
         role: 'owner',
         is_active: true
