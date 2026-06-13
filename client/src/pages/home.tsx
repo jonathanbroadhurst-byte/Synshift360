@@ -1,157 +1,138 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Key, Compass, Cpu, Target, Award, Users, TrendingUp, GitMerge } from 'lucide-react';
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Activity, ArrowRight, Shield, Zap, Target, Users, Lightbulb, BarChart } from "lucide-react";
+
+// The refactored dimensions array with hover insights
+const frameworkPillars = [
+  {
+    id: "leadership",
+    title: "Quantum Leadership",
+    icon: <Zap className="w-6 h-6 text-orange-400" />,
+    color: "from-orange-500/20 to-transparent border-orange-500/30",
+    description: "Navigate uncertainty with agile decision-making.",
+    insight: "Assesses adaptive capacity, visionary communication, and decentralized empowerment across management tiers."
+  },
+  {
+    id: "culture",
+    title: "Cultural Resonance",
+    icon: <Users className="w-6 h-6 text-pink-400" />,
+    color: "from-pink-500/20 to-transparent border-pink-500/30",
+    description: "Build psychological safety and high-trust environments.",
+    insight: "Measures team cohesion, conflict resolution mechanics, and the embedded values of your organizational DNA."
+  },
+  {
+    id: "strategy",
+    title: "Strategic Alignment",
+    icon: <Target className="w-6 h-6 text-blue-400" />,
+    color: "from-blue-500/20 to-transparent border-blue-500/30",
+    description: "Connect daily execution to overarching market objectives.",
+    insight: "Evaluates the clarity of strategic vectors and the efficiency of resource allocation toward core goals."
+  },
+  {
+    id: "execution",
+    title: "Execution Velocity",
+    icon: <BarChart className="w-6 h-6 text-emerald-400" />,
+    color: "from-emerald-500/20 to-transparent border-emerald-500/30",
+    description: "Translate strategic blueprints into measurable outcomes.",
+    insight: "Analyzes operational bottlenecks, cross-functional collaboration, and the delivery cadence of key initiatives."
+  }
+];
 
 export default function Home() {
-  const [inviteCode, setInviteCode] = useState('');
-  const [, setLocation] = useLocation();
-
-  const handleJoinSurvey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inviteCode.trim()) {
-      setLocation(`/survey/${inviteCode.trim().toUpperCase()}`);
-    }
-  };
-
-  const dimensions = [
-    { 
-      name: "Direction & Sense-Making", 
-      desc: "Calibrating systemic long-range foresight, intent alignment, and corporate narrative framing.", 
-      expandedDesc: "We analyze how leadership frames intent and propagates narrative across the enterprise to ensure every node in your organization understands the long-term vector.",
-      icon: Compass 
-    },
-    { 
-      name: "Systems & Delivery", 
-      desc: "Evaluating execution architecture, structural deployment fluidities, and infrastructure scales.", 
-      expandedDesc: "This measures the friction within your delivery pipelines, looking at how effectively your structural architecture supports high-velocity execution.",
-      icon: Cpu 
-    },
-    { 
-      name: "Purpose & Authenticity", 
-      desc: "Assessing authentic values-driven focus, core motives, and foundational ethical anchors.", 
-      expandedDesc: "We isolate the gap between declared organizational values and the lived experience of employees to identify authenticity gaps.",
-      icon: Target 
-    },
-    { 
-      name: "Skills & Agility", 
-      desc: "Measuring operational dexterity, strategic cognitive capabilities, and workforce transformation tolerances.", 
-      expandedDesc: "This diagnostic evaluates the cognitive load your team can handle and their adaptability during periods of rapid structural transformation.",
-      icon: Award 
-    },
-    { 
-      name: "Team & Norms", 
-      desc: "Unpacking collaborative culture, structural trust indicators, and peer interaction baselines.", 
-      expandedDesc: "We track the health of peer interactions, looking specifically for 'trust silos' that might be throttling collaborative output.",
-      icon: Users 
-    },
-    { 
-      name: "Impact & Reputation", 
-      desc: "Isolating personal leadership presence outcomes, market credibility, and systemic brand vectors.", 
-      expandedDesc: "This measures your leadership brand's ripple effect, calculating how your internal performance translates into external market credibility.",
-      icon: TrendingUp 
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white font-sans selection:bg-orange-500/30">
       
-      {/* Premium Header */}
-      <nav className="bg-[#0A192F] border-b border-slate-800 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-white tracking-tight">🌀 SyncShift</span>
+      {/* Navigation */}
+      <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-xl tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <Activity className="w-6 h-6 text-orange-500" />
+            SyncShift
           </div>
-          <Link href="/login"><span className="text-sm font-medium text-slate-300 hover:text-white cursor-pointer transition-colors">Portal Login</span></Link>
+          <div className="flex items-center gap-4">
+            <Link href="/contact-form">
+              <Button variant="ghost" className="text-gray-400 hover:text-white hover:bg-gray-800 hidden sm:inline-flex">
+                Contact
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button className="bg-white text-black hover:bg-gray-200">
+                Platform Login
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <div className="bg-[#0A192F] text-white py-20 border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-7 space-y-6">
-            <Badge className="bg-[#D97706] text-white font-semibold text-xs px-3 py-1 rounded-md border-none">
-              UNIFIED ALIGNMENT ARCHITECTURE • 2026
-            </Badge>
-            <h1 className="text-5xl font-extrabold tracking-tight text-white leading-none">
-              Synchronize your <br/>
-              <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">Organizational DNA.</span>
-            </h1>
-            <p className="text-slate-300 text-lg leading-relaxed max-w-xl">
-              We've integrated our leadership and systemic diagnostics into a single, cohesive Organization Review. Access your combined evaluation now to identify acceleration vectors.
-            </p>
-          </div>
-
-          <div className="lg:col-span-5">
-            <Card className="border-none shadow-2xl bg-white text-slate-900">
-              <div className="p-5 border-b border-slate-100 bg-slate-50">
-                <h2 className="font-bold flex items-center gap-2"><Key className="w-4 h-4 text-[#D97706]" /> Secure Assessment Gate</h2>
-              </div>
-              <CardContent className="p-5">
-                <form onSubmit={handleJoinSurvey} className="space-y-3">
-                  <Input 
-                    value={inviteCode} onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="ENTER INVITE CODE" 
-                    className="uppercase font-mono text-center text-lg h-12 bg-slate-50 border-slate-200"
-                    maxLength={8} required
-                  />
-                  <Button type="submit" className="w-full bg-[#0A192F] hover:bg-slate-800 h-11 transition-all">
-                    Start Combined Review <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Hero Section & Assessment Gateway */}
+      <main className="max-w-7xl mx-auto px-6 pt-20 pb-16 md:pt-32 md:pb-24 flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-sm font-mono mb-8">
+          <Shield className="w-4 h-4" /> Enterprise 360 Feedback Loop
         </div>
-      </div>
+        
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          Unified Alignment <br className="hidden md:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500">
+            Diagnostic Framework
+          </span>
+        </h1>
+        
+        <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
+          Uncover the hidden dynamics of your organization. Deploy high-fidelity surveys to measure leadership, culture, and operational velocity.
+        </p>
+        
+        {/* The Gateway Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto">
+          <Link href="/quantum360/start" className="w-full">
+            <Button size="lg" className="w-full h-14 bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold text-lg shadow-lg shadow-orange-500/20">
+              Start Evaluation <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      </main>
 
-      {/* Unified Framework Showcase */}
-      <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl font-bold text-[#0A192F] flex items-center justify-center gap-3">
-            <GitMerge className="text-[#D97706]" /> The Unified Review Framework
-          </h2>
-          <p className="text-slate-500 max-w-xl mx-auto">
-            Our unified diagnostics now process individual competency intents alongside macro systemic alignment outcomes in one seamless evaluation.
-          </p>
+      {/* Framework Pillars (Hover-based Insights) */}
+      <section className="max-w-7xl mx-auto px-6 py-24 border-t border-gray-800/50">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-bold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Core Measurement Dimensions</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">Our proprietary diagnostic engine evaluates your organization across four critical performance vectors.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dimensions.map((dim, i) => {
-            const IconComponent = dim.icon;
-            return (
-              <Card key={i} className="group relative border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-default">
-                <CardContent className="p-6 space-y-4">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-[#0A192F]">
-                    <IconComponent className="w-5 h-5" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {frameworkPillars.map((pillar) => (
+            <div key={pillar.id} className="group relative">
+              {/* Card Background gradient that shifts on hover */}
+              <div className={`absolute inset-0 bg-gradient-to-b ${pillar.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl`} />
+              
+              <Card className="relative h-full bg-gray-900/40 border-gray-800 backdrop-blur-sm hover:border-gray-600 transition-colors duration-300">
+                <CardContent className="p-6 flex flex-col h-full">
+                  <div className="w-12 h-12 rounded-xl bg-gray-950 border border-gray-800 flex items-center justify-center mb-6 shadow-inner">
+                    {pillar.icon}
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-sm text-slate-900 tracking-tight">{dim.name}</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">{dim.desc}</p>
+                  <h3 className="text-xl font-bold text-white mb-3">{pillar.title}</h3>
+                  
+                  {/* Default Description */}
+                  <p className="text-gray-400 text-sm leading-relaxed group-hover:opacity-0 transition-opacity duration-300 absolute mt-12 pr-6">
+                    {pillar.description}
+                  </p>
+                  
+                  {/* Hover Insight (Deep Dive) */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-grow pt-2">
+                    <p className="text-gray-300 text-sm leading-relaxed font-medium">
+                      {pillar.insight}
+                    </p>
                   </div>
                 </CardContent>
-
-                {/* Hover Callout Overlay */}
-                <div className="absolute inset-0 bg-[#0A192F]/95 text-white p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-2">Deep Dive</p>
-                  <p className="text-xs leading-relaxed text-slate-200">
-                    {dim.expandedDesc}
-                  </p>
-                </div>
               </Card>
-            );
-          })}
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-[#0A192F] py-8 mt-auto">
-        <div className="max-w-6xl mx-auto px-6 text-center text-xs text-slate-400">
-          <p>&copy; 2026 SyncShift. All rights reserved. Built with systemic dual-line integrity protocols.</p>
-        </div>
+      <footer className="border-t border-gray-900 bg-gray-950/50 py-12 text-center text-gray-500 text-sm">
+        <p>© 2026 SyncShift. Powered by Quantum Leadership Theory.</p>
       </footer>
     </div>
   );
