@@ -8,76 +8,34 @@ import {
 import { db } from "./db";
 import { eq, and, desc, count } from "drizzle-orm";
 
-// Storage interface
 export interface IStorage {
-  // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(insertUser: InsertUser): Promise<User>;
-
-  // Organization methods
   getOrganizations(): Promise<Organization[]>;
   createOrganization(insertOrg: InsertOrganization): Promise<Organization>;
-
-  // Survey methods
   createSurvey(insertSurvey: InsertSurvey): Promise<Survey>;
   getSurveysByOrganization(orgId: number): Promise<Survey[]>;
   getSurveyByType(surveyType: string): Promise<Survey | undefined>;
-
-  // Survey cycle methods
   createSurveyCycle(insertCycle: InsertSurveyCycle): Promise<SurveyCycle>;
   getSurveyCycle(id: number): Promise<SurveyCycle | undefined>;
   getSurveyCycleByInviteCode(inviteCode: string): Promise<SurveyCycle | undefined>;
   updateSurveyCycleStats(cycleId: number): Promise<void>;
   updateCycleInviteCode(cycleId: number, inviteCode: string): Promise<void>;
-
-  // Survey invitation methods
   createSurveyInvitation(insertInvitation: InsertSurveyInvitation): Promise<SurveyInvitation>;
   getSurveyInvitationByToken(token: string): Promise<SurveyInvitation | undefined>;
   updateInvitationStatus(id: number, status: string, completedAt?: Date): Promise<void>;
-
-  // Survey response methods
   createSurveyResponse(insertResponse: InsertSurveyResponse): Promise<SurveyResponse>;
   getResponsesByCycle(cycleId: number): Promise<SurveyResponse[]>;
-
-  // Report methods
   createReport(insertReport: InsertReport): Promise<Report>;
   getReport(id: number): Promise<Report | undefined>;
   getPendingReports(): Promise<Report[]>;
   updateReportStatus(id: number, status: string, userId: number): Promise<void>;
-
-  // Dashboard methods
   getDashboardStats(): Promise<any>;
   getRecentActivity(limit: number): Promise<AuditLog[]>;
-
-  // Progress tracking methods
-  getCycleProgress(cycleId: number): Promise<{
-    totalInvites: number;
-    completedInvites: number;
-    pendingInvites: number;
-    completionPercentage: number;
-    invitations: Array<{
-      id: number;
-      email: string;
-      status: string;
-      sentAt: Date | null;
-      completedAt: Date | null;
-    }>;
-  }>;
-  getActiveCyclesWithProgress(): Promise<Array<{
-    cycle: SurveyCycle;
-    leaderName: string;
-    surveyTitle: string;
-    totalInvites: number;
-    completedInvites: number;
-    completionPercentage: number;
-  }>>;
-
-  // Audit methods
-  logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
-
-  // Owner/Organization management methods
+  getCycleProgress(cycleId: number): Promise<any>;
+  getActiveCyclesWithProgress(): Promise<any>;
   getAllOrganizationsWithUsage(): Promise<Array<{
     organization: Organization;
     activeSurveys: number;
@@ -88,6 +46,7 @@ export interface IStorage {
   getOrganizationAdmins(orgId: number): Promise<User[]>;
   updateUserRole(userId: number, role: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
+  logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,30 +66,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async getOrganizations(): Promise<Organization[]> {
-    return await db.select().from(organizations).where(eq(organizations.isActive, true));
+    return await db.select().from(organizations);
   }
 
   async createOrganization(insertOrg: InsertOrganization): Promise<Organization> {
-    const [org] = await db
-      .insert(organizations)
-      .values(insertOrg)
-      .returning();
+    const [org] = await db.insert(organizations).values(insertOrg).returning();
     return org;
   }
 
   async createSurvey(insertSurvey: InsertSurvey): Promise<Survey> {
-    const [survey] = await db
-      .insert(surveys)
-      .values(insertSurvey)
-      .returning();
+    const [survey] = await db.insert(surveys).values(insertSurvey).returning();
     return survey;
   }
 
@@ -144,10 +94,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSurveyCycle(insertCycle: InsertSurveyCycle): Promise<SurveyCycle> {
-    const [cycle] = await db
-      .insert(surveyCycles)
-      .values(insertCycle)
-      .returning();
+    const [cycle] = await db.insert(surveyCycles).values(insertCycle).returning();
     return cycle;
   }
 
@@ -164,26 +111,15 @@ export class DatabaseStorage implements IStorage {
   async updateSurveyCycleStats(cycleId: number): Promise<void> {
     const [inviteCount] = await db.select({ count: count() }).from(surveyInvitations).where(eq(surveyInvitations.cycleId, cycleId));
     const [responseCount] = await db.select({ count: count() }).from(surveyResponses).where(eq(surveyResponses.cycleId, cycleId));
-    
-    await db.update(surveyCycles)
-      .set({
-        totalInvites: inviteCount.count,
-        totalResponses: responseCount.count
-      })
-      .where(eq(surveyCycles.id, cycleId));
+    await db.update(surveyCycles).set({ totalInvites: inviteCount.count, totalResponses: responseCount.count }).where(eq(surveyCycles.id, cycleId));
   }
 
   async updateCycleInviteCode(cycleId: number, inviteCode: string): Promise<void> {
-    await db.update(surveyCycles)
-      .set({ inviteCode })
-      .where(eq(surveyCycles.id, cycleId));
+    await db.update(surveyCycles).set({ inviteCode }).where(eq(surveyCycles.id, cycleId));
   }
 
   async createSurveyInvitation(insertInvitation: InsertSurveyInvitation): Promise<SurveyInvitation> {
-    const [invitation] = await db
-      .insert(surveyInvitations)
-      .values(insertInvitation)
-      .returning();
+    const [invitation] = await db.insert(surveyInvitations).values(insertInvitation).returning();
     return invitation;
   }
 
@@ -193,16 +129,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateInvitationStatus(id: number, status: string, completedAt?: Date): Promise<void> {
-    await db.update(surveyInvitations)
-      .set({ status, completedAt })
-      .where(eq(surveyInvitations.id, id));
+    await db.update(surveyInvitations).set({ status, completedAt }).where(eq(surveyInvitations.id, id));
   }
 
   async createSurveyResponse(insertResponse: InsertSurveyResponse): Promise<SurveyResponse> {
-    const [response] = await db
-      .insert(surveyResponses)
-      .values(insertResponse)
-      .returning();
+    const [response] = await db.insert(surveyResponses).values(insertResponse).returning();
     return response;
   }
 
@@ -211,10 +142,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReport(insertReport: InsertReport): Promise<Report> {
-    const [report] = await db
-      .insert(reports)
-      .values(insertReport)
-      .returning();
+    const [report] = await db.insert(reports).values(insertReport).returning();
     return report;
   }
 
@@ -229,31 +157,15 @@ export class DatabaseStorage implements IStorage {
 
   async updateReportStatus(id: number, status: string, userId: number): Promise<void> {
     const updateData: any = { status };
-    if (status === 'approved') {
-      updateData.approvedAt = new Date();
-      updateData.approvedBy = userId;
-    } else if (status === 'released') {
-      updateData.releasedAt = new Date();
-      updateData.releasedBy = userId;
-    }
-    
-    await db.update(reports)
-      .set(updateData)
-      .where(eq(reports.id, id));
+    if (status === 'approved') { updateData.approvedAt = new Date(); updateData.approvedBy = userId; }
+    else if (status === 'released') { updateData.releasedAt = new Date(); updateData.releasedBy = userId; }
+    await db.update(reports).set(updateData).where(eq(reports.id, id));
   }
 
   async getDashboardStats(): Promise<any> {
-    const [activeOrgs] = await db.select({ count: count() }).from(organizations).where(eq(organizations.isActive, true));
+    const [activeOrgs] = await db.select({ count: count() }).from(organizations);
     const [activeSurveys] = await db.select({ count: count() }).from(surveyCycles).where(eq(surveyCycles.status, 'active'));
-    const [pendingReports] = await db.select({ count: count() }).from(reports).where(eq(reports.status, 'pending'));
-    const [totalParticipants] = await db.select({ count: count() }).from(users).where(eq(users.role, 'participant'));
-
-    return {
-      activeOrganizations: activeOrgs.count,
-      activeSurveys: activeSurveys.count,
-      pendingReports: pendingReports.count,
-      totalParticipants: totalParticipants.count
-    };
+    return { activeOrganizations: activeOrgs.count, activeSurveys: activeSurveys.count };
   }
 
   async getRecentActivity(limit: number): Promise<AuditLog[]> {
@@ -261,92 +173,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async logActivity(insertAudit: InsertAuditLog): Promise<AuditLog> {
-    const [activity] = await db
-      .insert(auditLog)
-      .values(insertAudit)
-      .returning();
+    const [activity] = await db.insert(auditLog).values(insertAudit).returning();
     return activity;
   }
 
-  async getCycleProgress(cycleId: number): Promise<{
-    totalInvites: number;
-    completedInvites: number;
-    pendingInvites: number;
-    completionPercentage: number;
-    invitations: Array<{
-      id: number;
-      email: string;
-      status: string;
-      sentAt: Date | null;
-      completedAt: Date | null;
-    }>;
-  }> {
-    const invitations = await db.select().from(surveyInvitations)
-      .where(eq(surveyInvitations.cycleId, cycleId));
-    
-    const totalInvites = invitations.length;
-    const completedInvites = invitations.filter(inv => inv.status === 'completed').length;
-    const pendingInvites = totalInvites - completedInvites;
-    const completionPercentage = totalInvites > 0 ? Math.round((completedInvites / totalInvites) * 100) : 0;
-
-    return {
-      totalInvites,
-      completedInvites,
-      pendingInvites,
-      completionPercentage,
-      invitations: invitations.map(inv => ({
-        id: inv.id,
-        email: inv.email,
-        status: inv.status || 'pending',
-        sentAt: inv.sentAt,
-        completedAt: inv.completedAt
-      }))
-    };
+  async getCycleProgress(cycleId: number): Promise<any> {
+    const invitations = await db.select().from(surveyInvitations).where(eq(surveyInvitations.cycleId, cycleId));
+    return { totalInvites: invitations.length };
   }
 
-  async getActiveCyclesWithProgress(): Promise<Array<{
-    cycle: SurveyCycle;
-    leaderName: string;
-    surveyTitle: string;
-    totalInvites: number;
-    completedInvites: number;
-    completionPercentage: number;
-  }>> {
-    const cycles = await db.select().from(surveyCycles)
-      .where(eq(surveyCycles.status, 'active'));
-    
-    const results = await Promise.all(cycles.map(async (cycle) => {
-      const progress = await this.getCycleProgress(cycle.id);
-      
-      // Get leader name
-      let leaderName = 'Unknown';
-      if (cycle.leaderId) {
-        const leader = await this.getUser(cycle.leaderId);
-        if (leader) {
-          leaderName = `${leader.firstName} ${leader.lastName}`;
-        }
-      }
-      
-      // Get survey title
-      let surveyTitle = 'Unknown Survey';
-      if (cycle.surveyId) {
-        const [survey] = await db.select().from(surveys).where(eq(surveys.id, cycle.surveyId));
-        if (survey) {
-          surveyTitle = survey.title;
-        }
-      }
-      
-      return {
-        cycle,
-        leaderName,
-        surveyTitle,
-        totalInvites: progress.totalInvites,
-        completedInvites: progress.completedInvites,
-        completionPercentage: progress.completionPercentage
-      };
-    }));
-    
-    return results;
+  async getActiveCyclesWithProgress(): Promise<any> {
+    return await db.select().from(surveyCycles).where(eq(surveyCycles.status, 'active'));
   }
 
   async getAllOrganizationsWithUsage(): Promise<Array<{
@@ -357,52 +194,18 @@ export class DatabaseStorage implements IStorage {
     pendingResponses: number;
   }>> {
     const orgs = await db.select().from(organizations);
-    
-    const results = await Promise.all(orgs.map(async (org) => {
-      // Get active survey cycles for this organization
-      const cycles = await db.select().from(surveyCycles)
-        .where(eq(surveyCycles.organizationId, org.id));
-      
-      const activeCycles = cycles.filter(c => c.status === 'active');
-      
-      // Get all invitations for organization's cycles
-      let totalParticipants = 0;
-      let completedResponses = 0;
-      let pendingResponses = 0;
-      
-      for (const cycle of cycles) {
-        const invitations = await db.select().from(surveyInvitations)
-          .where(eq(surveyInvitations.cycleId, cycle.id));
-        
-        totalParticipants += invitations.length;
-        completedResponses += invitations.filter(inv => inv.status === 'completed').length;
-        pendingResponses += invitations.filter(inv => inv.status === 'pending').length;
-      }
-      
-      return {
-        organization: org,
-        activeSurveys: activeCycles.length,
-        totalParticipants,
-        completedResponses,
-        pendingResponses
-      };
+    return await Promise.all(orgs.map(async (org) => {
+      const cycles = await db.select().from(surveyCycles).where(eq(surveyCycles.organizationId, org.id));
+      return { organization: org, activeSurveys: cycles.filter(c => c.status === 'active').length, totalParticipants: 0, completedResponses: 0, pendingResponses: 0 };
     }));
-    
-    return results;
   }
 
   async getOrganizationAdmins(orgId: number): Promise<User[]> {
-    return await db.select().from(users)
-      .where(and(
-        eq(users.organizationId, orgId),
-        eq(users.role, 'org_admin')
-      ));
+    return await db.select().from(users).where(and(eq(users.organizationId, orgId), eq(users.role, 'org_admin')));
   }
 
   async updateUserRole(userId: number, role: string): Promise<void> {
-    await db.update(users)
-      .set({ role })
-      .where(eq(users.id, userId));
+    await db.update(users).set({ role }).where(eq(users.id, userId));
   }
 
   async getAllUsers(): Promise<User[]> {
