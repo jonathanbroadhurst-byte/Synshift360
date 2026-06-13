@@ -84,13 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentPath = window.location.pathname;
 
       if (currentPath === '/login' || currentPath === '/') {
-        if (userRole === 'owner' || userRole === 'admin' || userRole === 'org_admin') {
-          window.location.href = '/admin'; // Unified corporate environment
-        } else if (userRole === 'leader') {
-          window.location.href = '/dashboard'; // Leader view portal
-        }
-      }
-    }
+  // 1. Strict Owner access - the only one who gets the keys to the kingdom
+  if (userRole === 'owner') {
+    window.location.href = '/admin/owner-dashboard'; 
+  } 
+  // 2. Standard Admin access (no longer includes owner)
+  else if (userRole === 'admin' || userRole === 'org_admin') {
+    window.location.href = '/admin'; 
+  } 
+  // 3. Standard User access
+  else if (userRole === 'leader') {
+    window.location.href = '/dashboard';
+  }
+}
   });
 
   // 3. Clear Session Logout Mutation Handler
