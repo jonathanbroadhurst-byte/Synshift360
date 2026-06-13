@@ -220,11 +220,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const hashedPassword = await bcrypt.hash('Fygt-abXT-XXwpM-BLRY', 10);
       await db.insert(users).values({
-        email: 'jonathan.broadhurst@me.com', // ⚠️ UPDATE THIS to your email
+        email: 'jonathan.broadhurst@me.com', 
+        username: 'owner',
         password: hashedPassword,
         role: 'owner',
-        username: 'owner',
-        is_active: true
+        is_active: true,
+        firstName: 'Jonathan',
+        lastName: 'Broadhurst',
       });
       res.send("Owner account created successfully!");
     } catch (error) {
