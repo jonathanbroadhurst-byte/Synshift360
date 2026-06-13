@@ -43,8 +43,13 @@ app.post(["/api/login", "/api/auth/login"], async (req: Request, res: Response) 
 
     const [user] = await db.select().from(users).where(eq(users.email, inputEmail.trim())).limit(1);
     
+    // Check credentials AND active status
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (user.is_active === false) {
+      return res.status(403).json({ message: "Account disabled. Contact support." });
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
