@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Shield, Coins, Plus, Minus, Building2, Loader2, Activity, Server, Users, Zap, UserPlus } from "lucide-react";
+import { Shield, Loader2, UserPlus, Server, Zap, Coins } from "lucide-react";
 
 export default function OwnerDashboard() {
   const queryClient = useQueryClient();
@@ -37,6 +37,7 @@ export default function OwnerDashboard() {
     },
     onSuccess: () => {
       setIsDialogOpen(false);
+      setNewClient({ orgName: "", domain: "", adminEmail: "", adminPassword: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/organizations/usage"] });
     },
   });
@@ -48,49 +49,69 @@ export default function OwnerDashboard() {
     setCreditInputs((p) => ({ ...p, [orgId]: "" }));
   };
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-white"><Loader2 className="animate-spin w-10 h-10" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
+    <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-between items-center border-b border-gray-800 pb-6">
-          <h1 className="text-4xl font-bold">Command Center</h1>
+        
+        <div className="flex justify-between items-center border-b border-gray-700 pb-6">
+          <div>
+            <h1 className="text-4xl font-bold text-white">Command Center</h1>
+            <p className="text-gray-400 mt-2">Platform Owner Administration</p>
+          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-orange-600"><UserPlus className="mr-2 h-4 w-4" /> Provision Client</Button>
+              <Button className="bg-orange-600 hover:bg-orange-500 text-white font-bold h-12 px-6">
+                <UserPlus className="mr-2 h-5 w-5" /> Provision Client
+              </Button>
             </DialogTrigger>
-            <DialogContent className="bg-gray-900 border-gray-800">
-              <DialogHeader><DialogTitle>New Organization</DialogTitle></DialogHeader>
+            <DialogContent className="bg-gray-950 border border-gray-700 text-white">
+              <DialogHeader><DialogTitle className="text-white">New Organization</DialogTitle></DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); createClientMutation.mutate(newClient); }} className="space-y-4">
-                <Input placeholder="Org Name" onChange={(e) => setNewClient({...newClient, orgName: e.target.value})} />
-                <Input placeholder="Domain" onChange={(e) => setNewClient({...newClient, domain: e.target.value})} />
-                <Input placeholder="Admin Email" onChange={(e) => setNewClient({...newClient, adminEmail: e.target.value})} />
-                <Input type="password" placeholder="Password" onChange={(e) => setNewClient({...newClient, adminPassword: e.target.value})} />
-                <DialogFooter><Button type="submit">Create</Button></DialogFooter>
+                <Label className="text-gray-300">Org Name</Label>
+                <Input className="bg-gray-900 border-gray-600 text-white" onChange={(e) => setNewClient({...newClient, orgName: e.target.value})} />
+                <Label className="text-gray-300">Domain</Label>
+                <Input className="bg-gray-900 border-gray-600 text-white" onChange={(e) => setNewClient({...newClient, domain: e.target.value})} />
+                <Label className="text-gray-300">Admin Email</Label>
+                <Input className="bg-gray-900 border-gray-600 text-white" onChange={(e) => setNewClient({...newClient, adminEmail: e.target.value})} />
+                <Label className="text-gray-300">Password</Label>
+                <Input type="password" className="bg-gray-900 border-gray-600 text-white" onChange={(e) => setNewClient({...newClient, adminPassword: e.target.value})} />
+                <DialogFooter><Button type="submit" className="bg-orange-600 w-full">Create</Button></DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader><CardTitle>Client Ledger</CardTitle></CardHeader>
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader><CardTitle className="text-white">Client Ledger</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                <TableRow className="border-gray-700 hover:bg-transparent">
+                  <TableHead className="text-gray-300">Client Name</TableHead>
+                  <TableHead className="text-gray-300">Balance</TableHead>
+                  <TableHead className="text-right text-gray-300">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {organizations?.map((item) => (
-                  <TableRow key={item.organization.id}>
-                    <TableCell>{item.organization.name}</TableCell>
-                    <TableCell>{item.organization.quantumCredits ?? 0} Tokens</TableCell>
-                    <TableCell className="text-right flex justify-end gap-2">
-                      <Input type="number" className="w-20" onChange={(e) => setCreditInputs({...creditInputs, [item.organization.id]: e.target.value})} />
-                      <Button onClick={() => executeAllocation(item.organization.id, true)}>+</Button>
+                  <TableRow key={item.organization.id} className="border-gray-800">
+                    <TableCell className="text-white font-bold text-lg">{item.organization.name}</TableCell>
+                    <TableCell className="text-gray-100 font-medium text-lg">{item.organization.quantumCredits ?? 0} Tokens</TableCell>
+                    <TableCell className="text-right flex justify-end gap-3">
+                      <Input 
+                        type="number" 
+                        className="w-24 bg-gray-800 border-gray-600 text-white" 
+                        placeholder="0"
+                        onChange={(e) => setCreditInputs({...creditInputs, [item.organization.id]: e.target.value})} 
+                      />
+                      <Button 
+                        className="bg-orange-600 hover:bg-orange-500 text-white font-bold"
+                        onClick={() => executeAllocation(item.organization.id, true)}
+                      >
+                        Add
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
