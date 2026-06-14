@@ -26,7 +26,7 @@ export default function LeaderDashboard() {
     queryKey: ['/api/survey-cycles'],
   });
 
-  // Fetch the organization's macro profile data (to pull live token balances)
+  // Fetch the organization's macro profile data (to pull live token balances and company names)
   const { data: orgData } = useQuery<any>({
     queryKey: [`/api/organizations/${user?.organizationId}`],
     enabled: !!user?.organizationId,
@@ -93,7 +93,6 @@ export default function LeaderDashboard() {
       deploySurveyMutation.mutate({ method: 'manual', participants: validParticipants });
     } else {
       if (!csvFile) return alert("Please upload a spreadsheet file first.");
-      // In production, we're passing structural meta-references, typically processed via FormData
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result;
@@ -114,6 +113,11 @@ export default function LeaderDashboard() {
   // Determine if user has corporate administrative authority
   const isOrgAdmin = user?.role === 'org_admin' || user?.role === 'company_admin' || user?.role === 'owner' || user?.role === 'super_admin';
 
+  // Dynamic names fallback logic to keep UI crisp
+  const displayName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.username || 'Admin');
+  const greetingName = user?.firstName || user?.username || 'Admin';
+  const organizationName = orgData?.name || 'Workspace';
+
   return (
     <RequireAuth roles={['leader', 'admin', 'org_admin', 'company_admin', 'owner', 'super_admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -122,11 +126,15 @@ export default function LeaderDashboard() {
           <div className="max-w-6xl mx-auto px-6 lg:px-8 h-16 flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">SyncShift</span>
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">Workspace Portal</span>
+              {/* PERSONALIZATION: Displays the specific client name in the top bar */}
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium capitalize">
+                {organizationName} Portal
+              </span>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-gray-900">{user?.firstName || user?.username || 'User'}</p>
+                {/* PERSONALIZATION: Displays user's actual profile account name */}
+                <p className="text-sm font-semibold text-gray-900">{displayName}</p>
                 <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ') || 'Member'}</p>
               </div>
               <Button onClick={() => logout()} variant="outline" className="text-sm font-medium text-gray-500 hover:text-red-600 border border-gray-200 h-9">
@@ -235,8 +243,9 @@ export default function LeaderDashboard() {
           )}
 
           <div className="space-y-1">
+            {/* PERSONALIZATION: Greets the user directly by name */}
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Welcome back, {user?.firstName || user?.username || 'Leader'}
+              Welcome back, {greetingName}
             </h1>
             <p className="text-gray-600 text-sm sm:text-base">
               Track your diagnostic collection loop, execute your self-assessment, and access performance reports.
