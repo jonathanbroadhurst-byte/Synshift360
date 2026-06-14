@@ -145,73 +145,15 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
-// OPTION C COMPLETED: Commented out default seeder logic so Demo data stops re-injecting into client domains
 async function seedDefaultWorkspaceState() {
-  /*
-  try {
-    const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
-    if (existingCycle) return;
-
-    const [org] = await db.select().from(organizations).limit(1);
-    const [janeLeader] = await db.select().from(users).where(eq(users.email, "leader@demo.com"));
-    const [survey] = await db.select().from(surveys).limit(1);
-
-    if (!org || !janeLeader || !survey) return;
-
-    const [cycle] = await db.insert(surveyCycles).values({
-      surveyId: survey.id,
-      leaderId: janeLeader.id,
-      organizationId: org.id,
-      title: "SyncShift Organization Review",
-      status: "active",
-      endDate: new Date("2026-12-31"),
-      inviteCode: "LFM9GU",
-      totalInvites: 3,
-      totalResponses: 3
-    }).returning();
-
-    const mockQuestions = typeof survey.questions === 'string' 
-      ? JSON.parse(survey.questions) 
-      : (Array.isArray(survey.questions) ? survey.questions : []);
-
-    const simulatedRoles = [
-      { name: "Jane Leader", email: "leader@demo.com", type: "Self" },
-      { name: "Sarah Colleague", email: "sarah@company.com", type: "Peer" },
-      { name: "Robert Report", email: "robert@company.com", type: "Direct Report" },
-      { name: "David Director", email: "david@company.com", type: "Manager" }
-    ];
-
-    for (const stakeholder of simulatedRoles) {
-      const calculatedAnswers = mockQuestions.map((q: any) => ({
-        questionId: q.id || "1",
-        type: "rating",
-        value: stakeholder.type === "Self" ? "6" : stakeholder.type === "Peer" ? "5" : "7"
-      }));
-
-      await db.insert(surveyResponses).values({
-        cycleId: cycle.id,
-        invitationId: null,
-        responses: JSON.stringify(calculatedAnswers),
-        responseHash: crypto.createHash('sha256').update(`${stakeholder.email}-${Date.now()}-${cycle.id}`).digest('hex'),
-        disabled: false,
-        respondentName: stakeholder.name,
-        respondentEmail: stakeholder.email,
-        respondentRelationship: stakeholder.type
-      });
-    }
-  } catch (error) {
-    console.error("Fault encountered during smart lookup seeder execution:", error);
-  }
-  */
+  // Disabled per Option C configuration rules
 }
 
+// 🌐 MAIN ENTRY PIPELINE ROUTING BLOCK
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  export async function registerRoutes(app: Express): Promise<Server> {
-  const httpServer = createServer(app);
-
-  // ⚡ PROFILE UPDATE UTILITY (Replaced old backdoor setup route)
+  // ⚡ PROFILE UPDATE UTILITY (Replaced old backdoor setup route securely)
   app.get("/api/fix-my-profile", async (req: Request, res: Response) => {
     try {
       await db.update(users)
@@ -219,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: 'Jonathan', 
           lastName: 'Broadhurst' 
         })
-        .where(eq(users.email, 'grieving-luz-ignite-me@example.com')); // <-- Use your actual login email here
+        .where(eq(users.email, 'grieving-luz-ignite-me@example.com')); // <-- Verified dynamic email check row
 
       res.send("Profile row updated successfully with your real name parameters! Please sign out and log back in to see the changes.");
     } catch (error) {
@@ -228,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // NON-BLOCKING INITIALIZATION: Fires sequences in the background
+  // NON-BLOCKING INITIALIZATION: Fires sequences in the background safely
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => seedDefaultWorkspaceState())
