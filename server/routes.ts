@@ -208,23 +208,23 @@ async function seedDefaultWorkspaceState() {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // --- TEMPORARY "BACKDOOR" SETUP ROUTE ---
-  app.get("/api/setup-owner", async (req: Request, res: Response) => {
+  export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+
+  // ⚡ PROFILE UPDATE UTILITY (Replaced old backdoor setup route)
+  app.get("/api/fix-my-profile", async (req: Request, res: Response) => {
     try {
-      const hashedPassword = await bcrypt.hash('Fygt-abXT-XXwpM-BLRY', 10);
-      await db.insert(users).values({
-        email: 'jonathan.broadhurst@me.com', 
-        username: 'owner',
-        password: hashedPassword,
-        role: 'owner',
-        is_active: true,
-        firstName: 'Jonathan',
-        lastName: 'Broadhurst',
-      });
-      res.send("Owner account created successfully!");
+      await db.update(users)
+        .set({ 
+          firstName: 'Jonathan', 
+          lastName: 'Broadhurst' 
+        })
+        .where(eq(users.email, 'grieving-luz-ignite-me@example.com')); // <-- Use your actual login email here
+
+      res.send("Profile row updated successfully with your real name parameters! Please sign out and log back in to see the changes.");
     } catch (error) {
-      console.error("Setup Error:", error);
-      res.status(500).send("Error creating owner account.");
+      console.error("Profile Fix Error:", error);
+      res.status(500).send("Error updating profile row.");
     }
   });
 
