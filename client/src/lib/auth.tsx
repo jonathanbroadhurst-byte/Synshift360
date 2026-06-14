@@ -67,11 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       queryClient.setQueryData(["/api/auth/me"], userProfile);
 
-      // Redirect based on roles
-      if (userProfile.role === 'owner') {
+      // Redirect dynamically based on distinct application roles
+      if (userProfile.role === 'owner' || userProfile.role === 'super_admin') {
         window.location.href = '/admin/owner-dashboard';
-      } else if (userProfile.role === 'admin' || userProfile.role === 'org_admin') {
-        window.location.href = '/admin';
+      } else if (userProfile.role === 'org_admin' || userProfile.role === 'admin' || userProfile.role === 'company_admin') {
+        window.location.href = '/dashboard';
       } else {
         window.location.href = '/dashboard';
       }
@@ -120,9 +120,13 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
   if (!user) { setTimeout(() => setLocation("/login"), 0); return null; }
+  
   if (roles && !roles.includes(user.role)) {
-    if (user.role === 'owner' || user.role === 'admin' || user.role === 'org_admin') setTimeout(() => setLocation("/admin"), 0);
-    else setTimeout(() => setLocation("/dashboard"), 0);
+    if (user.role === 'owner' || user.role === 'super_admin') {
+      setTimeout(() => setLocation("/admin/owner-dashboard"), 0);
+    } else {
+      setTimeout(() => setLocation("/dashboard"), 0);
+    }
     return null;
   }
   return <>{children}</>;
