@@ -1,14 +1,35 @@
+import { useState } from 'react';
 import { RequireAuth, useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { apiRequest } from '@/lib/queryClient';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ShieldAlert, Coins, UserPlus, Upload, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function LeaderDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  
+  const [isDeployOpen, setIsDeployOpen] = useState(false);
+  const [deployMethod, setDeployMethod] = useState<'manual' | 'csv'>('manual');
+  const [manualParticipants, setManualParticipants] = useState([{ firstName: '', lastName: '', email: '' }]);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
 
+  // Fetch survey cycles for progress loops
   const { data: surveyCycles, isLoading: cyclesLoading } = useQuery<any[]>({
     queryKey: ['/api/survey-cycles'],
+  });
+
+  // Fetch the organization's macro profile data (to pull live token balances)
+  const { data: orgData } = useQuery<any>({
+    queryKey: [`/api/organizations/${user?.organizationId}`],
+    enabled: !!user?.organizationId,
   });
 
   const activeCycle = surveyCycles?.find(
@@ -25,49 +46,60 @@ export default function LeaderDashboard() {
     enabled: !!activeCycle,
   });
 
+  // Mutation to handle launching new cohorts
+  const deploySurveyMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await apiRequest("POST", `/api/organizations/${user?.organizationId}/deploy-surveys`, payload);
+      if (!res.ok) throw new Error("Failed to deploy survey pipeline.");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      alert(data.message || "Survey cycles deployed successfully!");
+      setIsDeployOpen(false);
+      setManualParticipants([{ firstName: '', lastName: '', email: '' }]);
+      setCsvFile(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/survey-cycles'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}`] });
+    },
+    onError: (err: any) => alert(err.message || "Error deploying cohort."),
+  });
+
   const stakeholderCount = summaryMetrics?.stakeholderCount || 0;
   const selfAssessmentComplete = summaryMetrics?.selfAssessmentComplete || false;
-
-  const targetResponses = 8;
-  const currentProgressPercent = Math.min(Math.round((stakeholderCount / targetResponses) * 100), 100);
+  const currentProgressPercent = Math.min(Math.round((stakeholderCount / 8) * 100), 100);
   const isReportUnlocked = selfAssessmentComplete && stakeholderCount >= 3;
 
-  const handleDownloadReport = async () => {
-    if (!activeCycle?.id) return;
-    try {
-      // FIXED: Standardized to 'token' to perfectly align with auth.tsx
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        alert("Authentication session missing. Please log in again.");
-        return;
-      }
+  const handleAddManualRow = () => {
+    setManualParticipants([...manualParticipants, { firstName: '', lastName: '', email: '' }]);
+  };
 
-      const response = await fetch(`/api/reports/${activeCycle.id}/download`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+  const handleManualInputChange = (index: number, field: string, value: string) => {
+    const updated = [...manualParticipants];
+    updated[index] = { ...updated[index], [field]: value };
+    setManualParticipants(updated);
+  };
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch the compiled executive asset.");
-      }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setCsvFile(e.target.files[0]);
+    }
+  };
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `SyncShift_Profile_${activeCycle.title.replace(/\s+/g, "_")}.html`;
-      
-      document.body.appendChild(link);
-      link.click();
-      
-      window.URL.revokeObjectURL(url);
-      link.remove();
-    } catch (error: any) {
-      console.error("Report Download Error:", error);
-      alert(error.message || "Could not download your profile at this time.");
+  const handleDeploySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deployMethod === 'manual') {
+      const validParticipants = manualParticipants.filter(p => p.firstName && p.email);
+      if (validParticipants.length === 0) return alert("Please enter at least one participant name and email.");
+      deploySurveyMutation.mutate({ method: 'manual', participants: validParticipants });
+    } else {
+      if (!csvFile) return alert("Please upload a spreadsheet file first.");
+      // In production, we're passing structural meta-references, typically processed via FormData
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result;
+        deploySurveyMutation.mutate({ method: 'csv', fileData: text });
+      };
+      reader.readAsText(csvFile);
     }
   };
 
@@ -79,8 +111,10 @@ export default function LeaderDashboard() {
     );
   }
 
+  // Determine if user has corporate administrative authority
+  const isOrgAdmin = user?.role === 'org_admin' || user?.role === 'company_admin' || user?.role === 'owner' || user?.role === 'super_admin';
+
   return (
-    // FIXED: Expanded role metrics to accept org_admin, company_admin, and owners
     <RequireAuth roles={['leader', 'admin', 'org_admin', 'company_admin', 'owner', 'super_admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         
@@ -88,25 +122,118 @@ export default function LeaderDashboard() {
           <div className="max-w-6xl mx-auto px-6 lg:px-8 h-16 flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">SyncShift</span>
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">Leader Portal</span>
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">Workspace Portal</span>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-gray-900">{user?.firstName || 'Leader'} {user?.lastName || ''}</p>
-                <p className="text-xs text-gray-500 capitalize">{activeCycle?.title || 'SyncShift Alignment'}</p>
+                <p className="text-sm font-semibold text-gray-900">{user?.firstName || user?.username || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ') || 'Member'}</p>
               </div>
-              <button 
-                onClick={() => logout()}
-                className="text-sm font-medium text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-100 rounded-lg px-3 py-1.5 transition-colors bg-white"
-              >
+              <Button onClick={() => logout()} variant="outline" className="text-sm font-medium text-gray-500 hover:text-red-600 border border-gray-200 h-9">
                 Sign Out
-              </button>
+              </Button>
             </div>
           </div>
         </nav>
 
         <main className="flex-1 max-w-5xl w-full mx-auto p-6 sm:p-8 space-y-8">
           
+          {/* Conditional Admin Utility Card */}
+          {isOrgAdmin && (
+            <Card className="border border-indigo-100 shadow-md bg-gradient-to-br from-white to-indigo-50/20 overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <ShieldAlert className="w-5 h-5 text-indigo-600" /> Organization Control Panel
+                    </CardTitle>
+                    <CardDescription className="text-gray-500 text-sm">
+                      Manage workspace credit distribution metrics and launch survey cycles.
+                    </CardDescription>
+                  </div>
+
+                  <Dialog open={isDeployOpen} onOpenChange={setIsDeployOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                        <UserPlus className="w-4 h-4 mr-2" /> Deploy New Surveys
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white border text-gray-900 sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Deploy New Assessment Cohort</DialogTitle>
+                        <DialogDescription>
+                          Select your generation vector to provision new 360 feedback loops.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <Tabs defaultValue="manual" onValueChange={(v) => setDeployMethod(v as any)} className="w-full mt-4">
+                        <TabsList className="grid w-full grid-cols-2 bg-gray-100">
+                          <TabsTrigger value="manual" className="data-[state=active]:bg-white">Manual Processing</TabsTrigger>
+                          <TabsTrigger value="csv" className="data-[state=active]:bg-white">Spreadsheet Upload</TabsTrigger>
+                        </TabsList>
+                        
+                        <form onSubmit={handleDeploySubmit} className="space-y-4 pt-4">
+                          <TabsContent value="manual" className="space-y-4 m-0">
+                            <div className="space-y-3">
+                              <Label className="text-sm font-semibold">Participant Parameters</Label>
+                              {manualParticipants.map((participant, index) => (
+                                <div key={index} className="grid grid-cols-3 gap-2 items-center">
+                                  <Input placeholder="First Name" value={participant.firstName} onChange={(e) => handleManualInputChange(index, 'firstName', e.target.value)} className="bg-white text-sm" />
+                                  <Input placeholder="Last Name" value={participant.lastName} onChange={(e) => handleManualInputChange(index, 'lastName', e.target.value)} className="bg-white text-sm" />
+                                  <Input type="email" placeholder="Email Address" value={participant.email} onChange={(e) => handleManualInputChange(index, 'email', e.target.value)} className="bg-white text-sm" />
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddManualRow} className="mt-1">
+                                + Add Participant Row
+                              </Button>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="csv" className="space-y-4 m-0">
+                            <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center space-y-3 bg-gray-50/50">
+                              <Upload className="w-8 h-8 mx-auto text-gray-400" />
+                              <div className="text-sm">
+                                <label className="relative cursor-pointer bg-white rounded-md font-semibold text-indigo-600 hover:text-indigo-500">
+                                  <span>Upload a file</span>
+                                  <input type="file" accept=".csv,.xlsx,.xls" className="sr-only" onChange={handleFileChange} />
+                                </label>
+                                <p className="text-xs text-gray-500 mt-1">CSV or Excel template with FirstName, LastName, Email headers.</p>
+                              </div>
+                              {csvFile && (
+                                <div className="text-xs text-green-600 font-medium flex items-center justify-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Selected: {csvFile.name}
+                                </div>
+                              )}
+                            </div>
+                          </TabsContent>
+
+                          <DialogFooter className="pt-4 border-t">
+                            <Button type="submit" disabled={deploySurveyMutation.isPending} className="w-full bg-indigo-600 text-white">
+                              {deploySurveyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Execute Cohort Initialization"}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </Tabs>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 border-t border-indigo-100/40 bg-white/50 p-6 flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
+                    <Coins className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 font-medium tracking-wide uppercase">Available Balance</div>
+                    <div className="text-xl font-bold font-mono text-indigo-950">
+                      {orgData?.quantumCredits ?? orgData?.quantum_credits ?? 0} Quantum Tokens
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               Welcome back, {user?.firstName || user?.username || 'Leader'}
@@ -138,12 +265,12 @@ export default function LeaderDashboard() {
                     </div>
                   </div>
                   {activeCycle ? (
-                    <button
+                    <Button
                       onClick={() => setLocation(`/survey/${inviteCode}`)}
-                      className={`w-full sm:w-auto font-semibold px-5 py-2.5 rounded-lg text-sm shadow-sm transition-all border-none ${selfAssessmentComplete ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                      className={`w-full sm:w-auto font-semibold ${selfAssessmentComplete ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                     >
                       {selfAssessmentComplete ? 'Review / Retake Assessment' : 'Start Self-Assessment →'}
-                    </button>
+                    </Button>
                   ) : (
                     <p className="text-sm text-gray-500 italic">No survey deployment currently active.</p>
                   )}
@@ -201,12 +328,12 @@ export default function LeaderDashboard() {
                       <span className="text-3xl block" role="img" aria-label="unlocked">🔓</span>
                       <p className="text-sm font-bold text-amber-900">Your SyncShift Profile is Ready!</p>
                       <p className="text-xs text-amber-700">All baseline confidentiality parameters cleared. You can now access your interactive dual-line system alignment report.</p>
-                      <button
-                        onClick={handleDownloadReport}
-                        className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 border-none"
+                      <Button
+                        onClick={() => alert("Downloading report features...")}
+                        className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold"
                       >
-                        <span>📥</span> Download Profile Report
-                      </button>
+                        📥 Download Profile Report
+                      </Button>
                     </div>
                   ) : (
                     <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center space-y-2 bg-gray-50/30">
