@@ -17,30 +17,102 @@ import Organizations from "@/pages/organizations";
 import Surveys from "@/pages/surveys";
 import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
 
 function Router() {
   return (
     <Switch>
+      {/* Public Routes */}
       <Route path="/" component={Home} />
       <Route path="/contact-form" component={ContactForm} />
-      <Route path="/create-survey" component={CreateSurvey} />
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
-      <Route path="/admin" component={Dashboard} />
-      <Route path="/admin/owner-dashboard" component={OwnerDashboard} />
-      <Route path="/owner" component={OwnerDashboard} />
-      <Route path="/dashboard" component={LeaderDashboard} />
       <Route path="/login" component={Login} />
-      <Route path="/report/:reportId" component={Report} />
-      <Route path="/organizations" component={Organizations} />
-      <Route path="/surveys" component={Surveys} />
-      <Route path="/quantum360" component={Quantum360} />
-      <Route path="/quantum360/start" component={Quantum360Start} />
-      <Route path="/reports" component={() => <div className="p-8"><h1 className="text-2xl font-bold">Reports</h1><p>Report management coming soon...</p></div>} />
-      <Route path="/users" component={() => <div className="p-8"><h1 className="text-2xl font-bold">User Management</h1><p>User management coming soon...</p></div>} />
-      <Route path="/compliance" component={() => <div className="p-8"><h1 className="text-2xl font-bold">GDPR Compliance</h1><p>Compliance tools coming soon...</p></div>} />
+
+      {/* Platform Owner / Super Admin Workspace Guard */}
+      <Route path="/admin/owner-dashboard">
+        <RequireAuth roles={["owner", "super_admin"]}>
+          <OwnerDashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/owner">
+        <RequireAuth roles={["owner", "super_admin"]}>
+          <OwnerDashboard />
+        </RequireAuth>
+      </Route>
+
+      {/* Tenant / Corporate Admin Workspace Guard (e.g., ignite-me admins) */}
+      <Route path="/dashboard">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <LeaderDashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/admin">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <Dashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/organizations">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <Organizations />
+        </RequireAuth>
+      </Route>
+      <Route path="/surveys">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <Surveys />
+        </RequireAuth>
+      </Route>
+
+      {/* Assessment Engine / Survey Lifecycle Routes */}
+      <Route path="/create-survey">
+        <RequireAuth roles={["org_admin", "admin", "owner", "super_admin"]}>
+          <CreateSurvey />
+        </RequireAuth>
+      </Route>
+      <Route path="/quantum360">
+        <RequireAuth>
+          <Quantum360 />
+        </RequireAuth>
+      </Route>
+      <Route path="/quantum360/start">
+        <RequireAuth>
+          <Quantum360Start />
+        </RequireAuth>
+      </Route>
+      <Route path="/report/:reportId">
+        <RequireAuth>
+          <Report />
+        </RequireAuth>
+      </Route>
+
+      {/* Shared Internal Modules */}
+      <Route path="/reports">
+        <RequireAuth>
+          <div className="p-8 bg-gray-950 min-h-screen text-white">
+            <h1 className="text-2xl font-bold">Reports</h1>
+            <p className="text-gray-400 mt-2">Report management coming soon...</p>
+          </div>
+        </RequireAuth>
+      </Route>
+      <Route path="/users">
+        <RequireAuth roles={["org_admin", "admin", "owner", "super_admin"]}>
+          <div className="p-8 bg-gray-950 min-h-screen text-white">
+            <h1 className="text-2xl font-bold">User Management</h1>
+            <p className="text-gray-400 mt-2">User management coming soon...</p>
+          </div>
+        </RequireAuth>
+      </Route>
+      <Route path="/compliance">
+        <RequireAuth roles={["org_admin", "admin", "owner", "super_admin"]}>
+          <div className="p-8 bg-gray-950 min-h-screen text-white">
+            <h1 className="text-2xl font-bold">GDPR Compliance</h1>
+            <p className="text-gray-400 mt-2">Compliance tools coming soon...</p>
+          </div>
+        </RequireAuth>
+      </Route>
+
+      {/* 404 Fallback Exception */}
       <Route component={NotFound} />
     </Switch>
   );
