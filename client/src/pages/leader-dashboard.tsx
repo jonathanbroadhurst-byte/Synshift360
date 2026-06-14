@@ -17,7 +17,6 @@ export default function LeaderDashboard() {
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
-  // FIXED: Migrated to use the application's clean query pipeline string pattern
   const { data: summaryMetrics, isLoading: summaryLoading } = useQuery<{
     selfAssessmentComplete: boolean;
     stakeholderCount: number;
@@ -31,14 +30,13 @@ export default function LeaderDashboard() {
 
   const targetResponses = 8;
   const currentProgressPercent = Math.min(Math.round((stakeholderCount / targetResponses) * 100), 100);
-
-  // Dynamic state gate: Verifies multi-rater safety anonymity rule before unlocking profile assets
   const isReportUnlocked = selfAssessmentComplete && stakeholderCount >= 3;
 
   const handleDownloadReport = async () => {
     if (!activeCycle?.id) return;
     try {
-      const token = localStorage.getItem("auth_token");
+      // FIXED: Standardized to 'token' to perfectly align with auth.tsx
+      const token = localStorage.getItem("token");
       
       if (!token) {
         alert("Authentication session missing. Please log in again.");
@@ -82,7 +80,8 @@ export default function LeaderDashboard() {
   }
 
   return (
-    <RequireAuth roles={['leader', 'admin']}>
+    // FIXED: Expanded role metrics to accept org_admin, company_admin, and owners
+    <RequireAuth roles={['leader', 'admin', 'org_admin', 'company_admin', 'owner', 'super_admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         
         <nav className="bg-white border-b shadow-sm sticky top-0 z-50">
@@ -110,7 +109,7 @@ export default function LeaderDashboard() {
           
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Welcome back, {user?.firstName || 'Leader'}
+              Welcome back, {user?.firstName || user?.username || 'Leader'}
             </h1>
             <p className="text-gray-600 text-sm sm:text-base">
               Track your diagnostic collection loop, execute your self-assessment, and access performance reports.
