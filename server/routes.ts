@@ -870,6 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OWNER ONLY: Manually allocate premium Quantum assessment credits to a client organization
   app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
@@ -907,20 +908,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OWNER ONLY: Provision a new Organization and its initial Admin with real names
   app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { orgName, domain, adminEmail, adminPassword } = req.body;
+      const { orgName, domain, adminEmail, adminPassword, adminFirstName, adminLastName } = req.body;
 
-      if (!orgName || !domain || !adminEmail || !adminPassword) {
-        return res.status(400).json({ message: "All fields are required." });
+      if (!orgName || !domain || !adminEmail || !adminPassword || !adminFirstName || !adminLastName) {
+        return res.status(400).json({ message: "All parameters including administrator names are required." });
       }
 
+      // 1. Create the Organization
       const [newOrg] = await db.insert(organizations).values({
         name: orgName,
         domain: domain,
         quantumCredits: 0
       }).returning();
 
+      // 2. Hash password and create the personalized Admin User
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
       
       await db.insert(users).values({
@@ -929,14 +933,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
         role: 'org_admin',
         organizationId: newOrg.id,
-        firstName: 'Admin', 
-        lastName: 'User',
+        firstName: adminFirstName.trim(), 
+        lastName: adminLastName.trim(),
         isActive: true
       });
 
-      console.log(`🏢 PROVISIONED: Org '${orgName}' with admin '${adminEmail}'`);
+      console.log(`🏢 PROVISIONED: Org '${orgName}' with personalized admin '${adminFirstName} ${adminLastName}'`);
       return res.status(201).json({ 
-        message: "Client provisioned successfully", 
+        message: "Client organization and personalized administrator provisioned successfully", 
         organization: newOrg 
       });
       
