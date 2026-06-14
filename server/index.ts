@@ -86,10 +86,24 @@ app.use((req, res, next) => {
       res.status(err.status || 500).json({ message: err.message || "Internal Server Error" });
     });
 
-    if (app.get("env") === "development") {
+ if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
-      serveStatic(app);
+      // Direct, explicit static file mapping matching your Vite outDir configuration
+      const path = await import("path");
+      const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
+      
+      // 1. Force the server to explicitly look into dist/public for all JS/CSS asset requests
+      app.use(express.static(clientBuildPath));
+
+      // 2. The SPA catch-all fallback handler (MUST stay below express.static)
+      app.get("*", (req, res) => {
+        // Guard rails to prevent API route clipping
+        if (req.path.startsWith("/api")) {
+          return res.status(404).json({ message: "API Route Not Found" });
+        }
+        res.sendFile(path.resolve(clientBuildPath, "index.html"));
+      });
     }
 
     const port = parseInt(process.env.PORT || "5000", 10);
