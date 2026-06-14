@@ -253,7 +253,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let targets: Array<{ firstName: string; lastName: string; email: string }> = [];
 
-      // 1. Resolve parsing based on processing strategy chosen
       if (method === 'manual' && Array.isArray(participants)) {
         targets = participants.map(p => ({
           firstName: String(p.firstName || '').trim(),
@@ -261,7 +260,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: String(p.email || '').trim().toLowerCase()
         })).filter(p => p.firstName && p.email);
       } else if (method === 'csv' && fileData) {
-        // Safe line breaks split optimization for spreadsheets raw strings mapping
         const lines = String(fileData).split(/\r?\n/);
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
         
@@ -290,7 +288,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No valid assessment targets discovered inside your dispatch request." });
       }
 
-      // 2. Query structural credits left on the company ledger
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
       if (!org) return res.status(404).json({ message: "Target client token balance map missing." });
 
@@ -301,11 +298,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(402).json({ message: `Insufficient credits. This deployment requires ${requiredCredits} tokens, but you only have ${currentCredits} available.` });
       }
 
-      // 3. Locate the master template ID metrics
       const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum")).limit(1);
       if (!quantumSurvey) return res.status(500).json({ message: "Platform framework master template 'quantum' is offline." });
 
-      // 4. Batch transaction loops: Allocate leader records and setup survey cycles
       for (const target of targets) {
         let leaderUser = await storage.getUserByEmail(target.email);
         
@@ -327,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const uniqueInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const expirationTimeline = new Date();
-        expirationTimeline.setDate(expirationTimeline.getDate() + 30); // 30 Day Cohort Evaluation loop window
+        expirationTimeline.setDate(expirationTimeline.getDate() + 30);
 
         const cycle = await storage.createSurveyCycle({
           surveyId: quantumSurvey.id,
@@ -340,7 +335,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         await storage.updateCycleInviteCode(cycle.id, uniqueInviteCode);
 
-        // 5. Fire off communication invite tokens through email infrastructure networks
         const hostBaseDomain = `${req.protocol}://${req.get('host')}`;
         await sendQuantumEmail(
           target.email, 
@@ -352,7 +346,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ).catch(err => console.error(`⚠️ Non-blocking notification dispatch failure to email server for leader user ${target.email}:`, err));
       }
 
-      // 6. Deduct spent credit allocations from the company record
       const structuralRemainingBalance = currentCredits - requiredCredits;
       await db.update(organizations)
         .set({ quantumCredits: structuralRemainingBalance })
@@ -419,7 +412,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: req.user });
   });
 
-  // Simple specific single organization profile metadata fetcher (used by LeaderDashboard balance calculations)
   app.get("/api/organizations/:orgId", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
@@ -909,4 +901,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
       res.json(orgsWithUsage);
     } catch (error) {
-      res.status(500).json({ message:
+      res.status(500).json({ message: "Failed to fetch usage metrics" });
+    }
+  });
+
+  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers.map(({ password, ...user }) => user));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user accounts" });
+    }
+  });
+
+  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { role } = req.body;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User missing" });
+
+      await storage.updateUserRole(userId, role);
+      res.json({ message: "User role updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to modify permission tier" });
+    }
+  });
+
+  app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const { creditsToAllocate } = req.body;
+
+      if (isNaN(orgId) || typeof creditsToAllocate !== 'number') {
+        return res.status(400).json({ message: "Invalid payload parameters. 'creditsToAllocate' must be a valid number." });
+      }
+
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) return res.status(404).json({ message: "Target client organization not found." });
+
+      const currentCredits = org.quantumCredits ?? 0;
+      const updatedCredits = currentCredits + creditsToAllocate;
+
+      if (updatedCredits < 0) {
+        return res.status(400).json({ message: "Operation rejected. Client credit balance cannot fall below zero." });
+      }
+
+      await db.update(organizations)
+        .set({ quantumCredits: updatedCredits })
+        .where(eq(organizations.id, orgId));
+
+      console.log(`💳 CONSULTANT BILLING: Allocated ${creditsToAllocate} credits to ${org.name}. New operational balance: ${updatedCredits}`);
+
+      return res.json({ 
+        success: true, 
+        message: `Successfully allocated ${creditsToAllocate} credits to ${org.name}.`,
+        organizationId: orgId,
+        newBalance: updatedCredits 
+      });
+    } catch (error) {
+      console.error("Owner Credit Allocation Failure:", error);
+      return res.status(500).json({ message: "Failed to process premium token credit transaction." });
+    }
+  });
+
+  app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { orgName, domain, adminEmail, adminPassword } = req.body;
+
+      if (!orgName || !domain || !adminEmail || !adminPassword) {
+        return res.status(400).json({ message: "All fields are required." });
+      }
+
+      const [newOrg] = await db.insert(organizations).values({
+        name: orgName,
+        domain: domain,
+        quantumCredits: 0
+      }).returning();
+
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      
+      await db.insert(users).values({
+        email: adminEmail,
+        username: adminEmail.split('@')[0],
+        password: hashedPassword,
+        role: 'org_admin',
+        organizationId: newOrg.id,
+        firstName: 'Admin', 
+        lastName: 'User',
+        isActive: true
+      });
+
+      console.log(`🏢 PROVISIONED: Org '${orgName}' with admin '${adminEmail}'`);
+      return res.status(201).json({ 
+        message: "Client provisioned successfully", 
+        organization: newOrg 
+      });
+      
+    } catch (error: any) {
+      console.error("Provisioning Error:", error);
+      return res.status(500).json({ message: "Failed to provision client organization." });
+    }
+  });
+
+  return httpServer;
+}
+
+function analyzeResponses(responses: any[]): any {
+  const totalResponses = responses.length;
+  return {
+    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
+    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
+    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
+    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
+  };
+}
