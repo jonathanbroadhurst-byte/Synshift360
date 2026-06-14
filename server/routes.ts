@@ -145,24 +145,18 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
+// OPTION C COMPLETED: Commented out default seeder logic so Demo data stops re-injecting into client domains
 async function seedDefaultWorkspaceState() {
+  /*
   try {
     const [existingCycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.inviteCode, "LFM9GU"));
-    if (existingCycle) {
-      console.log("Persistent simulation loop 'LFM9GU' verified active.");
-      return;
-    }
-
-    console.log("Simulation metrics loop missing. Rebuilding persistent workflow state...");
+    if (existingCycle) return;
 
     const [org] = await db.select().from(organizations).limit(1);
     const [janeLeader] = await db.select().from(users).where(eq(users.email, "leader@demo.com"));
     const [survey] = await db.select().from(surveys).limit(1);
 
-    if (!org || !janeLeader || !survey) {
-      console.log("Native data structure values not fully compiled yet. Deferring seed.");
-      return;
-    }
+    if (!org || !janeLeader || !survey) return;
 
     const [cycle] = await db.insert(surveyCycles).values({
       surveyId: survey.id,
@@ -205,11 +199,10 @@ async function seedDefaultWorkspaceState() {
         respondentRelationship: stakeholder.type
       });
     }
-
-    console.log("Smart simulation loop 'LFM9GU' and 4 evaluation elements deployed successfully!");
   } catch (error) {
     console.error("Fault encountered during smart lookup seeder execution:", error);
   }
+  */
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -251,8 +244,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
   });
-  
-  // ... rest of your code ...
+
+  // ⚡ ORG ADMIN: DEPLOY ACTIVE SURVEY COHORTS USING DISPATCH BALANCE LEDGERS
+  app.post("/api/organizations/:orgId/deploy-surveys", authenticateToken, requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const { method, participants, fileData } = req.body;
+      
+      let targets: Array<{ firstName: string; lastName: string; email: string }> = [];
+
+      // 1. Resolve parsing based on processing strategy chosen
+      if (method === 'manual' && Array.isArray(participants)) {
+        targets = participants.map(p => ({
+          firstName: String(p.firstName || '').trim(),
+          lastName: String(p.lastName || '').trim(),
+          email: String(p.email || '').trim().toLowerCase()
+        })).filter(p => p.firstName && p.email);
+      } else if (method === 'csv' && fileData) {
+        // Safe line breaks split optimization for spreadsheets raw strings mapping
+        const lines = String(fileData).split(/\r?\n/);
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        const fNameIdx = headers.indexOf('firstname');
+        const lNameIdx = headers.indexOf('lastname');
+        const emailIdx = headers.indexOf('email');
+
+        if (fNameIdx === -1 || emailIdx === -1) {
+          return res.status(400).json({ message: "Invalid spreadsheet structure. Missing standard 'FirstName' or 'Email' column headers." });
+        }
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const row = lines[i].split(',');
+          if (row[fNameIdx] && row[emailIdx]) {
+            targets.push({
+              firstName: row[fNameIdx].trim(),
+              lastName: lNameIdx !== -1 ? (row[lNameIdx] || '').trim() : '',
+              email: row[emailIdx].trim().toLowerCase()
+            });
+          }
+        }
+      }
+
+      if (targets.length === 0) {
+        return res.status(400).json({ message: "No valid assessment targets discovered inside your dispatch request." });
+      }
+
+      // 2. Query structural credits left on the company ledger
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) return res.status(404).json({ message: "Target client token balance map missing." });
+
+      const requiredCredits = targets.length;
+      const currentCredits = org.quantumCredits ?? 0;
+
+      if (currentCredits < requiredCredits) {
+        return res.status(402).json({ message: `Insufficient credits. This deployment requires ${requiredCredits} tokens, but you only have ${currentCredits} available.` });
+      }
+
+      // 3. Locate the master template ID metrics
+      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum")).limit(1);
+      if (!quantumSurvey) return res.status(500).json({ message: "Platform framework master template 'quantum' is offline." });
+
+      // 4. Batch transaction loops: Allocate leader records and setup survey cycles
+      for (const target of targets) {
+        let leaderUser = await storage.getUserByEmail(target.email);
+        
+        if (!leaderUser) {
+          const generatedRandomPass = Math.random().toString(36).substring(2, 12);
+          const encryptedPassword = await bcrypt.hash(generatedRandomPass, 10);
+          
+          leaderUser = await storage.createUser({
+            email: target.email,
+            username: target.email.split('@')[0] + '.' + Math.floor(Math.random() * 1000),
+            firstName: target.firstName,
+            lastName: target.lastName,
+            password: encryptedPassword,
+            role: 'leader',
+            organizationId: orgId,
+            isActive: true
+          });
+        }
+
+        const uniqueInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const expirationTimeline = new Date();
+        expirationTimeline.setDate(expirationTimeline.getDate() + 30); // 30 Day Cohort Evaluation loop window
+
+        const cycle = await storage.createSurveyCycle({
+          surveyId: quantumSurvey.id,
+          leaderId: leaderUser.id,
+          organizationId: orgId,
+          title: `Quantum Leadership evaluation - ${target.firstName} ${target.lastName}`,
+          status: 'active',
+          endDate: expirationTimeline
+        });
+
+        await storage.updateCycleInviteCode(cycle.id, uniqueInviteCode);
+
+        // 5. Fire off communication invite tokens through email infrastructure networks
+        const hostBaseDomain = `${req.protocol}://${req.get('host')}`;
+        await sendQuantumEmail(
+          target.email, 
+          target.firstName, 
+          quantumSurvey.title, 
+          `${target.firstName} ${target.lastName}`, 
+          uniqueInviteCode, 
+          hostBaseDomain
+        ).catch(err => console.error(`⚠️ Non-blocking notification dispatch failure to email server for leader user ${target.email}:`, err));
+      }
+
+      // 6. Deduct spent credit allocations from the company record
+      const structuralRemainingBalance = currentCredits - requiredCredits;
+      await db.update(organizations)
+        .set({ quantumCredits: structuralRemainingBalance })
+        .where(eq(organizations.id, orgId));
+
+      return res.json({ 
+        success: true, 
+        message: `Successfully initialized loops for ${requiredCredits} leadership profiles. ${requiredCredits} tokens deducted from balance.`,
+        remainingCredits: structuralRemainingBalance 
+      });
+
+    } catch (error) {
+      console.error("Critical Deployment Processing Engine Crash:", error);
+      return res.status(500).json({ message: "Internal server error occurred processing survey deployment." });
+    }
+  });
 
   // ⚡ CUSTOM INJECTED SECURE DIRECT DATABASE SIGN-IN HANDLER
   app.post("/api/login", async (req: Request, res: Response) => {
@@ -265,7 +381,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`🔐 LOGIN ATTEMPT: Verifying database credentials for ${email}...`);
 
-      // 1. Point lookups directly to live table cells to bypass abstract repository configuration layers
       const [user] = await db.select().from(users).where(eq(users.email, email.trim())).limit(1);
       
       if (!user) {
@@ -273,7 +388,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // 2. Compute cryptographically safe salt comparisons matching 'admin123'
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         console.log(`❌ LOGIN REJECTED: Decryption verification failure for ${email}`);
@@ -282,7 +396,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✅ LOGIN GRANTED: Session keys generated for Master Entity: ${email}`);
 
-      // 3. Seal authorization cookies via signed JSON Web Tokens
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
       
       return res.json({ 
@@ -304,6 +417,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     res.json({ user: req.user });
+  });
+
+  // Simple specific single organization profile metadata fetcher (used by LeaderDashboard balance calculations)
+  app.get("/api/organizations/:orgId", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) return res.status(404).json({ message: "Organization record missing" });
+      res.json(org);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch organization context details" });
+    }
   });
 
   app.get("/api/dashboard/stats", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
@@ -378,8 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let leaderUser = await storage.getUserByEmail(leaderEmail);
       if (!leaderUser) {
-        const bcrypt = await import('bcrypt');
-        const tempPassword = await bcrypt.default.hash(Math.random().toString(36), 10);
+        const tempPassword = await bcrypt.hash(Math.random().toString(36), 10);
         leaderUser = await storage.createUser({
           email: leaderEmail,
           username: leaderName.toLowerCase().replace(/\s+/g, '.') + '.' + Date.now(),
@@ -475,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/survey-cycles/:id/leader-summary", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/leader-summary", authenticateToken, requireRole(['admin', 'leader', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.id);
       const responses = await db.select().from(surveyResponses).where(eq(surveyResponses.cycleId, cycleId));
@@ -572,7 +696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/survey-cycles/:id/respondents", authenticateToken, requireRole(['admin', 'org_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/respondents", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const respondents = await db
         .select({
@@ -785,120 +909,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgsWithUsage = await storage.getAllOrganizationsWithUsage();
       res.json(orgsWithUsage);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch usage metrics" });
-    }
-  });
-
-  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const allUsers = await storage.getAllUsers();
-      res.json(allUsers.map(({ password, ...user }) => user));
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user accounts" });
-    }
-  });
-
-  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const { role } = req.body;
-      const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ message: "User missing" });
-
-      await storage.updateUserRole(userId, role);
-      res.json({ message: "User role updated successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to modify permission tier" });
-    }
-  });
-
-  // OWNER ONLY: Manually allocate premium Quantum assessment credits to a client organization
-  app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const { creditsToAllocate } = req.body;
-
-      if (isNaN(orgId) || typeof creditsToAllocate !== 'number') {
-        return res.status(400).json({ message: "Invalid payload parameters. 'creditsToAllocate' must be a valid number." });
-      }
-
-      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-      if (!org) return res.status(404).json({ message: "Target client organization not found." });
-
-      const currentCredits = org.quantumCredits ?? 0;
-      const updatedCredits = currentCredits + creditsToAllocate;
-
-      if (updatedCredits < 0) {
-        return res.status(400).json({ message: "Operation rejected. Client credit balance cannot fall below zero." });
-      }
-
-      await db.update(organizations)
-        .set({ quantumCredits: updatedCredits })
-        .where(eq(organizations.id, orgId));
-
-      console.log(`💳 CONSULTANT BILLING: Allocated ${creditsToAllocate} credits to ${org.name}. New operational balance: ${updatedCredits}`);
-
-      return res.json({ 
-        success: true, 
-        message: `Successfully allocated ${creditsToAllocate} credits to ${org.name}.`,
-        organizationId: orgId,
-        newBalance: updatedCredits 
-      });
-    } catch (error) {
-      console.error("Owner Credit Allocation Failure:", error);
-      return res.status(500).json({ message: "Failed to process premium token credit transaction." });
-    }
-  });
-// OWNER ONLY: Provision a new Organization and its initial Admin
-  app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { orgName, domain, adminEmail, adminPassword } = req.body;
-
-      if (!orgName || !domain || !adminEmail || !adminPassword) {
-        return res.status(400).json({ message: "All fields are required." });
-      }
-
-      // 1. Create the Organization
-      const [newOrg] = await db.insert(organizations).values({
-        name: orgName,
-        domain: domain,
-        quantumCredits: 0
-      }).returning();
-
-      // 2. Hash password and create the Admin User
-      const hashedPassword = await bcrypt.hash(adminPassword, 10);
-      
-      await db.insert(users).values({
-        email: adminEmail,
-        username: adminEmail.split('@')[0],
-        password: hashedPassword,
-        role: 'org_admin',
-        organizationId: newOrg.id,
-        firstName: 'Admin', // They can change this later
-        lastName: 'User',
-        isActive: true
-      });
-
-      console.log(`🏢 PROVISIONED: Org '${orgName}' with admin '${adminEmail}'`);
-      return res.status(201).json({ 
-        message: "Client provisioned successfully", 
-        organization: newOrg 
-      });
-      
-    } catch (error: any) {
-      console.error("Provisioning Error:", error);
-      return res.status(500).json({ message: "Failed to provision client organization." });
-    }
-  });
-  return httpServer;
-}
-
-function analyzeResponses(responses: any[]): any {
-  const totalResponses = responses.length;
-  return {
-    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
-    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
-    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
-    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
-  };
-}
+      res.status(500).json({ message:
