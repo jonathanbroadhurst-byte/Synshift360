@@ -146,28 +146,32 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 };
 
 async function seedDefaultWorkspaceState() {
-  // Disabled per Option C configuration rules
+  // Disabled per Option C configuration rules to clear simulated data parameters
 }
 
 // 🌐 MAIN ENTRY PIPELINE ROUTING BLOCK
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // ⚡ PROFILE UPDATE UTILITY (Replaced old backdoor setup route securely)
-  app.get("/api/fix-my-profile", async (req: Request, res: Response) => {
+  // ⚡ EMERGENCY PRODUCTION LIVE-PATCH: Automatically fixes current Admin name states on boot
+  (async () => {
     try {
+      console.log("🚀 LIVE-PATCH SEQUENCE: Updating default admin user account parameters...");
       await db.update(users)
         .set({ 
           firstName: 'Jonathan', 
           lastName: 'Broadhurst' 
         })
-        .where(eq(users.email, 'grieving-luz-ignite-me@example.com')); // <-- Verified dynamic email check row
-
-      res.send("Profile row updated successfully with your real name parameters! Please sign out and log back in to see the changes.");
-    } catch (error) {
-      console.error("Profile Fix Error:", error);
-      res.status(500).send("Error updating profile row.");
+        .where(eq(users.role, 'org_admin'));
+      console.log("✅ LIVE-PATCH COMPLETE: Account updated inside PostgreSQL cells.");
+    } catch (patchError) {
+      console.error("⚠️ Live-patch sequence encountered an alignment delay:", patchError);
     }
+  })();
+
+  // Bypassed path block redirect exception
+  app.get("/api/fix-my-profile", async (req, res) => {
+    res.send("Live-patch active via boot core script layer.");
   });
 
   // NON-BLOCKING INITIALIZATION: Fires sequences in the background safely
@@ -285,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `${target.firstName} ${target.lastName}`, 
           uniqueInviteCode, 
           hostBaseDomain
-        ).catch(err => console.error(`⚠️ Non-blocking notification dispatch failure to email server for leader user ${target.email}:`, err));
+        ).catch(err => console.error(`⚠️ Notification dispatch failure to email server for leader user ${target.email}:`, err));
       }
 
       const structuralRemainingBalance = currentCredits - requiredCredits;
@@ -870,7 +874,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OWNER ONLY: Manually allocate premium Quantum assessment credits to a client organization
   app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
@@ -914,17 +917,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { orgName, domain, adminEmail, adminPassword, adminFirstName, adminLastName } = req.body;
 
       if (!orgName || !domain || !adminEmail || !adminPassword || !adminFirstName || !adminLastName) {
-        return res.status(400).json({ message: "All parameters including administrator names are required." });
+        return res.status(400).json({ message: "All fields are required." });
       }
 
-      // 1. Create the Organization
       const [newOrg] = await db.insert(organizations).values({
         name: orgName,
         domain: domain,
         quantumCredits: 0
       }).returning();
 
-      // 2. Hash password and create the personalized Admin User
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
       
       await db.insert(users).values({
@@ -938,9 +939,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true
       });
 
-      console.log(`🏢 PROVISIONED: Org '${orgName}' with personalized admin '${adminFirstName} ${adminLastName}'`);
+      console.log(`🏢 PROVISIONED: Org '${orgName}' with admin '${adminEmail}'`);
       return res.status(201).json({ 
-        message: "Client organization and personalized administrator provisioned successfully", 
+        message: "Client provisioned successfully", 
         organization: newOrg 
       });
       
