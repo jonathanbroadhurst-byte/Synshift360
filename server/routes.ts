@@ -375,11 +375,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/dashboard/stats", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
   // 📊 ADMIN: Fetch hierarchical macro alignment delta reports (Team, Function, or Org Wide)
   app.get("/api/reports/macro/:tierType", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { tierType } = req.params; // 'team', 'function', or 'organisation'
-      const identifierValue = req.query.identifier as string; // e.g., 'Senior Leadership' or 'Operations'
+      const { tierType } = req.params; 
+      const identifierValue = req.query.identifier as string; 
       const orgId = req.user!.organizationId;
 
       if (!orgId) {
@@ -390,22 +399,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid tier classification request." });
       }
 
-      // Generate the complete delta alignment maps using our reporting engine
       const macroReport = await generateMacroTierReport(orgId, tierType as any, identifierValue);
-      
       return res.json(macroReport);
     } catch (error: any) {
       console.error("Macro Tier Analytics Engine Failure:", error);
       return res.status(500).json({ message: error.message || "Internal analytical pipeline exception." });
-    }
-  });
-  
-  app.get("/api/dashboard/stats", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const stats = await storage.getDashboardStats();
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dashboard stats" });
     }
   });
 
