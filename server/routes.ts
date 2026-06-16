@@ -35,8 +35,14 @@ import {
 async function ensureSchemaUpToDate() {
   try {
     console.log("🔍 Checking database column structure alignments...");
+    
+    // Ensure quantum credits field exists
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
-    console.log("⚡ Column 'quantum_credits' verified or injected successfully.");
+    
+    // Ensure the new team_name string column exists on users table
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
+    
+    console.log("⚡ Column structures verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
     console.error("⚠️ Schema auto-alignment encountered an issue (it may already be up to date):", error);
   }
