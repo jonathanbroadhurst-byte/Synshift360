@@ -9,7 +9,6 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   domain: text("domain").unique(),
   isActive: boolean("is_active").default(true),
-  // ADD THIS LINE HERE:
   quantumCredits: integer("quantum_credits").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -25,7 +24,8 @@ export const users = pgTable("users", {
   role: text("role").notNull(), // 'admin', 'leader', 'participant'
   organizationId: integer("organization_id").references(() => organizations.id),
   position: text("position"),
-  department: text("department"),
+  department: text("department"), // Used for Functional Level Grouping
+  teamName: text("team_name"),     // Used for Team Level Grouping
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
@@ -85,9 +85,9 @@ export const surveyResponses = pgTable("survey_responses", {
   cycleId: integer("cycle_id").references(() => surveyCycles.id),
   invitationId: integer("invitation_id").references(() => surveyInvitations.id),
   responses: jsonb("responses").notNull(), // Array of response objects
-  responseHash: text("response_hash").notNull(), // For anonymization
-  respondentName: text("respondent_name"), // Optional: participant's name
-  respondentEmail: text("respondent_email"), // Optional: participant's email
+  responseHash: text("response_hash").notNull(), 
+  respondentName: text("respondent_name"), 
+  respondentEmail: text("respondent_email"), 
   respondentRelationship: text("respondent_relationship"), // e.g. Manager, Peer, Direct Report
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
@@ -100,10 +100,10 @@ export const reports = pgTable("reports", {
   organizationId: integer("organization_id").references(() => organizations.id),
   title: text("title").notNull(),
   executiveSummary: text("executive_summary"),
-  strengths: jsonb("strengths"), // Array of strength objects
-  developmentAreas: jsonb("development_areas"), // Array of development area objects
-  statistics: jsonb("statistics"), // Report statistics
-  status: text("status").default("pending"), // 'pending', 'approved', 'released', 'archived'
+  strengths: jsonb("strengths"), 
+  developmentAreas: jsonb("development_areas"), 
+  statistics: jsonb("statistics"), 
+  status: text("status").default("pending"), 
   generatedAt: timestamp("generated_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
   approvedBy: integer("approved_by").references(() => users.id),
@@ -128,8 +128,8 @@ export const auditLog = pgTable("audit_log", {
 export const dataRetentionRequests = pgTable("data_retention_requests", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  requestType: text("request_type").notNull(), // 'export', 'delete', 'rectify'
-  status: text("status").default("pending"), // 'pending', 'processing', 'completed', 'rejected'
+  requestType: text("request_type").notNull(), 
+  status: text("status").default("pending"), 
   requestedBy: integer("requested_by").references(() => users.id),
   processedBy: integer("processed_by").references(() => users.id),
   requestDetails: jsonb("request_details"),
