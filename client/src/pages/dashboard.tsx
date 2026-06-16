@@ -7,9 +7,9 @@ import ReportsTable from '@/components/tables/reports-table';
 import ReportPreviewModal from '@/components/modals/report-preview-modal';
 import SurveyProgress from '@/components/progress/survey-progress';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query'; // Hook to locate active surveys automatically
-import { useLocation } from 'wouter'; // Routing tool to jump between pages
-import { Zap } from 'lucide-react'; // Elegant diagnostic icon
+import { useQuery } from '@tanstack/react-query'; 
+import { useLocation } from 'wouter'; 
+import { Zap } from 'lucide-react'; 
 
 export default function Dashboard() {
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
@@ -39,7 +39,7 @@ export default function Dashboard() {
   };
 
   return (
-    <RequireAuth roles={['admin', 'owner']}>
+    <RequireAuth roles={['admin', 'owner', 'org_admin']}>
       <div className="min-h-screen flex bg-gray-50">
         <Sidebar />
         
@@ -48,37 +48,44 @@ export default function Dashboard() {
           
           <div className="flex-1 p-8 space-y-8">
             
-            {/* SYSTEM ANALYTICS & ASSESSMENT MANAGEMENT ACTION BANNER */}
-            {activeCycle && (
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-blue-500/20 transition-all">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                    <span>📋</span> SyncShift Operational Management Hub
-                  </h2>
-                  <p className="text-blue-100 text-sm max-w-2xl">
-                    Deploy workspace metrics, track diagnostic collection loops, or launch personal calibration baselines for the live <strong className="text-white">{activeCycle.title || 'SyncShift Framework'}</strong> template layer.
-                  </p>
-                </div>
-                
-                {/* 🛠️ NAVIGATION BUTTON SUITE BUTTON MATRIX */}
-                <div className="flex flex-wrap items-center gap-3 shrink-0 w-full sm:w-auto">
-                  <button 
-                    onClick={() => setLocation("/admin/macro-reports")}
-                    className="bg-indigo-500/40 text-white hover:bg-indigo-500/60 font-semibold border border-white/20 shadow-sm px-5 py-3 rounded-lg text-sm transition-all duration-150 flex items-center gap-2 w-full sm:w-auto justify-center"
-                  >
-                    <Zap className="h-4 w-4 text-amber-300" />
-                    View Infographic Gaps
-                  </button>
+            {/* 📊 PERMANENT ADMINISTRATIVE MANAGEMENT ACTION BANNER */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-blue-500/20 transition-all">
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <span>📊</span> SyncShift™ Operational Management Hub
+                </h2>
+                <p className="text-blue-100 text-sm max-w-2xl">
+                  Deploy corporate metrics grids, track live assessment collection loops, or review structural alignment parameters across organization clusters.
+                </p>
+              </div>
+              
+              {/* 🛠️ NAVIGATION MATRIX BUTTONS */}
+              <div className="flex flex-wrap items-center gap-3 shrink-0 w-full sm:w-auto">
+                <button 
+                  onClick={() => setLocation("/admin/macro-reports")}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 shadow-sm px-5 py-3 rounded-lg text-sm transition-all duration-150 flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  <Zap className="h-4 w-4 text-amber-300" />
+                  View Infographic Gaps
+                </button>
 
+                {activeCycle ? (
                   <button 
                     onClick={() => setLocation(`/survey/${inviteCode}`)}
                     className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-sm px-5 py-3 rounded-lg text-sm border-none transition-colors duration-150 w-full sm:w-auto justify-center"
                   >
-                    Start Self-Assessment →
+                    Start My Assessment →
                   </button>
-                </div>
+                ) : (
+                  <button 
+                    onClick={() => setLocation("/create-survey")}
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold shadow-sm px-5 py-3 rounded-lg text-sm border-none transition-colors duration-150 w-full sm:w-auto justify-center"
+                  >
+                    Deploy New Cohort
+                  </button>
+                )}
               </div>
-            )}
+            </div>
 
             <StatsGrid />
             
