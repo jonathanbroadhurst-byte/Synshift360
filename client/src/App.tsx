@@ -19,6 +19,17 @@ import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
 import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
+<ProtectedRoute 
+  path="/admin/dashboard" 
+  component={AdminDashboard} 
+  allowedRoles={['admin', 'org_admin', 'owner']} 
+/>
+
+<ProtectedRoute 
+  path="/admin/macro-reports" 
+  component={MacroReportsDashboard} 
+  allowedRoles={['admin', 'org_admin', 'company_admin', 'owner']} 
+/>
 
 function Router() {
   return (
