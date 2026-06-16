@@ -9,6 +9,7 @@ import SurveyProgress from '@/components/progress/survey-progress';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query'; // Hook to locate active surveys automatically
 import { useLocation } from 'wouter'; // Routing tool to jump between pages
+import { Zap } from 'lucide-react'; // Elegant diagnostic icon
 
 export default function Dashboard() {
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
@@ -47,23 +48,35 @@ export default function Dashboard() {
           
           <div className="flex-1 p-8 space-y-8">
             
-            {/* LEADER SELF-ASSESSMENT ACTION BANNER */}
+            {/* SYSTEM ANALYTICS & ASSESSMENT MANAGEMENT ACTION BANNER */}
             {activeCycle && (
               <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-blue-500/20 transition-all">
                 <div className="space-y-1">
                   <h2 className="text-xl font-bold flex items-center gap-2">
-                    <span>📋</span> Complete Your Leader Self-Assessment
+                    <span>📋</span> SyncShift Operational Management Hub
                   </h2>
                   <p className="text-blue-100 text-sm max-w-2xl">
-                    Establish your personal baseline layout for the live <strong className="text-white">{activeCycle.title || 'SyncShift Framework'}</strong> framework. Your inputs are safely categorized separately from external team stakeholder metrics.
+                    Deploy workspace metrics, track diagnostic collection loops, or launch personal calibration baselines for the live <strong className="text-white">{activeCycle.title || 'SyncShift Framework'}</strong> template layer.
                   </p>
                 </div>
-                <button 
-                  onClick={() => setLocation(`/survey/${inviteCode}`)}
-                  className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-sm px-6 py-3 rounded-lg text-sm shrink-0 border-none transition-colors duration-150"
-                >
-                  Start Self-Assessment →
-                </button>
+                
+                {/* 🛠️ NAVIGATION BUTTON SUITE BUTTON MATRIX */}
+                <div className="flex flex-wrap items-center gap-3 shrink-0 w-full sm:w-auto">
+                  <button 
+                    onClick={() => setLocation("/admin/macro-reports")}
+                    className="bg-indigo-500/40 text-white hover:bg-indigo-500/60 font-semibold border border-white/20 shadow-sm px-5 py-3 rounded-lg text-sm transition-all duration-150 flex items-center gap-2 w-full sm:w-auto justify-center"
+                  >
+                    <Zap className="h-4 w-4 text-amber-300" />
+                    View Infographic Gaps
+                  </button>
+
+                  <button 
+                    onClick={() => setLocation(`/survey/${inviteCode}`)}
+                    className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-sm px-5 py-3 rounded-lg text-sm border-none transition-colors duration-150 w-full sm:w-auto justify-center"
+                  >
+                    Start Self-Assessment →
+                  </button>
+                </div>
               </div>
             )}
 
