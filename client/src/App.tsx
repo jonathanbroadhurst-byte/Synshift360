@@ -17,19 +17,9 @@ import Organizations from "@/pages/organizations";
 import Surveys from "@/pages/surveys";
 import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
+import MacroReportsDashboard from "@/pages/admin/MacroReports"; // 📊 Added the Analytics Import
 import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
-<ProtectedRoute 
-  path="/admin/dashboard" 
-  component={AdminDashboard} 
-  allowedRoles={['admin', 'org_admin', 'owner']} 
-/>
-
-<ProtectedRoute 
-  path="/admin/macro-reports" 
-  component={MacroReportsDashboard} 
-  allowedRoles={['admin', 'org_admin', 'company_admin', 'owner']} 
-/>
 
 function Router() {
   return (
@@ -64,6 +54,14 @@ function Router() {
           <Dashboard />
         </RequireAuth>
       </Route>
+      
+      {/* 📊 Added the Hierarchical Systemic Alignment Delta Dashboard Route */}
+      <Route path="/admin/macro-reports">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <MacroReportsDashboard />
+        </RequireAuth>
+      </Route>
+
       <Route path="/organizations">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
           <Organizations />
