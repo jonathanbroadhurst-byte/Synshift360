@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar 
 } from "recharts";
 import { 
-  ShieldAlert, Users, Layers, Landmark, TrendingUp, HelpCircle, ArrowUpRight, Zap 
+  ShieldAlert, Users, Layers, Landmark, TrendingUp, HelpCircle, ArrowUpRight, Zap, Download 
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,7 +57,7 @@ export default function MacroReportsDashboard() {
   // Prepare data streams cleanly for chart mapping engines
   const chartData = report?.thresholdCleared && report?.pillars
     ? Object.keys(report.pillars).map((key) => ({
-        pillar: report.pillars[key].name.split(" & ")[0], // Truncate titles cleanly for small labels
+        pillar: report.pillars[key].name.split(" & ")[0], 
         "Leader Self-Perception": report.pillars[key].leaderSelfAvg,
         "Stakeholder Reality": report.pillars[key].stakeholderAvg,
         "Blindspot Delta": report.pillars[key].blindspotDelta,
@@ -68,8 +68,8 @@ export default function MacroReportsDashboard() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       
-      {/* 🧭 ADMINISTRATIVE SELECTION ROUTER COMPONENT */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-4 border-b gap-4">
+      {/* 🧭 ADMINISTRATIVE SELECTION & ACTION ROUTER */}
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between pb-4 border-b gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <Zap className="h-7 w-7 text-indigo-600" />
@@ -80,7 +80,8 @@ export default function MacroReportsDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* CONTROLS CLUSTER */}
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={tierType} onValueChange={(val: any) => { setTierType(val); setIdentifier("all"); }}>
             <SelectTrigger className="w-[180px] bg-white shadow-sm border-slate-200">
               <SelectValue placeholder="Select Tier Matrix" />
@@ -114,6 +115,31 @@ export default function MacroReportsDashboard() {
               </SelectContent>
             </Select>
           )}
+
+          {/* 🖨️ EXECUTIVE BRIEF DOWNLOAD BUTTON */}
+          <button
+            onClick={() => {
+              const url = `/api/reports/macro/${tierType}/download${identifier !== "all" ? `?identifier=${encodeURIComponent(identifier)}` : ""}`;
+              // Force direct session attachment streaming inside a safe secondary window context
+              const token = localStorage.getItem("token");
+              fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => res.blob())
+                .then(blob => {
+                  const blobUrl = window.URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = blobUrl;
+                  a.download = `SyncShift_${tierType}_Executive_Brief.html`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                }).catch(err => console.error("Download fail:", err));
+            }}
+            disabled={!report?.thresholdCleared}
+            className="bg-slate-900 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export Executive Brief
+          </button>
         </div>
       </div>
 
@@ -243,7 +269,6 @@ export default function MacroReportsDashboard() {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {report.functionalFrictionIndex.map((item, idx) => {
-                    // Normalize standard structural divergence risks onto standard color limits
                     const severityPercent = Math.min((item.frictionDelta / 2.5) * 100, 100);
                     const isHighRisk = item.frictionDelta >= 1.2;
 
