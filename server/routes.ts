@@ -407,6 +407,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📊 ADMIN: Fetch hierarchical macro alignment delta reports (Team, Function, or Org Wide)
+  app.get("/api/reports/macro/:tierType", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { tierType } = req.params; 
+      const identifierValue = req.query.identifier as string; 
+      const orgId = req.user!.organizationId;
+      // ... existing code ...
+      const macroReport = await generateMacroTierReport(orgId, tierType as any, identifierValue);
+      return res.json(macroReport);
+    } catch (error: any) {
+      console.error("Macro Tier Analytics Engine Failure:", error);
+      return res.status(500).json({ message: error.message || "Internal analytical pipeline exception." });
+    }
+  });
+
+  // 🖨️ ADMIN EXPORT: Stream high-density print-ready briefs directly down to the browser context
+  app.get("/
+
   app.get("/api/dashboard/activity", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
