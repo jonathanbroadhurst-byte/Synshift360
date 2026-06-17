@@ -13,6 +13,7 @@ import * as mailjetEmail from "./mailjet";
 import * as resendEmail from "./resend";
 import { generateSyncShiftReportData, generateMacroTierReport } from "./services/reporting";
 import { compileSyncShiftHtmlReport } from "./services/pdfTemplate";
+import { compileMacroHtmlReport } from "./services/macroPdfTemplate"; // 🖨️ Added Export Template Import
 import { 
   insertUserSchema, 
   insertOrganizationSchema, 
@@ -407,23 +408,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 📊 ADMIN: Fetch hierarchical macro alignment delta reports (Team, Function, or Org Wide)
-  app.get("/api/reports/macro/:tierType", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+  // 🖨️ ADMIN EXPORT: Stream high-density print-ready briefs directly down to the browser context
+  app.get("/api/reports/macro/:tierType/download", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { tierType } = req.params; 
-      const identifierValue = req.query.identifier as string; 
+      const { tierType } = req.params;
+      const identifierValue = req.query.identifier as string;
       const orgId = req.user!.organizationId;
-      // ... existing code ...
+
+      if (!orgId) {
+        return res.status(400).json({ message: "No active organization link found in your session data." });
+      }
+
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      const orgName = org ? org.name : "SyncShift Enterprise Client";
+
       const macroReport = await generateMacroTierReport(orgId, tierType as any, identifierValue);
-      return res.json(macroReport);
+      const reportHtml = compileMacroHtmlReport(macroReport, orgName);
+
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_${tierType}_Brief_${(identifierValue || 'Wide').replace(/\s+/g, '_')}.html"`);
+      return res.send(reportHtml);
     } catch (error: any) {
-      console.error("Macro Tier Analytics Engine Failure:", error);
-      return res.status(500).json({ message: error.message || "Internal analytical pipeline exception." });
+      console.error("Macro Print Engine Failure:", error);
+      return res.status(500).json({ message: error.message || "Internal asset compilation pipeline exception." });
     }
   });
-
-  // 🖨️ ADMIN EXPORT: Stream high-density print-ready briefs directly down to the browser context
-  app.get("/
 
   app.get("/api/dashboard/activity", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
