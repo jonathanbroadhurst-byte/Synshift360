@@ -1019,3 +1019,46 @@ function analyzeResponses(responses: any[]): any {
     statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
   };
 }
+
+// =========================================================================
+  // AUTOMATED EQ SURVEY ROUTES
+  // =========================================================================
+
+  // 1. Route to fetch the 20 questions for the user's screen
+  app.get("/api/eq/questions", async (_req, res) => {
+    try {
+      const questions = await db.select().from(eqQuestions).orderBy(eqQuestions.id);
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load EQ questions." });
+    }
+  });
+
+  // 2. Route to save the 1-5 answers and calculate totals instantly
+  app.post("/api/eq/submit", async (req, res) => {
+    try {
+      const { userId, responses, commitments } = req.body; // Expects an array of answers
+
+      // Save each individual 1-5 response to the database safely
+      for (const resp of responses) {
+        await db.insert(eqResponses).values({
+          userId: userId,
+          questionId: resp.questionId,
+          scoreValue: resp.scoreValue,
+        });
+      }
+
+      // Save the interactive personal commitments text to feed the 14-day loop
+      for (const comm of commitments) {
+        await db.insert(eqCommitments).values({
+          userId: userId,
+          domainName: comm.domainName,
+          commitmentText: comm.commitmentText,
+        });
+      }
+
+      res.json({ message: "Assessment scores and commitments saved successfully." });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save your assessment results." });
+    }
+  });
