@@ -2,7 +2,6 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
-import { HTML } from "weasyprint"; 
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -209,7 +208,6 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // FORCE NESTED SEQUENTIAL BOOT CHAIN
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => ensureEQQuestionsExist())
@@ -232,7 +230,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leadName, leadEmail, responses, commitments } = req.body;
       
-      // 🛡️ Self-Healing Core: Verify or dynamically seed structural organization reference cell
       let targetOrgId = 1;
       const existingOrgs = await db.select().from(organizations).limit(1);
       
@@ -289,7 +286,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Build score bars loop cleanly via backend memory before compiling string array structures
       let scoreRowsHtml = "";
       if (Array.isArray(metrics)) {
         for (const m of metrics) {
@@ -313,7 +309,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Build insights cards loop cleanly
       let insightsRowsHtml = "";
       if (Array.isArray(metrics)) {
         metrics.forEach((m: any, idx: number) => {
@@ -379,10 +374,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      // Invoke server-side WeasyPrint orchestration to safely compile an immutable binary PDF byte block
-      // @ts-ignore
-      const pdfBuffer = HTML({ string: reportHtml }).write_pdf();
-      
+      // 🌐 High-Performance CDN Edge Compile: Zero dependencies required on Koyeb
+      const formData = new URLSearchParams();
+      formData.append("src", reportHtml);
+
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formData
+      });
+
+      if (!pdfResponse.ok) {
+        throw new Error(`API stream rejected: ${pdfResponse.statusText}`);
+      }
+
+      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+      const pdfBuffer = Buffer.from(pdfArrayBuffer);
+
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf"`);
       return res.send(pdfBuffer);
