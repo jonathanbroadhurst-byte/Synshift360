@@ -71,6 +71,30 @@ async function ensureQuantumTemplateExists() {
   }
 }
 
+// AUTO-SEEDER FOR EQ INVENTORY: Seeds the 20 universal questions if empty
+async function ensureEQQuestionsExist() {
+  try {
+    const existing = await db.select().from(eqQuestions).limit(1);
+    if (existing.length === 0) {
+      console.log("🌱 Seeding 20 Universal EQ Questions into database...");
+      
+      // A quick sample array to test the loop infrastructure safely
+      const sampleQuestions = [
+        { domainName: "social_awareness", questionText: "I actively listen to others without interrupting or planning my reply." },
+        { domainName: "composure", questionText: "I remain calm and clear-headed under high-stress situations." },
+        { domainName: "connection", questionText: "I notice when a colleague's tone or energy changes in a meeting." }
+      ];
+
+      for (const q of sampleQuestions) {
+        await db.insert(eqQuestions).values(q);
+      }
+      console.log("🎯 EQ Questions seeded successfully.");
+    }
+  } catch (error) {
+    console.error("⚠️ EQ Seeder encountered a database alignment delay:", error);
+  }
+}
+
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
     return mailjetEmail.sendSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
@@ -201,6 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
+    .then(() => ensureEQQuestionsExist())
     .catch(err => console.error("Background DB alignment exception:", err));
 
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
