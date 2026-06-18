@@ -359,8 +359,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
 
       res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Report_${fullName.replace(/\s+/g, '_')}.html"`);
       return res.send(htmlContent);
     } catch (error) {
+      console.error("Download endpoint exception:", error);
       return res.status(500).json({ message: "Failed to generate report copy." });
     }
   });
