@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Compass, Cpu, Target, User, Users, TrendingUp } from "lucide-react";
-import EQSurvey from "../EQSurvey"; // Pulls in your public inventory component cleanly
+import EQSurvey from "./EQSurvey"; // Pulls in your public inventory component cleanly
 
 export default function Home() {
   
