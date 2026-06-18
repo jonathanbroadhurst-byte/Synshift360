@@ -6,30 +6,22 @@ interface Question {
   questionText: string;
 }
 
-// 🎯 UNIVERSALLY ACCESSIBLE 20 MASTER STATEMENTS (No jargon, open to anyone)
 const MASTER_QUESTIONS: Question[] = [
-  // 1. Self-Awareness (Knowing your own patterns, feelings, and limits)
   { id: 2, domainName: "self_awareness", questionText: "I notice how tension or frustration builds up in my body before it changes my choice of words." },
   { id: 3, domainName: "self_awareness", questionText: "I am aware of my immediate emotional triggers when someone criticizes or corrects me." },
   { id: 13, domainName: "self_awareness", questionText: "I recognize the early signs of emotional exhaustion in myself before I reach a breaking point." },
   { id: 14, domainName: "self_awareness", questionText: "I know when I need to step away from a heated conversation to clear my head before responding." },
   { id: 15, domainName: "self_awareness", questionText: "I can spot when my personal habits or routines are starting to slip due to stress." },
-
-  // 2. Self-Management (Staying calm, steady, and handling personal boundaries)
   { id: 1, domainName: "self_management", questionText: "I can pause and calm myself down quickly when unexpected daily disruptions happen." },
   { id: 4, domainName: "self_management", questionText: "I cope well with sudden plans changing without letting my frustration ruin the mood for others." },
   { id: 16, domainName: "self_management", questionText: "I can say a clear, polite 'no' to extra favors or requests when my schedule is already full." },
   { id: 17, domainName: "self_management", questionText: "When addressing an issue, I focus on what actually happened rather than blaming someone's character." },
   { id: 18, domainName: "self_management", questionText: "I actively resist the urge to interrupt people, even when I strongly disagree with what they are saying." },
-
-  // 3. Social Awareness (Active listening, picking up on cues, and empathy)
   { id: 5, domainName: "social_awareness", questionText: "I listen to others without immediately jumping in to offer advice or fix their problems." },
   { id: 6, domainName: "social_awareness", questionText: "I easily notice when a friend or family member's tone or body language shifts, signaling they might be upset." },
   { id: 7, domainName: "social_awareness", questionText: "I try to understand the hidden worries or motivations behind why someone is acting defensive." },
   { id: 8, domainName: "social_awareness", questionText: "I can put away my phone or distractions and give someone my completely undivided attention." },
   { id: 20, domainName: "social_awareness", questionText: "I look at situations from other people's cultural or personal backgrounds to understand their point of view." },
-
-  // 4. Relationship Management (Building trust, resolving friction, and connecting)
   { id: 9, domainName: "relationship_management", questionText: "I can genuinely acknowledge someone else's point of view, even when it directly clashes with my own." },
   { id: 10, domainName: "relationship_management", questionText: "I address misunderstandings or relational friction early on, rather than letting them quietly simmer." },
   { id: 11, domainName: "relationship_management", questionText: "I regularly go out of my way to express appreciation for the small things people do for me." },
@@ -37,7 +29,6 @@ const MASTER_QUESTIONS: Question[] = [
   { id: 19, domainName: "relationship_management", questionText: "I check in on the people in my life to see how they are doing as human beings, not just to coordinate tasks." }
 ];
 
-// 🧠 NATURAL, PRACTICAL INSIGHT MATRIX (No heavy jargon or stereotypes)
 const DOMAIN_INSIGHT_MATRIX = {
   self_awareness: {
     title: "Self-Awareness",
@@ -134,6 +125,34 @@ export default function EQSurvey() {
     setStep(3); 
   };
 
+  const handlePDFDownload = async () => {
+    try {
+      const response = await fetch("/api/eq/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          email,
+          metrics: processedResults,
+          commitment: commitments["social_awareness"] || ""
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (err) {
+      console.error("Failed to fetch download stream", err);
+    }
+  };
+
   const submitFinalLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setStep(4);
@@ -220,7 +239,6 @@ export default function EQSurvey() {
               <h3 className="text-lg font-bold text-gray-900">Your Emotional Intelligence Baseline</h3>
             </div>
             
-            {/* 4 Graphical Bars */}
             <div className="space-y-4 mb-8 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
               {processedResults.map((item) => (
                 <div key={item.key}>
@@ -235,7 +253,6 @@ export default function EQSurvey() {
               ))}
             </div>
 
-            {/* Structured Real-World Feedback Blocks */}
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Domain Insights & Recommendations</h4>
             <div className="space-y-4">
               {processedResults.map((item, index) => {
@@ -274,7 +291,7 @@ export default function EQSurvey() {
             
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl mb-5">
               <h4 className="text-xs font-bold text-gray-200 mb-2">🧩 My 14-Day Micro-Experiment</h4>
-              <textarea required className="w-full h-20 p-3 bg-gray-900 text-white text-xs border border-white/20 rounded-lg focus:border-orange-400 outline-none resize-none" placeholder="e.g., I will try pausing for a moment to notice physical signs of stress during our weekly alignment meeting this Thursday..." value={commitments["social_awareness"] || ""} onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)} />
+              <textarea required className="w-full h-20 p-3 bg-gray-900 text-white text-xs border border-white/20 rounded-lg focus:border-orange-400 outline-none resize-none" placeholder="e.g., I will try pausing for a moment to check my energy levels before starting long team updates this Thursday..." value={commitments["social_awareness"] || ""} onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)} />
             </div>
 
             <div className="flex gap-3">
@@ -285,55 +302,25 @@ export default function EQSurvey() {
         </div>
       )}
 
-     /* --- STEP 4: CLEAN PLATFORM CONFIRMATION SUCCESS VIEW WITH DOWNLOAD --- */
-  if (step === 4) {
-    const handlePDFDownload = async () => {
-      try {
-        const response = await fetch("/api/eq/download", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fullName,
-            email,
-            metrics: processedResults,
-            commitment: commitments["social_awareness"] || ""
-          })
-        });
+      {/* STEP 4: SUCCESS CONFIRMATION */}
+      {step === 4 && (
+        <div className="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm max-w-sm mx-auto">
+          <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-green-100">✓</div>
+          <h2 className="text-base font-bold mb-1 text-gray-900">Plan Saved Successfully</h2>
+          <p className="text-xs text-gray-500 leading-relaxed mb-6">Thank you. Your assessment scores and your action commitment have been safely logged into your profile.</p>
+          
+          <button 
+            type="button"
+            onClick={handlePDFDownload}
+            className="w-full mb-4 bg-orange-500 hover:bg-orange-600 text-white font-bold p-2.5 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+          >
+            📥 Download Your PDF Report Copy
+          </button>
 
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf`);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-        }
-      } catch (err) {
-        console.error("Failed to fetch download stream", err);
-      }
-    };
+          <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
+        </div>
+      )}
 
-    return (
-      <div className="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm max-w-sm mx-auto">
-        <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-green-100">✓</div>
-        <h2 className="text-base font-bold mb-1 text-gray-900">Plan Saved Successfully</h2>
-        <p className="text-xs text-gray-500 leading-relaxed mb-6">Thank you. Your assessment scores and your action commitment have been safely logged into your profile.</p>
-        
-        <button 
-          type="button"
-          onClick={handlePDFDownload}
-          className="w-full mb-4 bg-orange-500 hover:bg-orange-600 text-white font-bold p-2.5 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
-        >
-          📥 Download Your PDF Report Copy
-        </button>
-
-        <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-1 font-sans text-gray-900">
-      {/* ... the rest of your step 1, 2, and 3 code markup stays safely down here ... */}
+    </div>
+  );
+}
