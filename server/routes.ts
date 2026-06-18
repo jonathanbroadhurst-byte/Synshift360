@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
+import { HTML } from "weasyprint"; 
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -231,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leadName, leadEmail, responses, commitments } = req.body;
       
-      // 🔍 Dynamic Safeguard: Locate existing parent container or dynamically provision one to satisfy constraints
+      // 🛡️ Self-Healing Core: Verify or dynamically seed structural organization reference cell
       let targetOrgId = 1;
       const existingOrgs = await db.select().from(organizations).limit(1);
       
@@ -288,6 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
+      // Build score bars loop cleanly via backend memory before compiling string array structures
       let scoreRowsHtml = "";
       if (Array.isArray(metrics)) {
         for (const m of metrics) {
@@ -311,6 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Build insights cards loop cleanly
       let insightsRowsHtml = "";
       if (Array.isArray(metrics)) {
         metrics.forEach((m: any, idx: number) => {
@@ -376,6 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
+      // Invoke server-side WeasyPrint orchestration to safely compile an immutable binary PDF byte block
       // @ts-ignore
       const pdfBuffer = HTML({ string: reportHtml }).write_pdf();
       
