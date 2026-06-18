@@ -2,7 +2,6 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
-import { HTML } from "weasyprint"; // ✅ Clean static import linked safely to package dependency
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -209,6 +208,7 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
+  // FORCE NESTED SEQUENTIAL BOOT CHAIN
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => ensureEQQuestionsExist())
@@ -231,6 +231,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leadName, leadEmail, responses, commitments } = req.body;
       
+      // 🔍 Dynamic Safeguard: Locate existing parent container or dynamically provision one to satisfy constraints
+      let targetOrgId = 1;
+      const existingOrgs = await db.select().from(organizations).limit(1);
+      
+      if (existingOrgs.length > 0) {
+        targetOrgId = existingOrgs[0].id;
+      } else {
+        const [newDefaultOrg] = await db.insert(organizations).values({
+          name: "SyncShift Public Lead Pool",
+          domain: "syncshift.com",
+          quantumCredits: 9999
+        }).returning();
+        targetOrgId = newDefaultOrg.id;
+      }
+
       let user = await storage.getUserByEmail(leadEmail);
       if (!user) {
         user = await storage.createUser({
@@ -240,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: leadName.split(' ').slice(1).join(' ') || 'Lead',
           password: await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10),
           role: 'leader',
-          organizationId: 1, 
+          organizationId: targetOrgId, 
           isActive: true
         });
       }
@@ -361,7 +376,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      // 4. Fire the string layout direct into WeasyPrint to construct a true binary PDF block
       // @ts-ignore
       const pdfBuffer = HTML({ string: reportHtml }).write_pdf();
       
