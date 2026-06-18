@@ -1,116 +1,127 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 interface Question {
   id: number;
-  domainName: string;
+  domainName: "composure" | "social_awareness" | "connection";
   questionText: string;
 }
 
-interface DomainScores {
-  composure: number;
-  social_awareness: number;
-  connection: number;
-}
+// 🎯 THE EXACT MASTER 20 EXECUTIVE DIAGNOSTIC STATEMENTS
+const MASTER_QUESTIONS: Question[] = [
+  { id: 1, domainName: "composure", questionText: "I maintain physical and situational composure when unexpected operational disruptions occur." },
+  { id: 2, domainName: "composure", questionText: "I pause and process my internal state before reacting to critical or frustrating professional feedback." },
+  { id: 3, domainName: "composure", questionText: "I can shift my physiological tension or stress levels down intentionally during high-stakes moments." },
+  { id: 4, domainName: "composure", questionText: "I handle shifting deadlines and volatile strategic direction without projecting anxiety onto others." },
+  { id: 5, domainName: "social_awareness", questionText: "I actively pause before offering advice to ask if someone wants a solution or just an ear." },
+  { id: 6, domainName: "social_awareness", questionText: "I notice subtle changes in team energy levels, posture, or hesitation during virtual and physical alignments." },
+  { id: 7, domainName: "social_awareness", questionText: "I look for the unspoken motivations or underlying anxieties behind a stakeholder's resistance to change." },
+  { id: 8, domainName: "social_awareness", questionText: "I tune out active devices and distractions to offer absolute attention when a colleague speaks to me." },
+  { id: 9, domainName: "connection", questionText: "I explicitly acknowledge other people's perspectives even when they directly conflict with my own goals." },
+  { id: 10, domainName: "connection", questionText: "I proactively have transparent conversations regarding relational gaps or friction before they escalate." },
+  { id: 11, domainName: "connection", questionText: "I intentionally call out and validate the invisible operational work done by peers and direct supports." },
+  { id: 12, domainName: "connection", questionText: "I share my own professional mistakes and lessons learned openly to model psychological safety." },
+  { id: 13, domainName: "composure", questionText: "I recognize my personal somatic indicators of burnout (tightness, irritability) before they affect my choice of words." },
+  { id: 14, domainName: "composure", questionText: "I step away or take temporary processing buffers when a work conversation becomes emotionally volatile." },
+  { id: 15, domainName: "composure", questionText: "I protect structured thinking windows in my calendar from being eroded by non-critical issues." },
+  { id: 16, domainName: "composure", questionText: "I explicitly state what I can and cannot commit to rather than accepting over-allocations silently." },
+  { id: 17, domainName: "social_awareness", questionText: "I frame feedback around behavioral impacts and shared outcomes rather than personal criticisms." },
+  { id: 18, domainName: "social_awareness", questionText: "I encourage quieter team members to speak up in group settings and ensure their input isn't cut off." },
+  { id: 19, domainName: "connection", questionText: "I check in on colleagues as human beings during periods of intense organizational stress, not just project metrics." },
+  { id: 20, domainName: "connection", questionText: "I seek out collaborative input from areas outside my immediate domain to test the validity of my assumptions." }
+];
 
 export default function EQSurvey() {
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [commitments, setCommitments] = useState<Record<string, string>>({});
-  
-  // Navigation Steps
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [step, setStep] = useState(1); // 1: Contact, 2: Test, 3: Playbook, 4: Results
+  const [step, setStep] = useState(1); // 1: Contact, 2: Inventory, 3: Profile & Playbook, 4: Success
+  const [validationError, setValidationError] = useState(false);
 
-  // Final Aggregated Metrics State
-  const [calculatedMetrics, setCalculatedMetrics] = useState<{
-    strength: { name: string; desc: string; score: number };
-    growth: { name: string; desc: string; score: number };
-    breakdown: DomainScores;
+  const [metrics, setMetrics] = useState<{
+    composure: number;
+    social_awareness: number;
+    connection: number;
+    strengthName: string;
+    strengthDesc: string;
+    growthName: string;
+    growthDesc: string;
+    recommendation: string;
   } | null>(null);
 
-  useEffect(() => {
-    fetch("/api/eq/questions")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setQuestions(data);
-        }
-      })
-      .catch((err) => console.error("Error loading questions", err));
-  }, []);
-
-  const handleScoreChange = (questionId: number, value: number) => {
-    setScores((prev) => ({ ...prev, [questionId]: value }));
+  const handleScoreChange = (qId: number, val: number) => {
+    setScores((prev) => ({ ...prev, [qId]: val }));
   };
 
-  const handleCommitmentChange = (domain: string, text: string) => {
-    setCommitments((prev) => ({ ...prev, [domain]: text }));
-  };
+  // Math Aggregator with Deep Content Injection
+  const runDiagnosticMath = () => {
+    const unanswered = MASTER_QUESTIONS.filter((q) => scores[q.id] === undefined);
+    if (unanswered.length > 0) {
+      setValidationError(true);
+      const firstUnanswered = document.getElementById(`q-block-${unanswered[0].id}`);
+      if (firstUnanswered) firstUnanswered.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
-  const allQuestionsAnswered = questions.length > 0 && questions.every(q => scores[q.id] !== undefined);
+    setValidationError(false);
 
-  // Core Aggregation Engine (Runs locally to guarantee performance)
-  const processCalculations = () => {
-    const domainTotals = { composure: 0, social_awareness: 0, connection: 0 };
-    const domainCounts = { composure: 0, social_awareness: 0, connection: 0 };
+    const sums = { composure: 0, social_awareness: 0, connection: 0 };
+    const counts = { composure: 0, social_awareness: 0, connection: 0 };
 
-    questions.forEach((q) => {
-      const score = scores[q.id] || 0;
-      // Safeguard domain fallbacks to prevent mapping crashes
-      let domain = q.domainName as keyof typeof domainTotals;
-      if (domainTotals[domain] === undefined) {
-        if (q.id <= 4 || (q.id >= 13 && q.id <= 16)) domain = 'composure';
-        else if ((q.id >= 5 && q.id <= 8) || q.id === 17 || q.id === 18) domain = 'social_awareness';
-        else domain = 'connection';
+    MASTER_QUESTIONS.forEach((q) => {
+      sums[q.domainName] += scores[q.id];
+      counts[q.domainName] += 1;
+    });
+
+    const compAvg = parseFloat((sums.composure / counts.composure).toFixed(1));
+    const socialAvg = parseFloat((sums.social_awareness / counts.social_awareness).toFixed(1));
+    const connAvg = parseFloat((sums.connection / counts.connection).toFixed(1));
+
+    const meta = {
+      composure: {
+        name: "Situational Composure & Self-Regulation",
+        desc: "Exhibits strong physiological anchors, avoiding knee-jerk reactivity during high-stress operational delays.",
+        growth: "Focus on identifying physiological stress signals before speaking to avoid projecting tension.",
+        rec: "Implement a explicit 3-second strategic processing pause before replying to volatile project updates."
+      },
+      social_awareness: {
+        name: "Systemic Social Awareness & Empathy",
+        desc: "Demonstrates high contextual awareness, accurately tracking team energetic shifts and silent resistance rows.",
+        growth: "Needs active calibration on listening parameters to ensure team objectives aren't over-ridden by fast pacing.",
+        rec: "Dedicate the opening 5 minutes of strategic alignment tables purely to stakeholder perspective listening protocols."
+      },
+      connection: {
+        name: "Relational Connection & Psychological Safety",
+        desc: "Excellence in cultivating structural trust frameworks, modeling transparency, and reducing operational friction.",
+        growth: "Enhance boundaries to protect cognitive focus frames from structural overflow or erosion.",
+        rec: "Design an explicit weekly bounding audit to filter non-critical team requests into structured batches."
       }
-      
-      domainTotals[domain] += score;
-      domainCounts[domain] += 1;
-    });
-
-    const averages: DomainScores = {
-      composure: parseFloat((domainTotals.composure / (domainCounts.composure || 1)).toFixed(1)),
-      social_awareness: parseFloat((domainTotals.social_awareness / (domainCounts.social_awareness || 1)).toFixed(1)),
-      connection: parseFloat((domainTotals.connection / (domainCounts.connection || 1)).toFixed(1)),
     };
 
-    const domainMeta = {
-      composure: { name: "Situational Composure", desc: "Your capacity to self-regulate physiology, process feedback under tension, and maintain strategic clarity during volatile operational disruptions." },
-      social_awareness: { name: "Systemic Social Awareness", desc: "Your level of organizational empathy, active listening patterns, and ability to read subtle behavioral shifts in team dynamics." },
-      connection: { name: "Relational Connection & Trust", desc: "How effectively you model psychological safety, address friction transparently, and validate cross-functional contributions." }
-    };
+    const sorted = [
+      { key: "composure" as const, val: compAvg },
+      { key: "social_awareness" as const, val: socialAvg },
+      { key: "connection" as const, val: connAvg }
+    ].sort((a, b) => b.val - a.val);
 
-    const sorted = Object.entries(averages).sort((a, b) => b[1] - a[1]);
-    const highestKey = sorted[0][0] as keyof typeof domainMeta;
-    const lowestKey = sorted[sorted.length - 1][0] as keyof typeof domainMeta;
-
-    setCalculatedMetrics({
-      breakdown: averages,
-      strength: { name: domainMeta[highestKey].name, desc: domainMeta[highestKey].desc, score: sorted[0][1] },
-      growth: { name: domainMeta[lowestKey].name, desc: domainMeta[lowestKey].desc, score: sorted[sorted.length - 1][1] }
+    setMetrics({
+      composure: compAvg,
+      social_awareness: socialAvg,
+      connection: connAvg,
+      strengthName: meta[sorted[0].key].name,
+      strengthDesc: meta[sorted[0].key].desc,
+      growthName: meta[sorted[1].key === sorted[2].key ? sorted[2].key : sorted[2].key].name,
+      growthDesc: meta[sorted[2].key].growth,
+      recommendation: meta[sorted[2].key].rec
     });
 
-    setStep(3); // Safely advance into Playbook Action input view
+    setStep(3);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submitFinalLead = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Fallback immediately to results view step so user experience is smooth
     setStep(4);
 
-    const formattedResponses = Object.entries(scores).map(([qId, val]) => ({
-      questionId: parseInt(qId),
-      scoreValue: val,
-    }));
-
-    const formattedCommitments = Object.entries(commitments).map(([domain, text]) => ({
-      domainName: domain,
-      commitmentText: text,
-    }));
-
-    // Post to backend asynchronously in the background
     try {
       await fetch("/api/eq/submit", {
         method: "POST",
@@ -118,164 +129,141 @@ export default function EQSurvey() {
         body: JSON.stringify({
           leadName: fullName,
           leadEmail: email,
-          responses: formattedResponses,
-          commitments: formattedCommitments,
-        }),
+          responses: Object.entries(scores).map(([k, v]) => ({ questionId: parseInt(k), scoreValue: v })),
+          commitments: Object.entries(commitments).map(([k, v]) => ({ domainName: k, commitmentText: v }))
+        })
       });
     } catch (err) {
-      console.error("Background data logging optimization handle fired", err);
+      console.error(err);
     }
   };
 
   return (
-    <div style={{ padding: "5px", fontFamily: "sans-serif", color: "#111" }}>
+    <div className="p-2 font-sans text-gray-900">
       
-      {/* --- STEP 1: LEAD CAPTURE ENTRY FORM --- */}
+      {/* STEP 1: LEAD CAPTURE */}
       {step === 1 && (
-        <div style={{ background: "#fff", padding: "20px", maxWidth: "500px", margin: "0 auto" }}>
-          <h2 style={{ fontSize: "16px", marginBottom: "20px", textAlign: "center", fontWeight: "600", color: "#4B5563" }}>Enter your information to unlock the assessment platform</h2>
-          <div style={{ marginBottom: "15px" }}>
-            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "13px" }}>Full Name</label>
-            <input 
-              type="text" 
-              required
-              style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", boxSizing: "border-box" }}
-              placeholder="Alex Smith"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
+        <div className="max-w-md mx-auto bg-white p-6 rounded-xl border border-gray-200">
+          <h2 className="text-base font-semibold text-center text-gray-600 mb-6">Enter details to unlock your evaluation engine</h2>
+          <div className="mb-4">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-gray-700">Full Name</label>
+            <input type="text" required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="John Doe" value={fullName} onChange={(e) => setFullName(e.target.value)} />
           </div>
-          <div style={{ marginBottom: "25px" }}>
-            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "13px" }}>Email Address</label>
-            <input 
-              type="email" 
-              required
-              style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", boxSizing: "border-box" }}
-              placeholder="alex@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+          <div className="mb-6">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-gray-700">Email Address</label>
+            <input type="email" required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <button 
-            disabled={!fullName || !email}
-            onClick={() => setStep(2)}
-            style={{ width: "100%", background: "#000", color: "#fff", padding: "12px", border: "none", borderRadius: "6px", fontSize: "14px", cursor: "pointer", fontWeight: "bold", opacity: (!fullName || !email) ? 0.5 : 1 }}
-          >
+          <button disabled={!fullName || !email} onClick={() => setStep(2)} className="w-full bg-[#0B1120] hover:bg-gray-800 text-white p-3 rounded-lg font-bold text-sm transition-all disabled:opacity-50">
             Begin Assessment →
           </button>
         </div>
       )}
 
-      {/* --- STEP 2: THE LIVE ASSESSMENT STATEMENTS --- */}
+      {/* STEP 2: INVENTORY STATEMENTS */}
       {step === 2 && (
-        <div>
-          {questions.map((q) => (
-            <div key={q.id} style={{ marginBottom: "16px", background: "#f9f9f9", padding: "16px", borderRadius: "8px", border: "1px solid #eaeaea" }}>
-              <p style={{ fontSize: "14px", fontWeight: "600", margin: "0 0 10px 0", lineHeight: "1.4" }}>{q.questionText}</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <label key={num} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "12px" }}>
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      value={num}
-                      checked={scores[q.id] === num}
-                      onChange={() => handleScoreChange(q.id, num)}
-                      required
-                    />
-                    {num === 1 && "Never (1)"}
-                    {num === 2 && "Seldom (2)"}
-                    {num === 3 && "Sometimes (3)"}
-                    {num === 4 && "Usually (4)"}
-                    {num === 5 && "Always (5)"}
-                  </label>
-                ))}
-              </div>
+        <div className="space-y-4">
+          {validationError && (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-sm text-red-700 font-medium sticky top-2 z-50 shadow-md">
+              ⚠️ Attention required: Highlighted questions must be evaluated to process your diagnostic data.
             </div>
-          ))}
+          )}
 
-          <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-            <button type="button" onClick={() => setStep(1)} style={{ background: "#fff", color: "#666", padding: "10px 20px", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontSize: "14px" }}>
-              Back
-            </button>
-            <button 
-              type="button" 
-              disabled={!allQuestionsAnswered}
-              onClick={processCalculations} 
-              style={{ background: "#000", color: "#fff", padding: "10px 20px", border: "none", borderRadius: "6px", fontSize: "14px", cursor: "pointer", fontWeight: "bold", flex: 1, opacity: !allQuestionsAnswered ? 0.5 : 1 }}
-            >
-              Continue to Action Playbook →
-            </button>
+          {MASTER_QUESTIONS.map((q, idx) => {
+            const isUnanswered = validationError && scores[q.id] === undefined;
+            return (
+              <div key={q.id} id={`q-block-${q.id}`} className={`p-5 rounded-xl border transition-all ${isUnanswered ? 'bg-red-50/70 border-red-300 ring-2 ring-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex gap-2 items-start mb-3">
+                  <span className="text-xs font-bold text-gray-400 bg-gray-200/60 w-5 h-5 flex items-center justify-center rounded-full mt-0.5 shrink-0">{idx + 1}</span>
+                  <p className="text-sm font-semibold leading-relaxed text-gray-800">{q.questionText}</p>
+                </div>
+                <div className="flex flex-wrap gap-4 pt-1">
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <label key={num} className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-gray-600">
+                      <input type="radio" name={`q-${q.id}`} checked={scores[q.id] === num} onChange={() => handleScoreChange(q.id, num)} className="accent-orange-500" />
+                      <span>{num === 1 ? "Never" : num === 2 ? "Seldom" : num === 3 ? "Sometimes" : num === 4 ? "Usually" : "Always"} ({num})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="flex gap-4 pt-4">
+            <button onClick={() => setStep(1)} className="bg-white border border-gray-300 text-gray-600 px-6 py-3 rounded-lg text-sm font-semibold">Back</button>
+            <button onClick={runDiagnosticMath} className="flex-1 bg-[#0B1120] hover:bg-gray-800 text-white px-6 py-3 rounded-lg text-sm font-bold shadow-lg">Generate Core Metrics →</button>
           </div>
         </div>
       )}
 
-      {/* --- STEP 3: THE ACTION PLAYBOOK COMMITMENTS --- */}
-      {step === 3 && (
-        <form onSubmit={handleSubmit}>
-          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "5px" }}>Formulate Your Plan</h2>
-          <p style={{ color: "#666", fontSize: "13px", marginBottom: "20px" }}>Commit to an initial, high-leverage micro-experiment based on your leadership reflections.</p>
-          
-          <div style={{ marginBottom: "20px", background: "#fff", padding: "16px", borderRadius: "8px", border: "1px solid #eaeaea" }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "14px", fontWeight: "bold" }}>🧩 Social Awareness focus experiment</h3>
-            <p style={{ color: "#555", fontSize: "13px", lineHeight: "1.5", marginBottom: "12px" }}>The next time someone shares a frustration with you, pause before offering advice and ask: <strong>"Do you need me to help you find a solution, or do you just need me to listen?"</strong></p>
-            <textarea
-              required
-              style={{ width: "100%", height: "80px", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", boxSizing: "border-box", fontSize: "13px" }}
-              placeholder="I will practice this question during our weekly operational check-ins this Thursday..."
-              value={commitments["social_awareness"] || ""}
-              onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)}
-            />
+      {/* STEP 3: RESULTS ENGINE FIRST ➔ PLAYBOOK PLACED LAST */}
+      {step === 3 && metrics && (
+        <div className="space-y-6">
+          <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm">
+            <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-4">Your Emotional Intelligence Matrix</h3>
+            
+            <div className="space-y-4 mb-6">
+              {[
+                { label: "Situational Composure", score: metrics.composure, color: "bg-blue-500" },
+                { label: "Systemic Social Awareness", score: metrics.social_awareness, color: "bg-orange-500" },
+                { label: "Relational Connection", score: metrics.connection, color: "bg-emerald-500" }
+              ].map((bar) => (
+                <div key={bar.label}>
+                  <div className="flex justify-between text-xs font-bold mb-1.5 text-gray-700">
+                    <span>{bar.label}</span>
+                    <span>{bar.score} / 5.0</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className={`${bar.color} h-full transition-all duration-1000`} style={{ width: `${(bar.score / 5) * 100}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl">
+                <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">🌟 Identified Catalyst Strength</h4>
+                <p className="text-sm font-semibold text-blue-900 mb-0.5">{metrics.strengthName}</p>
+                <p className="text-xs text-blue-700 leading-relaxed">{metrics.strengthDesc}</p>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-100 p-4 rounded-xl">
+                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">🎯 Primary Growth Horizon</h4>
+                <p className="text-sm font-semibold text-amber-900 mb-0.5">{metrics.growthName}</p>
+                <p className="text-xs text-amber-700 leading-relaxed">{metrics.growthDesc}</p>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-100 p-4 rounded-xl">
+                <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">💡 Strategic Coaching Recommendation</h4>
+                <p className="text-xs text-emerald-800 leading-relaxed font-medium">{metrics.recommendation}</p>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-            <button type="button" onClick={() => setStep(2)} style={{ background: "#fff", color: "#666", padding: "10px 20px", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontSize: "14px" }}>
-              Back
-            </button>
-            <button type="submit" style={{ background: "#10B981", color: "#fff", padding: "10px 20px", border: "none", borderRadius: "6px", fontSize: "14px", cursor: "pointer", fontWeight: "bold", flex: 1 }}>
-              Save My Playbook & View Metrics ✔
-            </button>
-          </div>
-        </form>
+          {/* PLAYBOOK PLACED LAST AS AN OUTCOME OF MATURED ANALYSIS */}
+          <form onSubmit={submitFinalLead} className="bg-gray-900 text-white p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <h3 className="text-base font-bold mb-1 text-orange-400">Lock In Your Action Playbook</h3>
+            <p className="text-gray-400 text-xs mb-4 leading-relaxed">Formulate your intentional micro-experiment commitment based on the recommendations above.</p>
+            
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl mb-4">
+              <h4 className="text-xs font-bold text-gray-200 mb-2">🧩 Intentional Micro-Experiment Design</h4>
+              <p className="text-xs text-gray-400 leading-relaxed mb-3">Commit to testing the structural recommendation within your workflows over the next 14 business days.</p>
+              <textarea required className="w-full h-20 p-3 bg-gray-900 text-white text-xs border border-white/20 rounded-lg focus:border-orange-400 outline-none resize-none" placeholder="e.g., I will leverage an explicit 3-second delay structure during my upcoming engineering review check-ins on Thursday..." value={commitments["social_awareness"] || ""} onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)} />
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setStep(2)} className="bg-transparent border border-white/20 text-gray-300 px-5 py-2.5 rounded-lg text-xs font-semibold">Recalibrate Answers</button>
+              <button type="submit" className="flex-1 bg-gradient-to-r from-orange-400 to-amber-500 text-white px-5 py-2.5 rounded-lg text-xs font-bold shadow-md">Complete Registration & Save Plan</button>
+            </div>
+          </form>
+        </div>
       )}
 
-      {/* --- STEP 4: DIAGNOSTIC RESULTS DISPLAY INSIGHT CARD --- */}
-      {step === 4 && calculatedMetrics && (
-        <div style={{ padding: "10px", fontFamily: "sans-serif", color: "#111" }}>
-          <div style={{ textAlign: "center", marginBottom: "25px", background: "#F0FDF4", border: "1px solid #BBF7D0", padding: "16px", borderRadius: "12px" }}>
-            <h2 style={{ fontSize: "20px", color: "#166534", margin: "0 0 5px 0", fontWeight: "bold" }}>Playbook Generated Successfully! 🎉</h2>
-            <p style={{ color: "#166534", fontSize: "13px", margin: 0 }}>Thank you, {fullName}. Your evaluation scores have been compiled below.</p>
-          </div>
-
-          <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "2px solid #E5E7EB", paddingBottom: "6px", marginBottom: "20px" }}>Your Emotional Intelligence Core Profile</h3>
-          
-          <div style={{ marginBottom: "25px" }}>
-            {Object.entries(calculatedMetrics.breakdown).map(([key, value]) => (
-              <div key={key} style={{ marginBottom: "15px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>
-                  <span style={{ textTransform: "capitalize" }}>{key.replace('_', ' ')} Baseline</span>
-                  <span>{value} / 5.0</span>
-                </div>
-                <div style={{ width: "100%", background: "#E5E7EB", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ width: `${(value / 5) * 100}%`, background: key === 'composure' ? '#3B82F6' : key === 'social_awareness' ? '#F59E0B' : '#10B981', height: "100%" }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", padding: "15px", borderRadius: "8px", marginBottom: "15px" }}>
-            <h4 style={{ margin: "0 0 5px 0", fontSize: "14px", color: "#1E40AF", fontWeight: "bold" }}>🌟 Core Leadership Strength: {calculatedMetrics.strength.name}</h4>
-            <p style={{ margin: 0, fontSize: "13px", color: "#1E3A8A", lineHeight: "1.5" }}>{calculatedMetrics.strength.desc}</p>
-          </div>
-
-          <div style={{ background: "#FFFBEB", border: "1px solid #FEF3C7", padding: "15px", borderRadius: "8px", marginBottom: "20px" }}>
-            <h4 style={{ margin: "0 0 5px 0", fontSize: "14px", color: "#92400E", fontWeight: "bold" }}>🎯 Primary Growth Horizon: {calculatedMetrics.growth.name}</h4>
-            <p style={{ margin: 0, fontSize: "13px", color: "#78350F", lineHeight: "1.5" }}>{calculatedMetrics.growth.desc}</p>
-          </div>
-
-          <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "12px", color: "#4B5563" }}>An activation check-in loop will initialize via <strong>{email}</strong> in 14 days to audit your experiment adjustments.</p>
-          </div>
+      {/* STEP 4: SUCCESS LAYOUT */}
+      {step === 4 && (
+        <div className="text-center p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
+          <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl">✓</div>
+          <h2 className="text-lg font-bold mb-1">Playbook Locked In Successfully</h2>
+          <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">Thank you. Your assessment scores and actionable playbook adjustments have been securely integrated into your professional SyncShift profile ledger.</p>
         </div>
       )}
 
