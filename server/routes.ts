@@ -29,9 +29,12 @@ import {
   surveyInvitations, 
   surveyResponses, 
   reports, 
-  auditLog 
+  auditLog,
+  // Your 3 new EQ inventory tables cleanly imported
+  eqQuestions,
+  eqResponses,
+  eqCommitments 
 } from "@shared/schema";
-import { eqQuestions, eqResponses, eqCommitments } from "../shared/schema";
 
 // SELF-HEALING DATABASE SCHEMA LAYER: Safely ensures table columns exist without drizzle-kit in production
 async function ensureSchemaUpToDate() {
@@ -954,7 +957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ quantumCredits: updatedCredits })
         .where(eq(organizations.id, orgId));
 
-      console.log(`💳 CONSULTANT BILLING: Allocated ${creditsToAllocate} credits to ${org.name}. New operational balance: ${updatedCredits}`);
+      console.log(`¼ CONSULTANT BILLING: Allocated ${creditsToAllocate} credits to ${org.name}. New operational balance: ${updatedCredits}`);
 
       return res.json({ 
         success: true, 
@@ -968,7 +971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OWNER ONLY: Provision a new Organization and its initial Admin with real names
+  // MAIN SYSTEM PROVISIONING HANDLER
   app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { orgName, domain, adminEmail, adminPassword, adminFirstName, adminLastName } = req.body;
@@ -1008,21 +1011,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  return httpServer;
-}
 
-function analyzeResponses(responses: any[]): any {
-  const totalResponses = responses.length;
-  return {
-    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
-    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
-    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
-    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
-  };
-}
-
-// =========================================================================
-  // AUTOMATED EQ SURVEY ROUTES
+  // =========================================================================
+  // AUTOMATED EQ SURVEY ROUTES (Safely brought inside the registration function)
   // =========================================================================
 
   // 1. Route to fetch the 20 questions for the user's screen
@@ -1038,7 +1029,7 @@ function analyzeResponses(responses: any[]): any {
   // 2. Route to save the 1-5 answers and calculate totals instantly
   app.post("/api/eq/submit", async (req, res) => {
     try {
-      const { userId, responses, commitments } = req.body; // Expects an array of answers
+      const { userId, responses, commitments } = req.body;
 
       // Save each individual 1-5 response to the database safely
       for (const resp of responses) {
@@ -1063,3 +1054,16 @@ function analyzeResponses(responses: any[]): any {
       res.status(500).json({ message: "Failed to save your assessment results." });
     }
   });
+
+  return httpServer;
+}
+
+function analyzeResponses(responses: any[]): any {
+  const totalResponses = responses.length;
+  return {
+    executiveSummary: `Based on ${totalResponses} responses accumulated anonymously.`,
+    strengths: [{ title: "Strategic Presence", description: "Demonstrated capacity to lead structural disruption maps.", icon: "lightbulb", rating: 4.5 }],
+    developmentAreas: [{ title: "Empowered Delegation", description: "Fostering organizational scale metrics through structural alignment pathways.", suggestions: ["Execution mapping matrixes"], priority: "high" }],
+    statistics: { totalResponses, averageRating: 4.5, responseRate: 100, topThemes: [] }
+  };
+}
