@@ -2,7 +2,6 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
-import { HTML } from "weasyprint"; // ✅ Static import cleanly registered at the top
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -111,26 +110,26 @@ async function ensureEQQuestionsExist() {
     await db.execute(sql`TRUNCATE TABLE eq_questions RESTART IDENTITY CASCADE;`);
     
     const baselineQuestions = [
-      { domainName: "composure", questionText: "I maintain physical and situational composure when unexpected operational disruptions occur." },
-      { domainName: "composure", questionText: "I pause and process my internal state before reacting to critical or frustrating professional feedback." },
-      { domainName: "composure", questionText: "I can shift my physiological tension or stress levels down intentionally during high-stakes moments." },
-      { domainName: "composure", questionText: "I handle shifting deadlines and volatile strategic direction without projecting anxiety onto others." },
-      { domainName: "social_awareness", questionText: "I actively pause before offering advice to ask if someone wants a solution or just an ear." },
-      { domainName: "social_awareness", questionText: "I notice subtle changes in team energy levels, posture, or hesitation during virtual and physical alignments." },
-      { domainName: "social_awareness", questionText: "I look for the unspoken motivations or underlying anxieties behind a stakeholder's resistance to change." },
-      { domainName: "social_awareness", questionText: "I tune out active devices and distractions to offer absolute attention when a colleague speaks to me." },
-      { domainName: "connection", questionText: "I explicitly acknowledge other people's perspectives even when they directly conflict with my own goals." },
-      { domainName: "connection", questionText: "I proactively have transparent conversations regarding relational gaps or friction before they escalate." },
-      { domainName: "connection", questionText: "I intentionally call out and validate the invisible operational work done by peers and direct supports." },
-      { domainName: "connection", questionText: "I share my own professional mistakes and lessons learned openly to model psychological safety." },
-      { domainName: "composure", questionText: "I recognize my personal somatic indicators of burnout (tightness, irritability) before they affect my choice of words." },
-      { domainName: "composure", questionText: "I step away or take temporary processing buffers when a work conversation becomes emotionally volatile." },
-      { domainName: "composure", questionText: "I protect structured thinking windows in my calendar from being eroded by non-critical issues." },
-      { domainName: "composure", questionText: "I explicitly state what I can and cannot commit to rather than accepting over-allocations silently." },
-      { domainName: "social_awareness", questionText: "I frame feedback around behavioral impacts and shared outcomes rather than personal criticisms." },
-      { domainName: "social_awareness", questionText: "I encourage quieter team members to speak up in group settings and ensure their input isn't cut off." },
-      { domainName: "connection", questionText: "I check in on colleagues as human beings during periods of intense organizational stress, not just project metrics." },
-      { domainName: "connection", questionText: "I seek out collaborative input from areas outside my immediate domain to test the validity of my assumptions." }
+      { domainName: "self_awareness", questionText: "I notice how tension or frustration builds up in my body before it changes my choice of words." },
+      { domainName: "self_awareness", questionText: "I am aware of my immediate emotional triggers when someone criticizes or corrects me." },
+      { domainName: "self_awareness", questionText: "I recognize the early signs of emotional exhaustion in myself before I reach a breaking point." },
+      { domainName: "self_awareness", questionText: "I know when I need to step away from a heated conversation to clear my head before responding." },
+      { domainName: "self_awareness", questionText: "I can spot when my personal habits or routines are starting to slip due to stress." },
+      { domainName: "self_management", questionText: "I can pause and calm myself down quickly when unexpected daily disruptions happen." },
+      { domainName: "self_management", questionText: "I cope well with sudden plans changing without letting my frustration ruin the mood for others." },
+      { domainName: "self_management", questionText: "I can say a clear, polite 'no' to extra favors or requests when my schedule is already full." },
+      { domainName: "self_management", questionText: "When addressing an issue, I focus on what actually happened rather than blaming someone's character." },
+      { domainName: "self_management", questionText: "I actively resist the urge to interrupt people, even when I strongly disagree with what they are saying." },
+      { domainName: "social_awareness", questionText: "I listen to others without immediately jumping in to offer advice or fix their problems." },
+      { domainName: "social_awareness", questionText: "I easily notice when a friend or family member's tone or body language shifts, signaling they might be upset." },
+      { domainName: "social_awareness", questionText: "I try to understand the hidden worries or motivations behind why someone is acting defensive." },
+      { domainName: "social_awareness", questionText: "I can put away my phone or distractions and give someone my completely undivided attention." },
+      { domainName: "social_awareness", questionText: "I look at situations from other people's cultural or personal backgrounds to understand their point of view." },
+      { domainName: "relationship_management", questionText: "I can genuinely acknowledge someone else's point of view, even when it directly clashes with my own." },
+      { domainName: "relationship_management", questionText: "I address misunderstandings or relational friction early on, rather than letting them quietly simmer." },
+      { domainName: "relationship_management", questionText: "I regularly go out of my way to express appreciation for the small things people do for me." },
+      { domainName: "relationship_management", questionText: "I am comfortable admitting when I am wrong or when I've made a mistake." },
+      { domainName: "relationship_management", questionText: "I check in on the people in my life to see how they are doing as human beings, not just to coordinate tasks." }
     ];
 
     for (const q of baselineQuestions) {
@@ -209,13 +208,14 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
+  // FORCE NESTED SEQUENTIAL BOOT CHAIN
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => ensureEQQuestionsExist())
     .catch(err => console.error("Background DB alignment exception:", err));
 
   // =========================================================================
-  // 🔓 PUBLIC OPEN EQ SURVEY ROUTES (Placed ABOVE authentication guard rails)
+  // 🔓 PUBLIC OPEN EQ SURVEY ROUTES
   // =========================================================================
 
   app.get("/api/eq/questions", async (_req, res) => {
@@ -261,10 +261,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      return res.json({ message: "Assessment scores and commitments saved successfully." });
+      return res.json({ message: "Assessment saved successfully." });
     } catch (error) {
-      console.error("EQ submit crashed:", error);
-      return res.status(500).json({ message: "Failed to save your assessment results." });
+      console.error("Submission failed:", error);
+      return res.status(500).json({ message: "Failed to save results." });
     }
   });
 
@@ -278,35 +278,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <html>
         <head>
           <meta charset="utf-8">
+          <title>SyncShift EQ Report - ${fullName}</title>
           <style>
-            @page { size: A4; margin: 20mm 15mm; }
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.6; margin: 0; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; }
             .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 25px; }
-            .brand { font-size: 14pt; font-weight: 800; color: #0b1120; text-transform: uppercase; }
+            .brand { font-size: 16pt; font-weight: 800; color: #0b1120; text-transform: uppercase; }
             .brand span { color: #f97316; }
-            .title { font-size: 22pt; font-weight: 800; color: #0b1120; margin: 5px 0; }
-            .meta { font-size: 10pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px; }
-            .heading { font-size: 13pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 15px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; }
-            .bar-row { margin-bottom: 12px; }
-            .bar-label { font-size: 9.5pt; font-weight: 700; display: block; margin-bottom: 2px; }
-            .bar-bg { width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; }
-            .bar-fill { height: 100%; border-radius: 4px; }
-            .card { padding: 15px; border-radius: 10px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; }
+            .title { font-size: 24pt; font-weight: 800; color: #0b1120; margin: 5px 0; }
+            .meta { font-size: 10pt; color: #475569; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px; }
+            .heading { font-size: 14pt; font-weight: 700; color: #0b1120; margin-top: 30px; margin-bottom: 15px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; }
+            .bar-row { margin-bottom: 15px; }
+            .bar-label { font-size: 10pt; font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 4px; }
+            .bar-bg { width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; }
+            .bar-fill { height: 100%; border-radius: 5px; }
+            .card { padding: 20px; border-radius: 10px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; }
             .card-highest { background: #f0fdf4; border-color: #bbf7d0; }
             .card-lowest { background: #eff6ff; border-color: #bfdbfe; }
-            .card-title { font-size: 10pt; font-weight: 700; margin: 0 0 5px 0; text-transform: uppercase; color: #475569; }
+            .card-title { font-size: 10.5pt; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; color: #475569; }
             .card-highest .card-title { color: #166534; }
             .card-lowest .card-title { color: #1e40af; }
-            .card-text { font-size: 9.5pt; color: #334155; margin: 0; }
-            .action-box { background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 10px; }
-            .action-tag { font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; }
-            .playbook { background: #0b1120; color: #ffffff; padding: 20px; border-radius: 12px; margin-top: 25px; }
-            .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 5px 0; }
-            .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 10px 0 0 0; }
-            .footer { font-size: 8pt; color: #64748b; text-align: center; margin-top: 30px; }
+            .card-text { font-size: 10pt; color: #334155; margin: 0; }
+            .action-box { background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 12px; }
+            .action-tag { font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 4px; }
+            .playbook { background: #0b1120; color: #ffffff; padding: 20px; border-radius: 12px; margin-top: 30px; }
+            .playbook-title { font-size: 12pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 8px 0; }
+            .quote { font-style: italic; font-size: 10.5pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 10px 0 0 0; }
+            .footer { font-size: 9pt; color: #64748b; text-align: center; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+            .no-print { margin-bottom: 20px; background: #f97316; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+            @media print { .no-print { display: none; } body { margin: 0; padding: 0; } }
           </style>
         </head>
         <body>
+          <button class="no-print" onclick="window.print()">🖨️ Click Here to Print or Save as PDF</button>
+          
           <div class="header">
             <div class="brand">⚡ Sync<span>Shift</span></div>
             <div class="title">Personal Intelligence Blueprint</div>
@@ -318,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           <div class="heading">Your Score Summary</div>
           \${metrics.map((m: any) => \`
             <div class="bar-row">
-              <span class="bar-label">\${m.title} &mdash; \${m.score} / 5.0</span>
+              <div class="bar-label"><span>\${m.title}</span> <span>\${m.score} / 5.0</span></div>
               <div class="bar-bg">
                 <div class="bar-fill" style="width: \${(m.score / 5) * 100}%; background-color: \${m.key === 'self_awareness' ? '#3b82f6' : m.key === 'self_management' ? '#6366f1' : m.key === 'social_awareness' ? '#f97316' : '#10b981'};"></div>
               </div>
@@ -346,25 +350,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           <div class="footer">
             SyncShift Intelligence Matrix &bull; A check-in update loop will initialize via email in 14 days.
           </div>
+          
+          <script>
+            window.onload = function() { setTimeout(function() { window.print(); }, 300); }
+          </script>
         </body>
         </html>
       `;
 
-      // @ts-ignore
-      const pdfBuffer = HTML({ string: htmlContent }).write_pdf();
-      
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Report_\${fullName.replace(/\\s+/g, '_')}.pdf"`);
-      return res.send(pdfBuffer);
-
+      res.setHeader("Content-Type", "text/html");
+      return res.send(htmlContent);
     } catch (error) {
-      console.error("PDF download loop crashed:", error);
       return res.status(500).json({ message: "Failed to generate report copy." });
     }
   });
 
   // =========================================================================
-  // 🔒 PROTECTED CORE ENDPOINTS (Requires User Auths)
+  // 🔒 PROTECTED CORE ENDPOINTS
   // =========================================================================
 
   (async () => {
