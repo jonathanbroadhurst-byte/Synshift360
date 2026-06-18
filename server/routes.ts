@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
+import { HTML } from "weasyprint";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -257,6 +258,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isActive: true
         });
       }
+
+      import { HTML } from "weasyprint"; // Ensure WeasyPrint is imported at the top of routes.ts
+
+// ... inside your registerRoutes(app) block ...
+
+app.post("/api/eq/download", async (req, res) => {
+  try {
+    const { fullName, email, scores, metrics, commitment } = req.body;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    // 1. Build the HTML template with clean, everyday language matching the UI
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          @page { size: A4; margin: 20mm 15mm; }
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.6; margin: 0; }
+          .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 25px; }
+          .brand { font-size: 14pt; font-weight: 800; color: #0b1120; text-transform: uppercase; }
+          .brand span { color: #f97316; }
+          .title { font-size: 22pt; font-weight: 800; color: #0b1120; margin: 5px 0; }
+          .meta { font-size: 10pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px; }
+          .heading { font-size: 13pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 15px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; }
+          .bar-row { margin-bottom: 12px; }
+          .bar-label { font-size: 9.5pt; font-weight: 700; display: block; margin-bottom: 2px; }
+          .bar-bg { width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; }
+          .bar-fill { height: 100%; border-radius: 4px; }
+          .card { padding: 15px; border-radius: 10px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; }
+          .card-highest { background: #f0fdf4; border-color: #bbf7d0; }
+          .card-lowest { background: #eff6ff; border-color: #bfdbfe; }
+          .card-title { font-size: 10pt; font-weight: 700; margin: 0 0 5px 0; text-transform: uppercase; color: #475569; }
+          .card-highest .card-title { color: #166534; }
+          .card-lowest .card-title { color: #1e40af; }
+          .card-text { font-size: 9.5pt; color: #334155; margin: 0; }
+          .action-box { background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 10px; }
+          .action-tag { font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; }
+          .playbook { background: #0b1120; color: #ffffff; padding: 20px; border-radius: 12px; margin-top: 25px; }
+          .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 5px 0; }
+          .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 10px 0 0 0; }
+          .footer { font-size: 8pt; color: #64748b; text-align: center; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="brand">⚡ Sync<span>Shift</span></div>
+          <div class="title">Personal Intelligence Blueprint</div>
+          <div class="meta">
+            <strong>Name:</strong> ${fullName} &nbsp;|&nbsp; <strong>Email:</strong> ${email} &nbsp;|&nbsp; <strong>Date:</strong> ${dateStr}
+          </div>
+        </div>
+
+        <div class="heading">Your Score Summary</div>
+        ${metrics.map((m: any) => `
+          <div class="bar-row">
+            <span class="bar-label">${m.title} &mdash; ${m.score} / 5.0</span>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width: ${(m.score / 5) * 100}%; background-color: ${m.key === 'self_awareness' ? '#3b82f6' : m.key === 'self_management' ? '#6366f1' : m.key === 'social_awareness' ? '#f97316' : '#10b981'};"></div>
+            </div>
+          </div>
+        `).join('')}
+
+        <div class="heading">Insights & Action Items</div>
+        ${metrics.map((m: any, idx: number) => `
+          <div class="card ${idx === 0 ? 'card-highest' : idx === 3 ? 'card-lowest' : ''}">
+            <div class="card-title">${idx === 0 ? '🏆 Strongest Element' : idx === 3 ? '🎯 Main Growth Horizon' : '⚡ Balanced Element'} &bull; ${m.title}</div>
+            <p class="card-text">${m.analysis}</p>
+            <div class="action-box">
+              <span class="action-tag">Practical Action</span>
+              <p class="card-text" style="font-weight: 500;">${m.action}</p>
+            </div>
+          </div>
+        `).join('')}
+
+        <div class="playbook">
+          <div class="playbook-title">My 14-Day Micro-Experiment</div>
+          <p class="card-text" style="color: #94a3b8; font-size: 9pt;">Your personal commitment to action:</p>
+          <p class="quote">"${commitment || 'No action written down yet.'}"</p>
+        </div>
+
+        <div class="footer">
+          SyncShift Intelligence Matrix &bull; A check-in update loop will initialize via email in 14 days.
+        </div>
+      </body>
+      </html>
+    `;
+
+    // 2. Compile the HTML payload straight into a binary PDF streaming buffer
+    const pdfBuffer = HTML(string=htmlContent).write_pdf();
+    
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Report_${fullName.replace(/\s+/g, '_')}.pdf"`);
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error("PDF download loop crashed:", error);
+    return res.status(500).json({ message: "Failed to generate report copy." });
+  }
+});
 
       for (const resp of responses) {
         await db.insert(eqResponses).values({
