@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
+import { HTML } from "weasyprint"; // ✅ Clean static import linked safely to package dependency
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -208,7 +209,6 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // FORCE NESTED SEQUENTIAL BOOT CHAIN
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => ensureEQQuestionsExist())
@@ -273,104 +273,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // 1. Structural isolation loop rendering for graph items
-      const scoreSummaryRows = metrics.map((m: any) => {
-        const percentage = (m.score / 5) * 100;
-        let barColor = '#3b82f6';
-        if (m.key === 'self_management') barColor = '#6366f1';
-        if (m.key === 'social_awareness') barColor = '#f97316';
-        if (m.key === 'relationship_management') barColor = '#10b981';
+      let scoreRowsHtml = "";
+      if (Array.isArray(metrics)) {
+        for (const m of metrics) {
+          const percentage = (m.score / 5) * 100;
+          let barColor = '#3b82f6';
+          if (m.key === 'self_management') barColor = '#6366f1';
+          if (m.key === 'social_awareness') barColor = '#f97316';
+          if (m.key === 'relationship_management') barColor = '#10b981';
 
-        return `
-          <div style="margin-bottom: 15px;">
-            <div style="font-size: 10pt; font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>${m.title}</span> 
-              <span>${m.score} / 5.0</span>
+          scoreRowsHtml += `
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 10pt; font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 4px; color: #1e293b;">
+                <span>${m.title}</span> 
+                <span>${m.score} / 5.0</span>
+              </div>
+              <div style="width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; border-radius: 4px; width: ${percentage}%; background-color: ${barColor};"></div>
+              </div>
             </div>
-            <div style="width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden;">
-              <div style="height: 100%; border-radius: 5px; width: ${percentage}%; background-color: ${barColor};"></div>
+          `;
+        }
+      }
+
+      let insightsRowsHtml = "";
+      if (Array.isArray(metrics)) {
+        metrics.forEach((m: any, idx: number) => {
+          let cardStyle = '';
+          let badgeText = '⚡ Balanced Element';
+          if (idx === 0) { cardStyle = 'background: #f0fdf4; border-color: #bbf7d0; color: #166534;'; badgeText = '🏆 Strongest Element'; }
+          else if (idx === 3) { cardStyle = 'background: #eff6ff; border-color: #bfdbfe; color: #1e40af;'; badgeText = '🎯 Main Growth Horizon'; }
+
+          insightsRowsHtml += `
+            <div style="padding: 16px; border-radius: 10px; margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; ${cardStyle}">
+              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText} &bull; ${m.title}</div>
+              <p style="font-size: 9.5pt; color: #334155; margin: 0; line-height: 1.5;">${m.analysis}</p>
+              <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 10px;">
+                <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 2px;">Practical Action</span>
+                <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${m.action}</p>
+              </div>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        });
+      }
 
-      // 2. Structural isolation loop rendering for diagnostic block segments
-      const insightCardRows = metrics.map((m: any, idx: number) => {
-        let cardClass = '';
-        let badgeTitle = '⚡ Balanced Element';
-        if (idx === 0) { cardClass = 'background: #f0fdf4; border-color: #bbf7d0;'; badgeTitle = '🏆 Strongest Element'; }
-        else if (idx === 3) { cardClass = 'background: #eff6ff; border-color: #bfdbfe;'; badgeTitle = '🎯 Main Growth Horizon'; }
+      const reportHtml = [
+        `<!DOCTYPE html>`,
+        `<html>`,
+        `<head>`,
+        `  <meta charset="utf-8">`,
+        `  <style>`,
+        `    @page { size: A4; margin: 20mm 15mm; }`,
+        `    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }`,
+        `    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }`,
+        `    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }`,
+        `    .brand span { color: #f97316; }`,
+        `    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }`,
+        `    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }`,
+        `    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }`,
+        `    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }`,
+        `    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }`,
+        `    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }`,
+        `    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }`,
+        `  </style>`,
+        `</head>`,
+        `<body>`,
+        `  <div class="header">`,
+        `    <div class="brand">⚡ Sync<span>Shift</span></div>`,
+        `    <div class="title">Personal Intelligence Blueprint</div>`,
+        `    <div class="meta">`,
+        `      <strong>Name:</strong> `, fullName, ` &nbsp;|&nbsp; <strong>Email:</strong> `, email, ` &nbsp;|&nbsp; <strong>Date Generated:</strong> `, dateStr,
+        `    </div>`,
+        `  </div>`,
+        `  <div class="heading">Diagnostic Summary</div>`,
+        scoreRowsHtml,
+        `  <div class="heading">Domain Insights & Recommendations</div>`,
+        insightsRowsHtml,
+        `  <div class="playbook">`,
+        `    <div class="playbook-title">My 14-Day Micro-Experiment</div>`,
+        `    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>`,
+        `    <p class="quote">"`, (commitment || 'No active routine step written down yet.'), `"</p>`,
+        `  </div>`,
+        `  <div class="footer">`,
+        `    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.`,
+        `  </div>`,
+        `</body>`,
+        `</html>`
+      ].join('');
 
-        return `
-          <div style="padding: 20px; border-radius: 10px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; ${cardClass}">
-            <div style="font-size: 10.5pt; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; color: #475569;">${badgeTitle} &bull; ${m.title}</div>
-            <p style="font-size: 10pt; color: #334155; margin: 0;">${m.analysis}</p>
-            <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 12px;">
-              <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 4px;">Practical Action</span>
-              <p style="font-size: 10pt; color: #0f172a; margin: 0; font-weight: 500;">${m.action}</p>
-            </div>
-          </div>
-        `;
-      }).join('');
+      // 4. Fire the string layout direct into WeasyPrint to construct a true binary PDF block
+      // @ts-ignore
+      const pdfBuffer = HTML({ string: reportHtml }).write_pdf();
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf"`);
+      return res.send(pdfBuffer);
 
-      // 3. Consolidated layout framing deployment string wrapper
-      const htmlPayload = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>SyncShift EQ Report - ${fullName}</title>
-          <style>
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-            .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 25px; }
-            .brand { font-size: 16pt; font-weight: 800; color: #0b1120; text-transform: uppercase; }
-            .brand span { color: #f97316; }
-            .title { font-size: 24pt; font-weight: 800; color: #0b1120; margin: 5px 0; }
-            .meta { font-size: 10pt; color: #475569; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px; }
-            .heading { font-size: 14pt; font-weight: 700; color: #0b1120; margin-top: 30px; margin-bottom: 15px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; }
-            .playbook { background: #0b1120; color: #ffffff; padding: 20px; border-radius: 12px; margin-top: 30px; }
-            .playbook-title { font-size: 12pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 8px 0; }
-            .quote { font-style: italic; font-size: 10.5pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 10px 0 0 0; }
-            .footer { font-size: 9pt; color: #64748b; text-align: center; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-            .no-print { margin-bottom: 20px; background: #f97316; color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-            @media print { .no-print { display: none; } body { margin: 20px; padding: 0; } }
-          </style>
-        </head>
-        <body>
-          <button class="no-print" onclick="window.print()">🖨️ Click Here to Print or Save as PDF</button>
-          
-          <div class="header">
-            <div class="brand">⚡ Sync<span>Shift</span></div>
-            <div class="title">Personal Intelligence Blueprint</div>
-            <div class="meta">
-              <strong>Participant Name:</strong> \${fullName} &nbsp;|&nbsp; <strong>Registered Email:</strong> \${email} &nbsp;|&nbsp; <strong>Date Evaluated:</strong> \${dateStr}
-            </div>
-          </div>
-
-          <div class="heading">Your Score Summary</div>
-          \${scoreSummaryRows}
-
-          <div class="heading">Insights & Action Items</div>
-          \${insightCardRows}
-
-          <div class="playbook">
-            <div class="playbook-title">My 14-Day Micro-Experiment</div>
-            <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 8px 0;">Your personal commitment to active-test adjustments:</p>
-            <p class="quote">"\${commitment || 'No micro-experiment action written down yet.'}"</p>
-          </div>
-
-          <div class="footer">
-            SyncShift Evaluation Framework Ledger &bull; Progress tracking verification will initialize in 14 business days.
-          </div>
-        </body>
-        </html>
-      `;
-
-      res.setHeader("Content-Type", "text/html");
-      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Report_\${fullName.replace(/\\s+/g, '_')}.html"`);
-      return res.send(htmlPayload);
     } catch (error) {
-      return res.status(500).json({ message: "Failed to generate report copy." });
+      console.error("Server compilation engine fault:", error);
+      return res.status(500).json({ message: "Failed to compile PDF document copy." });
     }
   });
 
