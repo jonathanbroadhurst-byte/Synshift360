@@ -139,17 +139,19 @@ export default function EQSurvey() {
       });
 
       if (response.ok) {
-        const blob = await response.blob();
+        const htmlText = await response.text();
+        const blob = new Blob([htmlText], { type: "text/html" });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf`);
+        link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.html`);
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(url);
       }
     } catch (err) {
-      console.error("Failed to fetch download stream", err);
+      console.error("Failed to execute safe file download:", err);
     }
   };
 
@@ -302,7 +304,7 @@ export default function EQSurvey() {
         </div>
       )}
 
-      {/* STEP 4: SUCCESS CONFIRMATION */}
+      {/* STEP 4: SUCCESS CONFIRMATION WITH SAFE LINK */}
       {step === 4 && (
         <div className="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm max-w-sm mx-auto">
           <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-green-100">✓</div>
@@ -314,7 +316,7 @@ export default function EQSurvey() {
             onClick={handlePDFDownload}
             className="w-full mb-4 bg-orange-500 hover:bg-orange-600 text-white font-bold p-2.5 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
           >
-            📥 Download Your PDF Report Copy
+            📥 Download Your Report Copy
           </button>
 
           <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
