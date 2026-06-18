@@ -39,9 +39,41 @@ import {
 async function ensureSchemaUpToDate() {
   try {
     console.log("🔍 Checking database column structure alignments...");
+    
+    // 1. Core Platform Column Injections
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
-    console.log("⚡ Column structures verified or injected successfully into PostgreSQL cells.");
+    
+    // 2. Automate Missing EQ Table Structures
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS eq_questions (
+        id SERIAL PRIMARY KEY,
+        domain_name TEXT NOT NULL,
+        question_text TEXT NOT NULL
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS eq_responses (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        question_id INTEGER NOT NULL,
+        score_value INTEGER NOT NULL,
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS eq_commitments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        domain_name TEXT NOT NULL,
+        commitment_text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    console.log("⚡ Column structures and EQ tables verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
     console.error("⚠️ Schema auto-alignment encountered an issue:", error);
   }
