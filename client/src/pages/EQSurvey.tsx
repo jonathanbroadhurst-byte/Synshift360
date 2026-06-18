@@ -237,4 +237,64 @@ export default function EQSurvey() {
 
             {/* Structured Real-World Feedback Blocks */}
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Domain Insights & Recommendations</h4>
-            <div className="space
+            <div className="space-y-4">
+              {processedResults.map((item, index) => {
+                const isHighest = index === 0;
+                const isLowest = index === 3;
+                
+                return (
+                  <div key={item.key} className={`p-5 rounded-xl border ${isHighest ? 'bg-blue-50/50 border-blue-100' : isLowest ? 'bg-amber-50/50 border-amber-100' : 'bg-gray-50/80 border-gray-200'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-white shadow-sm border border-gray-200">
+                        {isHighest ? "🏆 Strongest Element" : isLowest ? "🎯 Main Growth Horizon" : "⚡ Balanced Element"}
+                      </span>
+                      <h5 className="text-sm font-bold text-gray-900">{item.title}</h5>
+                    </div>
+                    
+                    <p className="text-xs text-gray-700 leading-relaxed mb-3">
+                      {item.analysis}
+                    </p>
+                    
+                    <div className="bg-white/80 border border-gray-100 p-3 rounded-lg">
+                      <p className="text-xs text-gray-800 leading-relaxed">
+                        <strong className="text-orange-600 font-bold uppercase tracking-wider text-[10px] block mb-0.5">Practical Action:</strong> 
+                        {item.action}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ACTION PLAYBOOK SUBMISSION FOOTER */}
+          <form onSubmit={submitFinalLead} className="bg-[#0B1120] text-white p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <h3 className="text-base font-bold mb-1 text-orange-400">Lock In Your Action Plan</h3>
+            <p className="text-gray-400 text-xs mb-5 leading-relaxed">Commit to trying out one practical action step within your normal routine over the next 14 days.</p>
+            
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl mb-5">
+              <h4 className="text-xs font-bold text-gray-200 mb-2">🧩 My 14-Day Micro-Experiment</h4>
+              <textarea required className="w-full h-20 p-3 bg-gray-900 text-white text-xs border border-white/20 rounded-lg focus:border-orange-400 outline-none resize-none" placeholder="e.g., I will try pausing for a moment to notice physical signs of stress during our weekly alignment meeting this Thursday..." value={commitments["social_awareness"] || ""} onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)} />
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setStep(2)} className="bg-transparent border border-white/20 text-gray-300 px-5 py-2.5 rounded-lg text-xs font-semibold">Back to Questions</button>
+              <button type="submit" className="flex-1 bg-gradient-to-r from-orange-400 to-amber-500 text-white px-5 py-2.5 rounded-lg text-xs font-bold shadow-md">Save My Plan & Complete Registration</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* STEP 4: SUCCESS CONFIRMATION */}
+      {step === 4 && (
+        <div className="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm max-w-sm mx-auto">
+          <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-green-100">✓</div>
+          <h2 className="text-base font-bold mb-1 text-gray-900">Plan Saved Successfully</h2>
+          <p className="text-xs text-gray-500 leading-relaxed mb-4">Thank you. Your assessment scores and your action commitment have been safely logged into your profile.</p>
+          <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
+        </div>
+      )}
+
+    </div>
+  );
+}
