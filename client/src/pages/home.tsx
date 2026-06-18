@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { Compass, Cpu, Target, User, Users, TrendingUp, ArrowRight, BrainCircuit } from "lucide-react";
-import EQSurvey from "../EQSurvey"; 
+import EQSurvey from "./EQSurvey"; 
 
 export default function Home() {
   const [showPublicEQ, setShowPublicEQ] = useState(false);
