@@ -2,6 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
+// @ts-ignore
+import pdf from "html-pdf-node";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
@@ -208,6 +210,7 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
+  // FORCE NESTED SEQUENTIAL BOOT CHAIN
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
     .then(() => ensureEQQuestionsExist())
@@ -374,29 +377,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      // 🌐 High-Performance CDN Edge Compile: Zero dependencies required on Koyeb
-      const formData = new URLSearchParams();
-      formData.append("src", reportHtml);
+      // Invoke html-pdf-node engine to securely transform layout components into a native byte block
+      const options = { format: 'A4', margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" } };
+      const fileObject = { content: reportHtml };
 
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: formData
+      pdf.generatePdf(fileObject, options).then((pdfBuffer: Buffer) => {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf"`);
+        return res.send(pdfBuffer);
+      }).catch((pdfErr: any) => {
+        console.error("PDF generation step internal engine fault:", pdfErr);
+        return res.status(500).json({ message: "Engine failed to process buffer." });
       });
-
-      if (!pdfResponse.ok) {
-        throw new Error(`API stream rejected: ${pdfResponse.statusText}`);
-      }
-
-      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-      const pdfBuffer = Buffer.from(pdfArrayBuffer);
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf"`);
-      return res.send(pdfBuffer);
 
     } catch (error) {
       console.error("Server compilation engine fault:", error);
