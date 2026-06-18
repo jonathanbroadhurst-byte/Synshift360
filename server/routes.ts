@@ -35,16 +35,18 @@ import {
   eqCommitments 
 } from "@shared/schema";
 
-// SELF-HEALING DATABASE SCHEMA LAYER
+// =========================================================================
+// 🛠️ SELF-HEALING DATABASE SCHEMA LAYER
+// =========================================================================
 async function ensureSchemaUpToDate() {
   try {
     console.log("🔍 Checking database column structure alignments...");
     
-    // 1. Core Platform Column Injections
+    // Core Platform Column Injections
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
     
-    // 2. Automate Missing EQ Table Structures
+    // Automate Missing EQ Table Structures
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS eq_questions (
         id SERIAL PRIMARY KEY,
@@ -79,7 +81,9 @@ async function ensureSchemaUpToDate() {
   }
 }
 
-// AUTO-SEEDER
+// =========================================================================
+// 🌱 SEEDER OPERATIONS
+// =========================================================================
 async function ensureQuantumTemplateExists() {
   try {
     const existingTemplate = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum")).limit(1);
@@ -103,30 +107,56 @@ async function ensureQuantumTemplateExists() {
   }
 }
 
-// AUTO-SEEDER FOR EQ INVENTORY: Seeds the 20 universal questions if empty
 async function ensureEQQuestionsExist() {
   try {
-    const existing = await db.select().from(eqQuestions).limit(1);
-    if (existing.length === 0) {
-      console.log("🌱 Seeding 20 Universal EQ Questions into database...");
-      
-      // A quick sample array to test the loop infrastructure safely
-      const sampleQuestions = [
-        { domainName: "social_awareness", questionText: "I actively listen to others without interrupting or planning my reply." },
-        { domainName: "composure", questionText: "I remain calm and clear-headed under high-stress situations." },
-        { domainName: "connection", questionText: "I notice when a colleague's tone or energy changes in a meeting." }
-      ];
+    // We clean out the old 3 test questions to allow a fresh master seed write
+    console.log("🌱 Cleaning old test parameters and seeding Master Universal 20 EQ Questions...");
+    await db.execute(sql`TRUNCATE TABLE eq_questions RESTART IDENTITY CASCADE;`);
+    
+    const baselineQuestions = [
+      // Domain 1: Composure (Self-Regulation under pressure)
+      { domainName: "composure", questionText: "I maintain physical and situational composure when unexpected operational disruptions occur." },
+      { domainName: "composure", questionText: "I pause and process my internal state before reacting to critical or frustrating professional feedback." },
+      { domainName: "composure", questionText: "I can shift my physiological tension or stress levels down intentionally during high-stakes moments." },
+      { domainName: "composure", questionText: "I handle shifting deadlines and volatile strategic direction without projecting anxiety onto others." },
 
-      for (const q of sampleQuestions) {
-        await db.insert(eqQuestions).values(q);
-      }
-      console.log("🎯 EQ Questions seeded successfully.");
+      // Domain 2: Social Awareness (Systemic Empathy)
+      { domainName: "social_awareness", questionText: "I actively pause before offering advice to ask if someone wants a solution or just an ear." },
+      { domainName: "social_awareness", questionText: "I notice subtle changes in team energy levels, posture, or hesitation during virtual and physical alignments." },
+      { domainName: "social_awareness", questionText: "I look for the unspoken motivations or underlying anxieties behind a stakeholder's resistance to change." },
+      { domainName: "social_awareness", questionText: "I tune out active devices and distractions to offer absolute attention when a colleague speaks to me." },
+
+      // Domain 3: Connection (Relational Trust & Resonance)
+      { domainName: "connection", questionText: "I explicitly acknowledge other people's perspectives even when they directly conflict with my own goals." },
+      { domainName: "connection", questionText: "I proactively have transparent conversations regarding relational gaps or friction before they escalate." },
+      { domainName: "connection", questionText: "I intentionally call out and validate the invisible operational work done by peers and direct supports." },
+      { domainName: "connection", questionText: "I share my own professional mistakes and lessons learned openly to model psychological safety." },
+
+      // Domain 4: Composure Loop & Boundaries
+      { domainName: "composure", questionText: "I recognize my personal somatic indicators of burnout (tightness, irritability) before they affect my choice of words." },
+      { domainName: "composure", questionText: "I step away or take temporary processing buffers when a work conversation becomes emotionally volatile." },
+      { domainName: "composure", questionText: "I protect structured thinking windows in my calendar from being eroded by non-critical issues." },
+      { domainName: "composure", questionText: "I explicitly state what I can and cannot commit to rather than accepting over-allocations silently." },
+
+      // Domain 5: Social Awareness Focus & Connection
+      { domainName: "social_awareness", questionText: "I frame feedback around behavioral impacts and shared outcomes rather than personal criticisms." },
+      { domainName: "social_awareness", questionText: "I encourage quieter team members to speak up in group settings and ensure their input isn't cut off." },
+      { domainName: "connection", questionText: "I check in on colleagues as human beings during periods of intense organizational stress, not just project metrics." },
+      { domainName: "connection", questionText: "I seek out collaborative input from areas outside my immediate domain to test the validity of my assumptions." }
+    ];
+
+    for (const q of baselineQuestions) {
+      await db.insert(eqQuestions).values(q);
     }
+    console.log("🎯 Master EQ 20 Matrix populated successfully into database cells.");
   } catch (error) {
-    console.error("⚠️ EQ Seeder encountered a database alignment delay:", error);
+    console.error("⚠️ EQ Seeder background exception:", error);
   }
 }
 
+// =========================================================================
+// 📧 UTILITY COMM SYSTEM HANDLES
+// =========================================================================
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
     return mailjetEmail.sendSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
@@ -141,6 +171,9 @@ async function sendQuantumEmail(toEmail: string, firstName: string, surveyTitle:
   return resendEmail.sendQuantumSurveyConfirmationEmail(toEmail, firstName, surveyTitle, leaderName, code, baseUrl);
 }
 
+// =========================================================================
+// 🛡️ SECURITY TOKEN MIDDWARE GATE
+// =========================================================================
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 interface AuthenticatedRequest extends Request {
@@ -182,8 +215,17 @@ const generateResponseHash = (email: string, cycleId: number): string => {
   return crypto.createHash('sha256').update(`${email}-${cycleId}-${process.env.HASH_SALT || 'default-salt'}`).digest('hex');
 };
 
+// =========================================================================
+// 🚀 MASTER EXPRESS ROUTE ENGINES
+// =========================================================================
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // 🔄 FORCE NESTED SEQUENTIAL BOOT CHAIN
+  ensureSchemaUpToDate()
+    .then(() => ensureQuantumTemplateExists())
+    .then(() => ensureEQQuestionsExist())
+    .catch(err => console.error("Background DB alignment exception:", err));
 
   // =========================================================================
   // 🔓 PUBLIC OPEN EQ SURVEY ROUTES (Placed ABOVE authentication guard rails)
@@ -202,7 +244,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { leadName, leadEmail, responses, commitments } = req.body;
       
-      // Look for or create a placeholder user profile for this lead
       let user = await storage.getUserByEmail(leadEmail);
       if (!user) {
         user = await storage.createUser({
@@ -212,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: leadName.split(' ').slice(1).join(' ') || 'Lead',
           password: await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10),
           role: 'leader',
-          organizationId: 1, // Default lead capture bucket
+          organizationId: 1, 
           isActive: true
         });
       }
@@ -240,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // =========================================================================
-  // BACKEND PLATFORM CORE MANAGEMENT OPERATIONS (Protected Loops)
+  // 🔒 PROTECTED CORE ENDPOINTS (Requires User Auths)
   // =========================================================================
 
   (async () => {
@@ -255,11 +296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send("Live-patch active via boot core script layer.");
   });
 
-  ensureSchemaUpToDate()
-    .then(() => ensureQuantumTemplateExists())
-    .then(() => ensureEQQuestionsExist())
-    .catch(err => console.error("Background DB alignment exception:", err));
-
   app.get("/api/download/participant-guide", (req: Request, res: Response) => {
     const filePath = path.join(process.cwd(), 'Survey_Participant_Guide.docx');
     if (!fs.existsSync(filePath)) return res.status(404).json({ message: "Guide not found" });
@@ -271,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/organizations/:orgId/deploy-surveys", authenticateToken, requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
-      const { method, participants, fileData } = req.body;
+      const { method, participants } = req.body;
       let targets: Array<{ firstName: string; lastName: string; email: string }> = [];
 
       if (method === 'manual' && Array.isArray(participants)) {
@@ -384,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/surveys/personal", async (req: Request, res: Response) => {
     try {
-      const { contactData, surveyData } = req.body;
+      const { surveyData } = req.body;
       const orgs = await storage.getOrganizations();
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const cycle = await storage.createSurveyCycle({ surveyId: 1, leaderId: 1, organizationId: orgs[0].id, title: surveyData.title, status: 'active', endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) });
@@ -486,7 +522,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reports/generate/:cycleId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.cycleId));
-    const responses = await storage.getResponsesByCycle(cycle.id);
     res.status(201).json(await storage.createReport({ cycleId: cycle.id, leaderId: cycle.leaderId, organizationId: cycle.organizationId, title: `Report - ${cycle.title}`, executiveSummary: "Compiled Analysis", strengths: [], developmentAreas: [], statistics: {}, status: "pending" }));
   });
 
