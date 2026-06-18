@@ -1,0 +1,125 @@
+import React, { useState, useEffect } from "react";
+
+interface Question {
+  id: number;
+  domainName: string;
+  questionText: string;
+}
+
+export default function EQSurvey() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [scores, setScores] = useState<Record<number, number>>({});
+  const [commitments, setCommitments] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  // 1. Fetch the 20 universal questions automatically when the page loads
+  useEffect(() => {
+    fetch("/api/eq/questions")
+      .then((res) => res.json())
+      .then((data) => setQuestions(data))
+      .catch((err) => console.error("Error loading questions", err));
+  }, []);
+
+  const handleScoreChange = (questionId: number, value: number) => {
+    setScores((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleCommitmentChange = (domain: string, text: string) => {
+    setCommitments((prev) => ({ ...prev, [domain]: text }));
+  };
+
+  // 2. Submit the numbers and text inputs to your backend API
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const formattedResponses = Object.entries(scores).map(([qId, val]) => ({
+      questionId: parseInt(qId),
+      scoreValue: val,
+    }));
+
+    const formattedCommitments = Object.entries(commitments).map(([domain, text]) => ({
+      domainName: domain,
+      commitmentText: text,
+    }));
+
+    try {
+      const response = await fetch("/api/eq/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: 1, // Connects smoothly to your portal's active user session
+          responses: formattedResponses,
+          commitments: formattedCommitments,
+        }),
+      });
+
+      if (response.ok) setSubmitted(true);
+    } catch (err) {
+      console.error("Submission failed", err);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div style={{ padding: "40px", maxWidth: "600px", margin: "0 auto", textAlign: "center" }}>
+        <h2>Your Playbook is Saved!</h2>
+        <p>Your commitments are safely logged in your SyncShift portal. We will check in automatically in 14 days to see how your experiments are progressing.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto", fontFamily: "sans-serif" }}>
+      <h1 style={{ borderBottom: "2px solid #eaeaea", paddingBottom: "10px" }}>Emotional Intelligence Inventory</h1>
+      <p style={{ color: "#666", marginBottom: "30px" }}>A reflective tool to explore your universal human habits, composure, and connections.</p>
+      
+      <form onSubmit={handleSubmit}>
+        {/* --- QUESTIONS SECTION --- */}
+        {questions.map((q) => (
+          <div key={q.id} style={{ marginBottom: "25px", background: "#f9f9f9", padding: "15px", borderRadius: "8px" }}>
+            <p style={{ fontSize: "16px", fontWeight: "bold", margin: "0 0 10px 0" }}>{q.questionText}</p>
+            <div style={{ display: "flex", gap: "15px" }}>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <label key={num} style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name={`q-${q.id}`}
+                    value={num}
+                    checked={scores[q.id] === num}
+                    onChange={() => handleScoreChange(q.id, num)}
+                    required
+                  />
+                  {num === 1 && "Never"}
+                  {num === 2 && "Seldom"}
+                  {num === 3 && "Sometimes"}
+                  {num === 4 && "Usually"}
+                  {num === 5 && "Always"}
+                  {num > 1 && num < 5 && num}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* --- COMMITMENTS / ACTION PLAN SECTION --- */}
+        <h2 style={{ marginTop: "40px", borderBottom: "2px solid #eaeaea", paddingBottom: "10px" }}>Your Action Playbook</h2>
+        
+        <div style={{ marginBottom: "25px" }}>
+          <h3>🧩 Social Awareness Focus</h3>
+          <p style={{ color: "#555" }}>The next time someone shares a frustration with you, pause before offering advice and ask: <strong>"Do you need me to help you find a solution, or do you just need me to listen?"</strong></p>
+          <textarea
+            style={{ width: "100%", height: "80px", padding: "10px", borderRadius: "6px", border: "1px solid #ccc" }}
+            placeholder="Type your specific plan here... (e.g., I will practice this phrase during my conversation with Sarah on Thursday afternoon.)"
+            value={commitments["social_awareness"] || ""}
+            onChange={(e) => handleCommitmentChange("social_awareness", e.target.value)}
+            required
+          />
+        </div>
+
+        <button type="submit" style={{ background: "#000", color: "#fff", padding: "12px 24px", border: "none", borderRadius: "6px", fontSize: "16px", cursor: "pointer", marginTop: "20px" }}>
+          Save My Playbook
+        </button>
+      </form>
+    </div>
+  );
+}
