@@ -31,6 +31,7 @@ import {
   reports, 
   auditLog 
 } from "@shared/schema";
+import { eqQuestions, eqResponses, eqCommitments } from "../shared/schema";
 
 // SELF-HEALING DATABASE SCHEMA LAYER: Safely ensures table columns exist without drizzle-kit in production
 async function ensureSchemaUpToDate() {
