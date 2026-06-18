@@ -298,3 +298,35 @@ export type InsertReport = z.infer<typeof insertReportSchema>;
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// =========================================================================
+// STANDALONE EMOTIONAL INTELLIGENCE (EQ) ASSESSMENT MODULE
+// =========================================================================
+
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+
+// 1. Master list table to store the 20 universal questions
+export const eqQuestions = pgTable("eq_questions", {
+  id: serial("id").primaryKey(),
+  domainName: text("domain_name").notNull(), // 'self_awareness', 'self_management', etc.
+  questionText: text("question_text").notNull(),
+});
+
+// 2. Table to store user 1-5 responses
+export const eqResponses = pgTable("eq_responses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(), // Links cleanly to your existing user session ID
+  questionId: integer("question_id").references(() => eqQuestions.id).notNull(),
+  scoreValue: integer("score_value").notNull(), // Stores score from 1 to 5
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+});
+
+// 3. Table to store the user's text commitments for the 14-day follow-up
+export const eqCommitments = pgTable("eq_commitments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  domainName: text("domain_name").notNull(),
+  commitmentText: text("commitment_text").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
