@@ -107,4 +107,29 @@ export default function Home() {
             <div key={i} className="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-500 flex flex-col min-h-[240px] cursor-default">
               
               {/* Icon color changes on hover */}
-              <div className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center mb-4 text-[#0B1120] group-hover:text-orange-600 group-hover:border-orange-200 group-hover:bg-orange-50 transition-colors duration-30
+              <div className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center mb-4 text-[#0B1120] group-hover:text-orange-600 group-hover:border-orange-200 group-hover:bg-orange-50 transition-colors duration-300">
+                {item.icon}
+              </div>
+              
+              <h3 className="font-bold text-[#0B1120] mb-3">{item.title}</h3>
+              
+              {/* Text Container for Cross-Fade */}
+              <div className="relative flex-grow">
+                {/* Short Description: Fades out and slides up slightly on hover */}
+                <p className="text-sm text-gray-500 absolute top-0 left-0 w-full transition-all duration-500 opacity-100 group-hover:opacity-0 group-hover:-translate-y-2">
+                  {item.desc}
+                </p>
+                
+                {/* Deep Insight: Hidden initially, slides up and fades in on hover */}
+                <p className="text-sm text-gray-800 font-medium leading-relaxed absolute top-0 left-0 w-full transition-all duration-500 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0">
+                  {item.insight}
+                </p>
+              </div>
+
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
