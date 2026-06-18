@@ -20,7 +20,14 @@ export default function EQSurvey() {
   useEffect(() => {
     fetch("/api/eq/questions")
       .then((res) => res.json())
-      .then((data) => setQuestions(data))
+      .then((data) => {
+        // Force safeguard: Only set questions if the server actually returned an array list
+        if (Array.isArray(data)) {
+          setQuestions(data);
+        } else {
+          console.error("Server did not return an array list:", data);
+        }
+      })
       .catch((err) => console.error("Error loading questions", err));
   }, []);
 
