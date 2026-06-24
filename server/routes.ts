@@ -41,11 +41,12 @@ import {
 async function ensureSchemaUpToDate() {
   try {
     console.log("🔍 Checking database column structure alignments...");
+    
+    // 1. Core structural updates
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
-    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
-    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     
+    // 2. Safely build tables first
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS eq_questions (
         id SERIAL PRIMARY KEY,
@@ -73,6 +74,10 @@ async function ensureSchemaUpToDate() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // 3. Apply column updates AFTER the tables are guaranteed to exist
+    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
     console.log("⚡ Column structures and EQ tables verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
