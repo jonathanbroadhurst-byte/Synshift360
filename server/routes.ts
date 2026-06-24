@@ -384,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
       formData.append("text", reportHtml);
 
-      const pdfResponse = await fetch("https://pdfcrowd.com/api/pdf/v1/from/text", {
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         body: formData
       });
@@ -639,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
       formData.append("text", reportHtml);
 
-      const pdfResponse = await fetch("https://pdfcrowd.com/api/pdf/v1/from/text", {
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         body: formData
       });
