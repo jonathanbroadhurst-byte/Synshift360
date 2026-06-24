@@ -326,7 +326,7 @@ export default function EQSurvey() {
           
           <button 
             type="button"
-            onClick={handlePDFDownload}
+            onClick={handleDownload}
             className="w-full mb-4 bg-orange-500 hover:bg-orange-600 text-white font-bold p-2.5 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
           >
             📥 Download Your Report Copy
@@ -335,6 +335,8 @@ export default function EQSurvey() {
           <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
         </div>
       )}
+      // Add this quick alias helper right below your handleDownload function block:
+const handlePDFDownload = handleDownload;
 
     </div>
   );
