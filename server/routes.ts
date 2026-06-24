@@ -381,7 +381,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let scoreRowsHtml = "";
       if (Array.isArray(metrics)) {
         for (const m of metrics) {
-          const rawScore = typeof m.score === 'number' ? m.score : parseFloat(String(m.score || 0));
+          let rawScore = typeof m.score === 'number' ? m.score : parseFloat(String(m.score || 0));
+          // Safety Guard: If string conversion falls back to NaN, force a solid 0.0 value baseline
+          if (isNaN(rawScore)) {
+            rawScore = 0.0;
+          }
+          
           const percentage = Math.min(Math.max((rawScore / 5) * 100, 0), 100);
           
           let barColor = '#3b82f6';
