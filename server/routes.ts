@@ -169,6 +169,7 @@ export class PdfUpstreamError extends Error {
 
 const PDF_RETRY_BASE_DELAY_MS = 250;
 const PDF_RETRY_JITTER_MS = 250;
+const PDF_UPSTREAM_INTERNAL_ERROR = "internal error";
 type PdfFetchResponse = Awaited<ReturnType<typeof fetch>>;
 
 const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -182,23 +183,17 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   }
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
-  const primaryUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
-  const legacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
+  const htmlToPdfUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
+  const htmlToPdfLegacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
   // Known PDFCrowd contract variants. We try multiple field names because provider
   // behavior differs across endpoint generations/accounts (observed 400 "internal error").
   const requestVariants: Array<{ url: string; field: string; transport: "multipart" | "urlencoded" }> = [
-    { url: primaryUrl, field: "html_content", transport: "urlencoded" },
-    { url: primaryUrl, field: "text", transport: "urlencoded" },
-    { url: primaryUrl, field: "src", transport: "urlencoded" },
-    { url: primaryUrl, field: "html_content", transport: "multipart" },
-    { url: primaryUrl, field: "text", transport: "multipart" },
-    { url: primaryUrl, field: "src", transport: "multipart" },
-    { url: legacyUrl, field: "src", transport: "urlencoded" },
-    { url: legacyUrl, field: "html_content", transport: "urlencoded" },
-    { url: legacyUrl, field: "text", transport: "urlencoded" },
-    { url: legacyUrl, field: "src", transport: "multipart" },
-    { url: legacyUrl, field: "html_content", transport: "multipart" },
-    { url: legacyUrl, field: "text", transport: "multipart" },
+    { url: htmlToPdfUrl, field: "html_content", transport: "urlencoded" },
+    { url: htmlToPdfUrl, field: "text", transport: "urlencoded" },
+    { url: htmlToPdfLegacyUrl, field: "html_content", transport: "urlencoded" },
+    { url: htmlToPdfLegacyUrl, field: "src", transport: "urlencoded" },
+    { url: htmlToPdfUrl, field: "html_content", transport: "multipart" },
+    { url: htmlToPdfLegacyUrl, field: "src", transport: "multipart" },
   ];
 
   let lastStatus: number | undefined;
@@ -250,7 +245,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
     // Multiple variants returning the same provider-side 400 "internal error" is unlikely
     // to recover and only adds latency.
-    if (pdfResponse.status === 400 && normalizedBody === "internal error") {
+    if (pdfResponse.status === 400 && normalizedBody === PDF_UPSTREAM_INTERNAL_ERROR) {
       repeatedInternalError400 += 1;
       if (repeatedInternalError400 >= 3) {
         break;
