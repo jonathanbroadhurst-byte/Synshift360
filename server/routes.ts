@@ -302,7 +302,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (m.key === 'social_awareness') barColor = '#f97316';
           if (m.key === 'relationship_management') barColor = '#10b981';
 
-          // Fixed: Swapped flexbox to standard width percentage layouts for Pdfcrowd stability
           scoreRowsHtml += `
             <div style="margin-bottom: 16px; clear: both; overflow: hidden;">
               <div style="font-size: 10pt; font-weight: 700; margin-bottom: 4px; color: #1e293b;">
@@ -332,96 +331,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px;">
                 <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 2px;">Practical Action</span>
                 <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${m.action || ''}</p>
-              </div>
-            </div>
-          `;
-        });
-      }
-
-      const reportHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    @page { size: A4; margin: 20mm 15mm; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }
-    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
-    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }
-    .brand span { color: #f97316; }
-    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }
-    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }
-    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }
-    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }
-    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }
-    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }
-    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="brand">⚡ Sync<span>Shift</span></div>
-    <div class="title">Personal Intelligence Blueprint</div>
-    <div class="meta">
-      <strong>Name:</strong> ${secureFullName} &nbsp;|&nbsp; <strong>Email:</strong> ${secureEmail} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
-    </div>
-  </div>
-  <div class="heading">Diagnostic Summary</div>
-  ${scoreRowsHtml}
-  <div class="heading">Domain Insights & Recommendations</div>
-  ${insightsRowsHtml}
-  <div class="playbook">
-    <div class="playbook-title">My 14-Day Micro-Experiment</div>
-    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>
-    <p class="quote">"${secureCommitment}"</p>
-  </div>
-  <div class="footer">
-    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.
-  </div>
-</body>
-</html>
-      `.trim();
-
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: "text=" + encodeURIComponent(reportHtml)
-      });
-
-      if (!pdfResponse.ok) {
-        const errText = await pdfResponse.text();
-        throw new Error(`Pdfcrowd rejection: ${pdfResponse.status} - ${errText}`);
-      }
-
-      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-      const pdfBuffer = Buffer.from(pdfArrayBuffer);
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
-      return res.send(pdfBuffer);
-    } catch (error) {
-      console.error("Server compilation engine fault:", error);
-      return res.status(500).json({ message: "Failed to compile PDF document copy." });
-    }
-  });
-
-      let insightsRowsHtml = "";
-      if (Array.isArray(metrics)) {
-        metrics.forEach((m: any, idx: number) => {
-          let cardStyle = '';
-          let badgeText = '⚡ Balanced Element';
-          if (idx === 0) { cardStyle = 'background: #f0fdf4; border-color: #bbf7d0; color: #166534;'; badgeText = '🏆 Strongest Element'; }
-          else if (idx === 3) { cardStyle = 'background: #eff6ff; border-color: #bfdbfe; color: #1e40af;'; badgeText = '🎯 Main Growth Horizon'; }
-
-          insightsRowsHtml += `
-            <div style="padding: 16px; border-radius: 10px; margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; ${cardStyle}">
-              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText} &bull; ${m.title}</div>
-              <p style="font-size: 9.5pt; color: #334155; margin: 0; line-height: 1.5;">${m.analysis}</p>
-              <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); margin-top: 10px;">
-                <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 2px;">Practical Action</span>
-                <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${m.action}</p>
               </div>
             </div>
           `;
