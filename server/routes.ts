@@ -143,34 +143,86 @@ async function ensureEQQuestionsExist() {
 }
 
 // =========================================================================
+// 🛡️ PDF TYPED ERROR CLASSES
+// =========================================================================
+export class PdfConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PdfConfigError";
+  }
+}
+
+export class PdfUpstreamError extends Error {
+  readonly status?: number;
+  readonly providerBody?: string;
+  constructor(message: string, status?: number, providerBody?: string) {
+    super(message);
+    this.name = "PdfUpstreamError";
+    this.status = status;
+    this.providerBody = providerBody;
+  }
+}
+
+// =========================================================================
 // 🛡️ PDF UTILITY HELPER
 // =========================================================================
-async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
+
+const PDF_RETRY_BASE_DELAY_MS = 250;
+const PDF_RETRY_JITTER_MS = 250;
+
+const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const pdfcrowdUsername = process.env.PDFCROWD_USERNAME;
   const pdfcrowdApiKey = process.env.PDFCROWD_API_KEY;
 
   if (!pdfcrowdUsername || !pdfcrowdApiKey) {
-    throw new Error("PDF conversion service credentials not configured. Contact administrator.");
+    throw new PdfConfigError("PDF conversion service credentials not configured. Contact administrator.");
   }
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
-  
-  const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${authString}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: "text=" + encodeURIComponent(htmlContent)
-  });
+
+  let pdfResponse: Response;
+  try {
+    pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${authString}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: "text=" + encodeURIComponent(htmlContent)
+    });
+  } catch (networkErr: any) {
+    throw new PdfUpstreamError(
+      "PDF provider unreachable",
+      undefined,
+      String(networkErr?.message ?? networkErr).slice(0, 500)
+    );
+  }
 
   if (!pdfResponse.ok) {
-    const errText = await pdfResponse.text();
-    console.error(`PDF conversion failed: ${pdfResponse.status} - ${errText}`);
-    throw new Error(`PDF conversion failed: ${pdfResponse.status}. Please try again later.`);
+    const errText = (await pdfResponse.text().catch(() => "")).slice(0, 500);
+    throw new PdfUpstreamError(
+      "PDF provider rejected request",
+      pdfResponse.status,
+      errText
+    );
   }
 
   return Buffer.from(await pdfResponse.arrayBuffer());
+}
+
+async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
+  try {
+    return await _convertHtmlToPdfOnce(htmlContent);
+  } catch (err) {
+    if (err instanceof PdfUpstreamError && err.status !== undefined && err.status >= 500) {
+      // Single retry with jitter for transient upstream 5xx errors
+      await _pdfSleep(PDF_RETRY_BASE_DELAY_MS + Math.floor(Math.random() * PDF_RETRY_JITTER_MS));
+      return _convertHtmlToPdfOnce(htmlContent);
+    }
+    throw err;
+  }
 }
 
 // =========================================================================
@@ -312,6 +364,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/eq/download", async (req, res) => {
+    const reqId: string = (req.headers["x-request-id"] as string | undefined) ?? crypto.randomUUID();
+    res.setHeader("x-request-id", reqId);
+    const started = Date.now();
+
     try {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -413,12 +469,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `.trim();
 
       const pdfBuffer = await convertHtmlToPdf(reportHtml);
+
+      console.log(JSON.stringify({
+        level: "info",
+        msg: "EQ PDF generated",
+        reqId,
+        route: "/api/eq/download",
+        htmlLength: reportHtml.length,
+        durationMs: Date.now() - started,
+      }));
+
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
       return res.send(pdfBuffer);
     } catch (error) {
-      console.error("EQ PDF download failed:", error);
-      return res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate PDF report." });
+      if (error instanceof PdfConfigError) {
+        console.error(JSON.stringify({
+          level: "error",
+          msg: "PDF config error",
+          reqId,
+          route: "/api/eq/download",
+          error: error.message,
+          durationMs: Date.now() - started,
+        }));
+        return res.status(503).json({
+          error: "PDF service unavailable",
+          code: "PDF_CONFIG_MISSING",
+          requestId: reqId,
+        });
+      }
+
+      if (error instanceof PdfUpstreamError) {
+        console.error(JSON.stringify({
+          level: "error",
+          msg: "PDF upstream error",
+          reqId,
+          route: "/api/eq/download",
+          upstreamStatus: error.status,
+          upstreamBody: error.providerBody,
+          durationMs: Date.now() - started,
+        }));
+        return res.status(502).json({
+          error: "PDF provider failed",
+          code: "PDF_UPSTREAM_ERROR",
+          requestId: reqId,
+        });
+      }
+
+      console.error(JSON.stringify({
+        level: "error",
+        msg: "Unhandled EQ PDF error",
+        reqId,
+        route: "/api/eq/download",
+        error: error instanceof Error ? error.message : String(error),
+        durationMs: Date.now() - started,
+      }));
+      return res.status(500).json({
+        error: "Internal server error",
+        code: "EQ_DOWNLOAD_FAILED",
+        requestId: reqId,
+      });
     }
   });
 
