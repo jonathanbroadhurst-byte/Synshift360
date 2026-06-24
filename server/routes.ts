@@ -285,7 +285,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Sanitize input to clean text frames going into the PDF compiler string
       const secureFullName = String(fullName || "Participant").replace(/[<>]/g, "");
       const secureEmail = String(email || "").replace(/[<>]/g, "");
       const secureCommitment = String(commitment || "No active routine step written down yet.")
@@ -396,7 +395,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const pdfArrayBuffer = await pdfResponse.arrayBuffer();
       const pdfBuffer = Buffer.from(pdfArrayBuffer);
-      
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
       return res.send(pdfBuffer);
