@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         headers: {
-          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
         body: "text=" + encodeURIComponent(reportHtml)
@@ -635,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         headers: {
-          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
         body: "text=" + encodeURIComponent(reportHtml)
