@@ -173,7 +173,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  // Allow public EQ diagnostic routes to safely bypass token verification
+  // CRITICAL: Intercept public diagnostic routes immediately before credential gating runs
   if (req.path.startsWith('/api/eq/')) {
     return next();
   }
@@ -218,7 +218,7 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // Apply authentication router rule globally
+  // Apply authentication router rule globally below public intercept paths
   app.use(authenticateToken);
 
   ensureSchemaUpToDate()
