@@ -169,6 +169,7 @@ export class PdfUpstreamError extends Error {
 
 const PDF_RETRY_BASE_DELAY_MS = 250;
 const PDF_RETRY_JITTER_MS = 250;
+type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
 const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -183,6 +184,8 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
   const primaryUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
   const legacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
+  // Preferred contract (current): html-to-pdf endpoint + `src` field.
+  // Legacy fallbacks keep compatibility with older API contract variants.
   const requestVariants: Array<{ url: string; field: string }> = [
     { url: primaryUrl, field: "src" },
     { url: legacyUrl, field: "src" },
@@ -195,11 +198,13 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   let lastNetworkError = "";
 
   for (const variant of requestVariants) {
-    // Build a fresh multipart body per attempt; request bodies are single-use.
+    // Multipart form-data is used because PDFCrowd endpoint variants accept form fields,
+    // and it avoids brittle manual URL encoding for large HTML payloads.
+    // Build a fresh body per attempt; request bodies are single-use.
     const formData = new FormData();
     formData.append(variant.field, htmlContent);
 
-    let pdfResponse: globalThis.Response;
+    let pdfResponse: FetchResponse;
     try {
       pdfResponse = await fetch(variant.url, {
         method: "POST",
