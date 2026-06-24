@@ -184,11 +184,12 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
   const primaryUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
   const legacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
-  // Known PDFCrowd contract variants, ordered by current recommendation first:
-  // 1) /html-to-pdf/ with `src` (current)
-  // 2) /html/to/pdf/ with `src` | `html_content` | `text` (legacy/alternate)
+  // Known PDFCrowd contract variants. We try multiple field names because provider
+  // behavior differs across endpoint generations/accounts (observed 400 "internal error").
   const requestVariants: Array<{ url: string; field: string }> = [
+    { url: primaryUrl, field: "html_content" },
     { url: primaryUrl, field: "src" },
+    { url: primaryUrl, field: "text" },
     { url: legacyUrl, field: "src" },
     { url: legacyUrl, field: "html_content" },
     { url: legacyUrl, field: "text" },
@@ -201,8 +202,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   for (const variant of requestVariants) {
     // Multipart form-data is used because PDFCrowd endpoint variants accept form fields,
     // and it avoids brittle manual URL encoding for large HTML payloads.
-    // Build a fresh body per attempt; request bodies are single-use and field names vary
-    // between attempts, so reusing a single FormData object is not reliable here.
+    // Build a fresh body per attempt because field names vary between attempts.
     const formData = new FormData();
     formData.append(variant.field, htmlContent);
 
