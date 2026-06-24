@@ -26,6 +26,20 @@ function validateEnvironment() {
   }
   
   if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production'; // Default cleanly to production for container safety
+  
+  // Check PDFCrowd credentials
+  if (process.env.PDFCROWD_USERNAME) {
+    log(`✓ PDFCrowd configured: ${process.env.PDFCROWD_USERNAME}`);
+  } else {
+    log(`⚠️ WARNING: PDFCROWD_USERNAME not set. PDF downloads will fail.`);
+  }
+  
+  if (process.env.PDFCROWD_API_KEY) {
+    log(`✓ PDFCrowd API key loaded`);
+  } else {
+    log(`⚠️ WARNING: PDFCROWD_API_KEY not set. PDF downloads will fail.`);
+  }
+  
   log(`Environment validation passed. Mode: ${process.env.NODE_ENV}`);
 }
 
