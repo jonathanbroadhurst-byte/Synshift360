@@ -299,4 +299,31 @@ export default function EQSurvey() {
 
             <div className="flex gap-3">
               <button type="button" onClick={() => setStep(2)} className="bg-transparent border border-white/20 text-gray-300 px-5 py-2.5 rounded-lg text-xs font-semibold">Back to Questions</button>
-              <button type="submit" className="
+              <button type="submit" className="flex-1 bg-gradient-to-r from-orange-400 to-amber-500 text-white px-5 py-2.5 rounded-lg text-xs font-bold shadow-md">Save My Plan & Complete Registration</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* STEP 4: SUCCESS CONFIRMATION WITH SAFE LINK */}
+      {step === 4 && (
+        <div className="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm max-w-sm mx-auto">
+          <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-green-100">✓</div>
+          <h2 className="text-base font-bold mb-1 text-gray-900">Plan Saved Successfully</h2>
+          <p className="text-xs text-gray-500 leading-relaxed mb-6">Thank you. Your assessment scores and your action commitment have been safely logged into your profile.</p>
+          
+          <button 
+            type="button"
+            onClick={handlePDFDownload}
+            className="w-full mb-4 bg-orange-500 hover:bg-orange-600 text-white font-bold p-2.5 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+          >
+            📥 Download Your Report Copy
+          </button>
+
+          <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
+        </div>
+      )}
+
+    </div>
+  );
+}
