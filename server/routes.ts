@@ -167,11 +167,12 @@ export class PdfUpstreamError extends Error {
 // 🛡️ PDF UTILITY HELPER
 // =========================================================================
 
+// pdfcrowd is a CJS-only package with no TypeScript definitions; require is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfcrowd = require('pdfcrowd');
+
 const PDF_RETRY_BASE_DELAY_MS = 250;
 const PDF_RETRY_JITTER_MS = 250;
-const PDF_UPSTREAM_INTERNAL_ERROR = "internal error";
-const PDF_MAX_REPEATED_INTERNAL_ERRORS = 3;
-type PdfFetchResponse = Awaited<ReturnType<typeof fetch>>;
 
 const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -183,89 +184,30 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
     throw new PdfConfigError("PDF conversion service credentials not configured. Contact administrator.");
   }
 
-  const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
-  const htmlToPdfUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
-  const htmlToPdfLegacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
-  // Known PDFCrowd contract variants. We try multiple field names because provider
-  // behavior differs across endpoint generations/accounts (observed 400 "internal error").
-  // URL-encoded variants are prioritized first because they are smaller and typically
-  // accepted by API gateways before falling back to multipart payloads.
-  const requestVariants: Array<{ url: string; field: string; transport: "multipart" | "urlencoded" }> = [
-    { url: htmlToPdfUrl, field: "html_content", transport: "urlencoded" },
-    { url: htmlToPdfUrl, field: "text", transport: "urlencoded" },
-    { url: htmlToPdfLegacyUrl, field: "html_content", transport: "urlencoded" },
-    { url: htmlToPdfLegacyUrl, field: "src", transport: "urlencoded" },
-    { url: htmlToPdfUrl, field: "html_content", transport: "multipart" },
-    { url: htmlToPdfLegacyUrl, field: "src", transport: "multipart" },
-  ];
+  return new Promise<Buffer>((resolve, reject) => {
+    const client = new pdfcrowd.HtmlToPdfClient(pdfcrowdUsername, pdfcrowdApiKey);
+    const chunks: Buffer[] = [];
 
-  let lastStatus: number | undefined;
-  let lastBody = "";
-  let lastNetworkError = "";
-  let repeatedInternalError400 = 0;
-
-  for (const variant of requestVariants) {
-    // Build a fresh body per attempt because field names and transports vary.
-    let body: FormData | URLSearchParams;
-    if (variant.transport === "multipart") {
-      const formData = new FormData();
-      formData.append(variant.field, htmlContent);
-      body = formData;
-    } else {
-      body = new URLSearchParams({ [variant.field]: htmlContent });
-    }
-
-    const headers: Record<string, string> = {
-      "Authorization": `Basic ${authString}`,
-    };
-    if (variant.transport === "urlencoded") {
-      headers["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8";
-    }
-
-    let pdfResponse: PdfFetchResponse;
-    try {
-      pdfResponse = await fetch(variant.url, {
-        method: "POST",
-        headers,
-        body
-      });
-    } catch (networkErr: any) {
-      lastNetworkError = String(networkErr?.message ?? networkErr).slice(0, 500);
-      continue;
-    }
-
-    if (pdfResponse.ok) {
-      return Buffer.from(await pdfResponse.arrayBuffer());
-    }
-
-    lastStatus = pdfResponse.status;
-    lastBody = (await pdfResponse.text().catch(() => "")).slice(0, 500);
-    const normalizedBody = lastBody.trim().toLowerCase();
-
-    // Authentication failures are deterministic, so fallback contract variants won't recover.
-    if (pdfResponse.status === 401 || pdfResponse.status === 403) {
-      break;
-    }
-
-    // Multiple variants returning the same provider-side 400 "internal error" is unlikely
-    // to recover and only adds latency.
-    if (pdfResponse.status === 400 && normalizedBody === PDF_UPSTREAM_INTERNAL_ERROR) {
-      repeatedInternalError400 += 1;
-      if (repeatedInternalError400 >= PDF_MAX_REPEATED_INTERNAL_ERRORS) {
-        break;
+    client.convertString(htmlContent, {
+      data: (stream: any) => {
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', (err: any) => {
+          reject(new PdfUpstreamError("PDF provider stream error", undefined, String(err)));
+        });
+      },
+      end: () => { /* required by pdfcrowd callback contract; resolution happens in stream end */ },
+      error: (errMessage: string, statusCode?: number) => {
+        if (statusCode === 401 || statusCode === 403) {
+          reject(new PdfConfigError("PDF service credentials rejected: " + (errMessage || "")));
+        } else if (statusCode) {
+          reject(new PdfUpstreamError("PDF provider rejected request", statusCode, errMessage || ""));
+        } else {
+          reject(new PdfUpstreamError("PDF provider unreachable", undefined, errMessage || ""));
+        }
       }
-    }
-  }
-
-  if (lastStatus === undefined && lastNetworkError) {
-    throw new PdfUpstreamError("PDF provider unreachable", undefined, lastNetworkError);
-  }
-
-  throw new PdfUpstreamError(
-    "PDF provider rejected request",
-    lastStatus,
-    lastBody
-  );
+    });
+  });
 }
 
 async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
