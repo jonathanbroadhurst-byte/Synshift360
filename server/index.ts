@@ -26,17 +26,25 @@ function validateEnvironment() {
   }
   
   if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production'; // Default cleanly to production for container safety
-  
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
   // Check PDFCrowd credentials
   if (process.env.PDFCROWD_USERNAME) {
     log(`✓ PDFCrowd configured: ${process.env.PDFCROWD_USERNAME}`);
   } else {
+    if (isProduction) {
+      throw new Error('Missing required production env var: PDFCROWD_USERNAME');
+    }
     log(`⚠️ WARNING: PDFCROWD_USERNAME not set. PDF downloads will fail.`);
   }
   
   if (process.env.PDFCROWD_API_KEY) {
     log(`✓ PDFCrowd API key loaded`);
   } else {
+    if (isProduction) {
+      throw new Error('Missing required production env var: PDFCROWD_API_KEY');
+    }
     log(`⚠️ WARNING: PDFCROWD_API_KEY not set. PDF downloads will fail.`);
   }
   
