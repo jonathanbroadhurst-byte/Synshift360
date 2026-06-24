@@ -45,6 +45,7 @@ async function ensureSchemaUpToDate() {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS eq_questions (
         id SERIAL PRIMARY KEY,
@@ -376,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ].join('');
 
       const formData = new URLSearchParams();
-      formData.append("src", reportHtml);
+      formData.append("src", encodeURIComponent(reportHtml));
 
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
@@ -623,40 +624,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/reports/:cycleId/download", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const cycleId = parseInt(req.params.cycleId);
-    const processedMetrics = await generateSyncShiftReportData(cycleId);
-    
-    // 1. Generate the raw layout text structures
-    const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
+    try {
+      const cycleId = parseInt(req.params.cycleId);
+      const processedMetrics = await generateSyncShiftReportData(cycleId);
+      
+      // 1. Generate the raw layout text structures
+      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
 
-    // 2. Wrap and ship directly to the remote print cluster pipeline
-    const formData = new URLSearchParams();
-    formData.append("src", reportHtml);
+      // 2. Wrap and ship directly to the remote print cluster pipeline
+      const formData = new URLSearchParams();
+      formData.append("src", encodeURIComponent(reportHtml));
 
-    const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-      method: "POST",
-      headers: {
-        "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: formData
-    });
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formData
+      });
 
-    if (!pdfResponse.ok) throw new Error(`PDF Generation failed: ${pdfResponse.statusText}`);
+      if (!pdfResponse.ok) throw new Error(`PDF Generation failed: ${pdfResponse.statusText}`);
 
-    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+      const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
 
-    // 3. Set the download trigger headers for the browser
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.pdf"`);
-    return res.send(pdfBuffer);
+      // 3. Set the download trigger headers for the browser
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.pdf"`);
+      return res.send(pdfBuffer);
 
-  } catch (error) {
-    console.error("360 PDF engine processing fault:", error);
-    return res.status(500).json({ message: "Failed to compile 360 PDF document." });
-  }
-});
+    } catch (error) {
+      console.error("360 PDF engine processing fault:", error);
+      return res.status(500).json({ message: "Failed to compile 360 PDF document." });
+    }
+  });
 
   app.get("/api/reports/:id", async (req: Request, res: Response) => {
     res.json(await storage.getReport(parseInt(req.params.id)));
