@@ -7,6 +7,8 @@ import { sql, eq } from "drizzle-orm";
 import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import path from "path";
+import fs from "fs";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -23,8 +25,8 @@ function validateEnvironment() {
     throw new Error('DATABASE_URL must be a valid PostgreSQL connection string');
   }
   
-  if (!process.env.NODE_ENV) process.env.NODE_ENV = 'development';
-  log('Environment validation passed');
+  if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production'; // Default cleanly to production for container safety
+  log(`Environment validation passed. Mode: ${process.env.NODE_ENV}`);
 }
 
 const app = express();
@@ -86,13 +88,15 @@ app.use((req, res, next) => {
       console.warn("Pre-boot database column check bypassed:", schemaErr);
     }
 
-    // 1. MOUNT STATIC FILE SERVERS FIRST (Fixes the root 401 gate blocker)
-    if (app.get("env") !== "development") {
-      const path = await import("path");
-      const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
+    const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
+    const isProductionBuild = fs.existsSync(clientBuildPath);
+
+    // 1. MOUNT STATIC FILE SERVERS FIRST IF THE COMPILED PUBLIC DIST DIRECTORY IS PRESENT
+    if (isProductionBuild) {
+      log(`Production assets discovered at ${clientBuildPath}. Mounting static loaders.`);
       app.use(express.static(clientBuildPath));
       
-      // Fallback fallback rule for root asset execution routing
+      // Explicit fallback routing for core root index asset mapping
       app.get("/", (_req, res) => {
         res.sendFile(path.resolve(clientBuildPath, "index.html"));
       });
@@ -105,12 +109,11 @@ app.use((req, res, next) => {
       res.status(err.status || 500).json({ message: err.message || "Internal Server Error" });
     });
 
-    if (app.get("env") === "development") {
+    // Fall back to development middleware ONLY if no compiled production files exist locally
+    if (!isProductionBuild) {
+      log("No compiled bundle discovered. Initializing local runtime development server proxy framework.");
       await setupVite(app, server);
     } else {
-      const path = await import("path");
-      const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
-      
       app.get("*", (req, res) => {
         if (req.path.startsWith("/api")) {
           return res.status(404).json({ message: "API Route Not Found" });
