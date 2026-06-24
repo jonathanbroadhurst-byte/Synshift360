@@ -127,47 +127,48 @@ export default function EQSurvey() {
 
   const handleDownload = async () => {
     try {
-      // 1. Send the data payload directly to the anonymous backend lane
+      // Fixed: Mapped state parameters strictly against fullName and active commitments dictionary properties
       const response = await fetch("/api/eq/download", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fullName: name, // Uses the state variable for name from your form
-          email: email,   // Uses the state variable for email from your form
+          fullName: fullName, 
+          email: email,   
           metrics: processedResults, 
-          commitment: microExperiment, // Uses your 14-day textarea state variable
+          commitment: commitments["social_awareness"] || "", 
         }),
       });
 
       if (!response.ok) {
-        throw new Error("PDF mapping response encountered a pipeline error status.");
+        throw new Error("Download tracking transmission fault.");
       }
 
-      // 2. Extract the response cleanly as plain text strings
       const htmlTextContent = await response.text();
 
-      // 3. Package the text into a standalone browser-readable HTML file structure
       const blob = new Blob([htmlTextContent], { type: "text/html;charset=utf-8" });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       
       link.href = downloadUrl;
-      link.download = `SyncShift_EQ_Profile_${name.replace(/\s+/g, "_")}.html`;
+      link.download = `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, "_")}.html`;
       
       document.body.appendChild(link);
       link.click();
       
-      // 4. Tear down temporary document anchors to clear memory leaks
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
 
     } catch (error) {
-      console.error("Failed to execute safe binary file download:", error);
+      console.error("Failed to execute safe web asset download:", error);
       alert("We encountered an issue compiling your report copy. Please try again.");
     }
   };
+
+  // Compatibility Bridge for Button Triggers
+  const handlePDFDownload = handleDownload;
+
   const submitFinalLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setStep(4);
@@ -335,8 +336,6 @@ export default function EQSurvey() {
           <p className="text-[11px] text-gray-400 font-medium">We will check in automatically via email at <strong>{email}</strong> in 14 days to see how your experiment went.</p>
         </div>
       )}
-      // Add this quick alias helper right below your handleDownload function block:
-const handlePDFDownload = handleDownload;
 
     </div>
   );
