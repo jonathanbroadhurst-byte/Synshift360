@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
+import type { Readable } from "stream";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -173,8 +174,38 @@ const pdfcrowd = require('pdfcrowd');
 
 const PDF_RETRY_BASE_DELAY_MS = 250;
 const PDF_RETRY_JITTER_MS = 250;
+const PDF_UPSTREAM_INTERNAL_ERROR = "internal error";
 
 const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+interface EqMetricInput {
+  score?: number | string;
+  title?: string;
+  analysis?: string;
+  action?: string;
+}
+
+function escapeHtml(value: string): string {
+  // '&' must be escaped first so the entities introduced by subsequent
+  // replacements are not re-escaped.
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/`/g, "&#96;");
+}
+
+function escapeHtmlWithBreaks(value: string): string {
+  return escapeHtml(value).replace(/\n/g, "<br/>");
+}
+
+function formatMetricScore(score: unknown): number {
+  const parsed = typeof score === "number" ? score : parseFloat(String(score || 0));
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(Math.max(parsed, 0), 5);
+}
 
 async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const pdfcrowdUsername = process.env.PDFCROWD_USERNAME;
@@ -187,14 +218,29 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
     const client = new pdfcrowd.HtmlToPdfClient(pdfcrowdUsername, pdfcrowdApiKey);
     const chunks: Buffer[] = [];
+    let streamBound = false;
 
     client.convertString(htmlContent, {
-      data: (stream: any) => {
-        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-        stream.on('end', () => resolve(Buffer.concat(chunks)));
-        stream.on('error', (err: any) => {
+      data: (stream: Readable) => {
+        if (streamBound) return;
+        streamBound = true;
+        const cleanup = () => {
+          stream.removeListener("data", onData);
+          stream.removeListener("end", onEnd);
+          stream.removeListener("error", onError);
+        };
+        const onData = (chunk: Buffer) => chunks.push(chunk);
+        const onEnd = () => {
+          cleanup();
+          resolve(Buffer.concat(chunks));
+        };
+        const onError = (err: Error) => {
+          cleanup();
           reject(new PdfUpstreamError("PDF provider stream error", undefined, String(err)));
-        });
+        };
+        stream.on("data", onData);
+        stream.on("end", onEnd);
+        stream.on("error", onError);
       },
       end: () => { /* required by pdfcrowd callback contract; resolution happens in stream end */ },
       error: (errMessage: string, statusCode?: number) => {
@@ -219,8 +265,70 @@ async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
       await _pdfSleep(PDF_RETRY_BASE_DELAY_MS + Math.floor(Math.random() * PDF_RETRY_JITTER_MS));
       return _convertHtmlToPdfOnce(htmlContent);
     }
+
     throw err;
   }
+}
+
+function buildFallbackEqReportHtml(
+  secureFullName: string,
+  secureEmail: string,
+  dateStr: string,
+  secureCommitment: string,
+  metrics: EqMetricInput[],
+): string {
+  const rows = Array.isArray(metrics)
+    ? metrics.map((m) => {
+      const score = formatMetricScore(m.score).toFixed(1);
+      const title = escapeHtml(String(m.title || "Domain"));
+      const analysis = escapeHtml(String(m.analysis || ""));
+      const action = escapeHtml(String(m.action || ""));
+      return `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #cbd5e1;">${title}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1;">${score} / 5.0</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1;">${analysis}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1;">${action}</td>
+      </tr>
+      `;
+    }).join("")
+    : "";
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #0f172a; margin: 24px; }
+    h1 { margin: 0 0 6px 0; font-size: 22px; }
+    h2 { margin: 16px 0 8px 0; font-size: 16px; }
+    .meta { margin-bottom: 12px; color: #334155; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; }
+    .commitment { margin-top: 16px; border: 1px solid #cbd5e1; padding: 10px; background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h1>SyncShift EQ Profile</h1>
+  <div class="meta"><strong>Name:</strong> ${escapeHtml(secureFullName)} | <strong>Email:</strong> ${escapeHtml(secureEmail)} | <strong>Date:</strong> ${escapeHtml(dateStr)}</div>
+  <h2>Domain Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Domain</th>
+        <th>Score</th>
+        <th>Insight</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <h2>14-Day Commitment</h2>
+  <div class="commitment">${escapeHtmlWithBreaks(secureCommitment)}</div>
+</body>
+</html>
+  `.trim();
 }
 
 // =========================================================================
@@ -369,18 +477,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const metricsList: EqMetricInput[] = Array.isArray(metrics) ? metrics : [];
 
-      const secureFullName = String(fullName || "Participant").replace(/[<>]/g, "");
-      const secureEmail = String(email || "").replace(/[<>]/g, "");
-      const secureCommitment = String(commitment || "No active routine step written down yet.")
-        .replace(/[<>]/g, "")
-        .replace(/\n/g, "<br/>");
+      const secureFullName = String(fullName || "Participant");
+      const secureEmail = String(email || "");
+      const secureCommitment = String(commitment || "No active routine step written down yet.");
+      const escapedFullName = escapeHtml(secureFullName);
+      const escapedEmail = escapeHtml(secureEmail);
+      const escapedCommitmentHtml = escapeHtmlWithBreaks(secureCommitment);
 
       let scoreRowsHtml = "";
-      if (Array.isArray(metrics)) {
-        for (const m of metrics) {
-          const rawScore = typeof m.score === 'number' ? m.score : parseFloat(String(m.score || 0));
+      if (metricsList.length > 0) {
+        for (const m of metricsList) {
+          const rawScore = formatMetricScore(m.score);
           const percentage = Math.min(Math.max((rawScore / 5) * 100, 0), 100);
+          const domainTitle = escapeHtml(String(m.title || "Domain"));
           
           let barColor = '#3b82f6';
           if (m.key === 'self_management') barColor = '#6366f1';
@@ -390,7 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           scoreRowsHtml += `
             <div style="margin-bottom: 16px; clear: both; overflow: hidden;">
               <div style="font-size: 10pt; font-weight: 700; margin-bottom: 4px; color: #1e293b;">
-                <span style="float: left;">${m.title || 'Domain'}</span>
+                <span style="float: left;">${domainTitle}</span>
                 <span style="float: right;">${rawScore.toFixed(1)} / 5.0</span>
               </div>
               <div style="width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; clear: both; margin-top: 4px;">
@@ -402,20 +513,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let insightsRowsHtml = "";
-      if (Array.isArray(metrics)) {
-        metrics.forEach((m: any, idx: number) => {
+      if (metricsList.length > 0) {
+        metricsList.forEach((m: EqMetricInput, idx: number) => {
           let cardStyle = '';
           let badgeText = '⚡ Balanced Element';
           if (idx === 0) { cardStyle = 'background: #f0fdf4; border-color: #bbf7d0; color: #166534;'; badgeText = '🏆 Strongest Element'; }
           else if (idx === 3) { cardStyle = 'background: #eff6ff; border-color: #bfdbfe; color: #1e40af;'; badgeText = '🎯 Main Growth Horizon'; }
+          const domainTitle = escapeHtml(String(m.title || "Domain"));
+          const domainAnalysis = escapeHtml(String(m.analysis || ""));
+          const domainAction = escapeHtml(String(m.action || ""));
 
           insightsRowsHtml += `
             <div style="padding: 16px; border-radius: 10px; margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; ${cardStyle}">
-              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText} &bull; ${m.title || 'Domain'}</div>
-              <p style="font-size: 9.5pt; color: #334155; margin: 0; line-height: 1.5;">${m.analysis || ''}</p>
+              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText} &bull; ${domainTitle}</div>
+              <p style="font-size: 9.5pt; color: #334155; margin: 0; line-height: 1.5;">${domainAnalysis}</p>
               <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px;">
                 <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 2px;">Practical Action</span>
-                <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${m.action || ''}</p>
+                <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${domainAction}</p>
               </div>
             </div>
           `;
@@ -447,7 +561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <div class="brand">⚡ Sync<span>Shift</span></div>
     <div class="title">Personal Intelligence Blueprint</div>
     <div class="meta">
-      <strong>Name:</strong> ${secureFullName} &nbsp;|&nbsp; <strong>Email:</strong> ${secureEmail} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
+      <strong>Name:</strong> ${escapedFullName} &nbsp;|&nbsp; <strong>Email:</strong> ${escapedEmail} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${escapeHtml(dateStr)}
     </div>
   </div>
   <div class="heading">Diagnostic Summary</div>
@@ -457,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <div class="playbook">
     <div class="playbook-title">My 14-Day Micro-Experiment</div>
     <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>
-    <p class="quote">"${secureCommitment}"</p>
+    <p class="quote">"${escapedCommitmentHtml}"</p>
   </div>
   <div class="footer">
     SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.
@@ -466,7 +580,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 </html>
       `.trim();
 
-      const pdfBuffer = await convertHtmlToPdf(reportHtml);
+      let pdfBuffer: Buffer;
+      let usedFallbackTemplate = false;
+      try {
+        pdfBuffer = await convertHtmlToPdf(reportHtml);
+      } catch (primaryError) {
+        const normalizedUpstreamBody = primaryError instanceof PdfUpstreamError
+          ? (primaryError.providerBody?.trim().toLowerCase() ?? "")
+          : "";
+        const shouldTryFallbackTemplate =
+          primaryError instanceof PdfUpstreamError &&
+          primaryError.status === 400 &&
+          normalizedUpstreamBody.includes(PDF_UPSTREAM_INTERNAL_ERROR);
+
+        if (!shouldTryFallbackTemplate) {
+          throw primaryError;
+        }
+
+        usedFallbackTemplate = true;
+        const fallbackHtml = buildFallbackEqReportHtml(
+          secureFullName,
+          secureEmail,
+          dateStr,
+          secureCommitment,
+          metricsList
+        );
+
+        console.warn(JSON.stringify({
+          level: "warn",
+          msg: "Retrying EQ PDF with fallback template after upstream internal error",
+          reqId,
+          route: "/api/eq/download",
+          primaryHtmlLength: reportHtml.length,
+          fallbackHtmlLength: fallbackHtml.length,
+          durationMs: Date.now() - started,
+        }));
+        pdfBuffer = await convertHtmlToPdf(fallbackHtml);
+      }
 
       console.log(JSON.stringify({
         level: "info",
@@ -474,6 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reqId,
         route: "/api/eq/download",
         htmlLength: reportHtml.length,
+        fallbackTemplate: usedFallbackTemplate,
         durationMs: Date.now() - started,
       }));
 
