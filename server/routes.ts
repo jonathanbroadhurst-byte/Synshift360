@@ -143,6 +143,37 @@ async function ensureEQQuestionsExist() {
 }
 
 // =========================================================================
+// 🛡️ PDF UTILITY HELPER
+// =========================================================================
+async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
+  const pdfcrowdUsername = process.env.PDFCROWD_USERNAME;
+  const pdfcrowdApiKey = process.env.PDFCROWD_API_KEY;
+
+  if (!pdfcrowdUsername || !pdfcrowdApiKey) {
+    throw new Error("PDF conversion service credentials not configured. Contact administrator.");
+  }
+
+  const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
+  
+  const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${authString}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: "text=" + encodeURIComponent(htmlContent)
+  });
+
+  if (!pdfResponse.ok) {
+    const errText = await pdfResponse.text();
+    console.error(`PDF conversion failed: ${pdfResponse.status} - ${errText}`);
+    throw new Error(`PDF conversion failed: ${pdfResponse.status}. Please try again later.`);
+  }
+
+  return Buffer.from(await pdfResponse.arrayBuffer());
+}
+
+// =========================================================================
 // 📧 UTILITY COMM SYSTEM HANDLES
 // =========================================================================
 async function sendSurveyEmail(toEmail: string, firstName: string, surveyTitle: string, leaderName: string, code: string, baseUrl: string): Promise<boolean> {
@@ -350,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     .brand span { color: #f97316; }
     .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }
     .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }
-    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }
+    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.2px; }
     .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }
     .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }
     .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }
@@ -381,28 +412,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 </html>
       `.trim();
 
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: "text=" + encodeURIComponent(reportHtml)
-      });
-
-      if (!pdfResponse.ok) {
-        const errText = await pdfResponse.text();
-        throw new Error(`Pdfcrowd rejection: ${pdfResponse.status} - ${errText}`);
-      }
-
-      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-      const pdfBuffer = Buffer.from(pdfArrayBuffer);
+      const pdfBuffer = await convertHtmlToPdf(reportHtml);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
       return res.send(pdfBuffer);
     } catch (error) {
-      console.error("Server compilation engine fault:", error);
-      return res.status(500).json({ message: "Failed to compile PDF document copy." });
+      console.error("EQ PDF download failed:", error);
+      return res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate PDF report." });
     }
   });
 
@@ -419,14 +435,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/survey-cycles/:inviteCode", async (req: Request, res: Response) => {
-    const [cycle] = await db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, surveyId: surveyCycles.surveyId, leaderId: surveyCycles.leaderId, organizationId: surveyCycles.organizationId, leaderFirstName: users.firstName, leaderLastName: users.lastName, leaderPosition: users.position, surveyTitle: surveys.title, surveyQuestions: surveys.questions, organizationName: organizations.name }).from(surveyCycles).leftJoin(users, eq(surveyCycles.leaderId, users.id)).leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id)).leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id)).where(eq(surveyCycles.inviteCode, req.params.inviteCode));
+    const [cycle] = await db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, surveyId: surveyCycles.surveyId }).from(surveyCycles).where(eq(surveyCycles.inviteCode, req.params.inviteCode)).limit(1);
     return res.json(cycle);
   });
 
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     const cycle = await storage.getSurveyCycleByInviteCode(req.body.inviteCode);
     if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
-    await storage.createSurveyResponse({ cycleId: cycle.id, invitationId: null, responses: req.body.responses, responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), disabled: false, respondentName: req.body.respondentName || null, respondentEmail: req.body.respondentEmail || null, respondentRelationship: req.body.respondentRelationship || null });
+    await storage.createSurveyResponse({ cycleId: cycle.id, invitationId: null, responses: req.body.responses, responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), disabled: false });
     await storage.updateSurveyCycleStats(cycle.id);
     return res.status(201).json({ message: "Submitted successfully" });
   });
@@ -459,18 +475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 🔒 STAGE 2: THE ENFORCEMENT VALVE (ALL LOGGED-IN ACTIONS START HERE)
   // -------------------------------------------------------------------------
   app.use(authenticateToken);
-
-  (async () => {
-    try {
-      await db.update(users).set({ firstName: 'Jonathan', lastName: 'Broadhurst' }).where(eq(users.role, 'org_admin'));
-    } catch (patchError) {
-      console.error("Live-patch alignment delay:", patchError);
-    }
-  })();
-
-  app.get("/api/fix-my-profile", async (req, res) => {
-    return res.send("Live-patch active via boot core script layer.");
-  });
 
   app.get("/api/auth/me", async (req: AuthenticatedRequest, res: Response) => {
     return res.json({ user: req.user });
@@ -541,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
-    let selector = db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, responseCount: surveyCycles.totalResponses, invitedCount: surveyCycles.totalInvites, organizationName: organizations.name, surveyTitle: surveys.title, leaderId: surveyCycles.leaderId }).from(surveyCycles).leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id)).leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id));
+    let selector = db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, responseCount: surveyResponses.id }).from(surveyCycles).leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id));
     if (req.user && req.user.role === 'leader') selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
     return res.json(await selector.orderBy(surveyCycles.createdAt));
   });
@@ -567,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/survey-cycles/:id/respondents", requireRole(['admin', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await db.select({ id: surveyResponses.id, respondentName: surveyResponses.respondentName, respondentEmail: surveyResponses.respondentEmail, respondentRelationship: surveyResponses.respondentRelationship, submittedAt: surveyResponses.submittedAt }).from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id))).orderBy(surveyResponses.submittedAt));
+    return res.json(await db.select({ id: surveyResponses.id, respondentName: surveyResponses.respondentName, respondentEmail: surveyResponses.respondentEmail, respondentRelationship: surveyResponses.respondentRelationship }).from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id))));
   });
 
   app.get("/api/survey-cycles/:id/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
@@ -588,26 +592,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const cycleId = parseInt(req.params.cycleId);
       const processedMetrics = await generateSyncShiftReportData(cycleId);
-      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: "text=" + encodeURIComponent(reportHtml)
-      });
-      if (!pdfResponse.ok) {
-        const errText = await pdfResponse.text();
-        throw new Error(`Pdfcrowd rejection: ${pdfResponse.status} - ${errText}`);
+      
+      // Get the leader name from the cycle
+      const cycle = await storage.getSurveyCycle(cycleId);
+      if (!cycle) {
+        return res.status(404).json({ message: "Survey cycle not found" });
       }
-      const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+      
+      const leader = await storage.getUser(cycle.leaderId);
+      const leaderName = leader ? `${leader.firstName} ${leader.lastName}` : "SyncShift Report";
+      
+      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, leaderName, "SyncShift");
+      const pdfBuffer = await convertHtmlToPdf(reportHtml);
+      
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_360_Report_Cycle_" + cycleId + ".pdf\"");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.pdf"`);
       return res.send(pdfBuffer);
     } catch (error) {
-      console.error("360 PDF engine processing fault:", error);
-      return res.status(500).json({ message: "Failed to compile 360 PDF document." });
+      console.error("360 PDF download failed:", error);
+      return res.status(500).json({ message: error instanceof Error ? error.message : "Failed to compile PDF report." });
     }
   });
 
@@ -627,7 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reports/generate/:cycleId", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.cycleId));
-    return res.status(201).json(await storage.createReport({ cycleId: cycle.id, leaderId: cycle.leaderId, organizationId: cycle.organizationId, title: "Report - " + cycle.title, executiveSummary: "Compiled Analysis", strengths: [], developmentAreas: [], statistics: {}, status: "pending" }));
+    return res.status(201).json(await storage.createReport({ cycleId: cycle.id, leaderId: cycle.leaderId, organizationId: cycle.organizationId, title: "Report - " + cycle.title, executiveSummary: "", status: 'pending' }));
   });
 
   app.post("/api/organizations/:orgId/deploy-surveys", requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
@@ -706,7 +709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/owner/organizations", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const [newOrg] = await db.insert(organizations).values({ name: req.body.orgName, domain: req.body.domain, quantumCredits: 0 }).returning();
-    await db.insert(users).values({ email: req.body.adminEmail, username: req.body.adminEmail.split('@')[0], password: await bcrypt.hash(req.body.adminPassword, 10), role: 'org_admin', organizationId: newOrg.id, firstName: req.body.adminFirstName.trim(), lastName: req.body.adminLastName.trim(), isActive: true });
+    await db.insert(users).values({ email: req.body.adminEmail, username: req.body.adminEmail.split('@')[0], password: await bcrypt.hash(req.body.adminPassword, 10), role: 'org_admin', organizationId: newOrg.id, firstName: 'Admin', lastName: 'User', isActive: true });
     return res.status(201).json({ message: "Client provisioned successfully", organization: newOrg });
   });
 
