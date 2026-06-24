@@ -388,6 +388,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
+        body: `text=${encodeURIComponent(reportHtml)}`
+      });
+
+      if (!pdfResponse.ok) throw new Error(`API stream rejected: ${pdfResponse.statusText}`);
+
+      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+      const pdfBuffer = Buffer.from(pdfArrayBuffer);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf"`);
+      return res.send(pdfBuffer);
+
+    } catch (error) {
+      console.error("Server compilation engine fault:", error);
+      return res.status(500).json({ message: "Failed to compile PDF document copy." });
+    }
+  });
+
+      const reportHtml = [
+        `<!DOCTYPE html>`,
+        `<html>`,
+        `<head>`,
+        `  <meta charset="utf-8">`,
+        `  <style>`,
+        `    @page { size: A4; margin: 20mm 15mm; }`,
+        `    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }`,
+        `    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }`,
+        `    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }`,
+        `    .brand span { color: #f97316; }`,
+        `    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }`,
+        `    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }`,
+        `    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }`,
+        `    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }`,
+        `    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }`,
+        `    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }`,
+        `    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }`,
+        `  </style>`,
+        `</head>`,
+        `<body>`,
+        `  <div class="header">`,
+        `    <div class="brand">⚡ Sync<span>Shift</span></div>`,
+        `    <div class="title">Personal Intelligence Blueprint</div>`,
+        `    <div class="meta">`,
+        `      <strong>Name:</strong> `, fullName, ` &nbsp;|&nbsp; <strong>Email:</strong> `, email, ` &nbsp;|&nbsp; <strong>Date Generated:</strong> `, dateStr,
+        `    </div>`,
+        `  </div>`,
+        `  <div class="heading">Diagnostic Summary</div>`,
+        scoreRowsHtml,
+        `  <div class="heading">Domain Insights & Recommendations</div>`,
+        insightsRowsHtml,
+        `  <div class="playbook">`,
+        `    <div class="playbook-title">My 14-Day Micro-Experiment</div>`,
+        `    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>`,
+        `    <p class="quote">"`, (commitment || 'No active routine step written down yet.'), `"</p>`,
+        `  </div>`,
+        `  <div class="footer">`,
+        `    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.`,
+        `  </div>`,
+        `</body>`,
+        `</html>`
+      ].join('');
+
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
         body: `text=${encodeURIComponent(reportHtml)}``
       });
 
