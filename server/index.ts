@@ -48,7 +48,7 @@ app.post(["/api/login", "/api/auth/login"], async (req: Request, res: Response) 
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    if (user.is_active === false) {
+    if (user.isActive === false) {
       return res.status(403).json({ message: "Account disabled. Contact support." });
     }
 
@@ -78,7 +78,13 @@ app.use((req, res, next) => {
 (async () => {
   try {
     validateEnvironment();
-    await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
+    
+    // Safe schema initialization catch wrapper
+    try {
+      await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
+    } catch (schemaErr) {
+      console.warn("Pre-boot database column check bypassed:", schemaErr);
+    }
     
     const server = await registerRoutes(app);
 
@@ -86,19 +92,17 @@ app.use((req, res, next) => {
       res.status(err.status || 500).json({ message: err.message || "Internal Server Error" });
     });
 
- if (app.get("env") === "development") {
+    if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
-      // Direct, explicit static file mapping matching your Vite outDir configuration
       const path = await import("path");
       const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
       
-      // 1. Force the server to explicitly look into dist/public for all JS/CSS asset requests
+      // 1. Explicitly serve static assets out of the client build block
       app.use(express.static(clientBuildPath));
 
-      // 2. The SPA catch-all fallback handler (MUST stay below express.static)
+      // 2. Fallback index redirect route rules
       app.get("*", (req, res) => {
-        // Guard rails to prevent API route clipping
         if (req.path.startsWith("/api")) {
           return res.status(404).json({ message: "API Route Not Found" });
         }
