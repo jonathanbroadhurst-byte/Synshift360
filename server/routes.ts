@@ -381,8 +381,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      const formData = new URLSearchParams();
-      formData.append("src", encodeURIComponent(reportHtml));
+     const formData = new URLSearchParams();
+formData.append("src", reportHtml); // <-- Let URLSearchParams handle the raw string directly
 
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
