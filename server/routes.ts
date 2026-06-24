@@ -181,37 +181,56 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   }
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
+  const requestVariants: Array<{ url: string; field: string }> = [
+    { url: "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/", field: "src" },
+    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "src" },
+    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "html_content" },
+    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "text" },
+  ];
 
-  const formData = new FormData();
-  formData.append("html_content", htmlContent);
+  let lastStatus: number | undefined;
+  let lastBody = "";
+  let lastNetworkError = "";
 
-  let pdfResponse: Response;
-  try {
-    pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${authString}`,
-      },
-      body: formData
-    });
-  } catch (networkErr: any) {
-    throw new PdfUpstreamError(
-      "PDF provider unreachable",
-      undefined,
-      String(networkErr?.message ?? networkErr).slice(0, 500)
-    );
+  for (const variant of requestVariants) {
+    const formData = new FormData();
+    formData.append(variant.field, htmlContent);
+
+    let pdfResponse: globalThis.Response;
+    try {
+      pdfResponse = await fetch(variant.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authString}`,
+        },
+        body: formData
+      });
+    } catch (networkErr: any) {
+      lastNetworkError = String(networkErr?.message ?? networkErr).slice(0, 500);
+      continue;
+    }
+
+    if (pdfResponse.ok) {
+      return Buffer.from(await pdfResponse.arrayBuffer());
+    }
+
+    lastStatus = pdfResponse.status;
+    lastBody = (await pdfResponse.text().catch(() => "")).slice(0, 500);
+
+    if (pdfResponse.status === 401 || pdfResponse.status === 403) {
+      break;
+    }
   }
 
-  if (!pdfResponse.ok) {
-    const errText = (await pdfResponse.text().catch(() => "")).slice(0, 500);
-    throw new PdfUpstreamError(
-      "PDF provider rejected request",
-      pdfResponse.status,
-      errText
-    );
+  if (lastStatus === undefined && lastNetworkError) {
+    throw new PdfUpstreamError("PDF provider unreachable", undefined, lastNetworkError);
   }
 
-  return Buffer.from(await pdfResponse.arrayBuffer());
+  throw new PdfUpstreamError(
+    "PDF provider rejected request",
+    lastStatus,
+    lastBody
+  );
 }
 
 async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
