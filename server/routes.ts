@@ -173,6 +173,11 @@ interface AuthenticatedRequest extends Request {
 }
 
 const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Allow public EQ diagnostic routes to safely bypass token verification
+  if (req.path.startsWith('/api/eq/')) {
+    return next();
+  }
+
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Access token required' });
@@ -212,6 +217,9 @@ const generateResponseHash = (email: string, cycleId: number): string => {
 // =========================================================================
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // Apply authentication router rule globally
+  app.use(authenticateToken);
 
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
@@ -335,49 +343,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const reportHtml = [
-        `<!DOCTYPE html>`,
-        `<html>`,
-        `<head>`,
-        `  <meta charset="utf-8">`,
-        `  <style>`,
-        `    @page { size: A4; margin: 20mm 15mm; }`,
-        `    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }`,
-        `    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }`,
-        `    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }`,
-        `    .brand span { color: #f97316; }`,
-        `    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }`,
-        `    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }`,
-        `    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }`,
-        `    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }`,
-        `    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }`,
-        `    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }`,
-        `    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }`,
-        `  </style>`,
-        `</head>`,
-        `<body>`,
-        `  <div class="header">`,
-        `    <div class="brand">⚡ Sync<span>Shift</span></div>`,
-        `    <div class="title">Personal Intelligence Blueprint</div>`,
-        `    <div class="meta">`,
-        `      <strong>Name:</strong> `, fullName, ` &nbsp;|&nbsp; <strong>Email:</strong> `, email, ` &nbsp;|&nbsp; <strong>Date Generated:</strong> `, dateStr,
-        `    </div>`,
-        `  </div>`,
-        `  <div class="heading">Diagnostic Summary</div>`,
-        scoreRowsHtml,
-        `  <div class="heading">Domain Insights & Recommendations</div>`,
-        insightsRowsHtml,
-        `  <div class="playbook">`,
-        `    <div class="playbook-title">My 14-Day Micro-Experiment</div>`,
-        `    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>`,
-        `    <p class="quote">"`, (commitment || 'No active routine step written down yet.'), `"</p>`,
-        `  </div>`,
-        `  <div class="footer">`,
-        `    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.`,
-        `  </div>`,
-        `</body>`,
-        `</html>`
-      ].join('');
+      const reportHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 20mm 15mm; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }
+    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
+    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }
+    .brand span { color: #f97316; }
+    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }
+    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }
+    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.5px; }
+    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }
+    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }
+    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }
+    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">⚡ Sync<span>Shift</span></div>
+    <div class="title">Personal Intelligence Blueprint</div>
+    <div class="meta">
+      <strong>Name:</strong> ${fullName} &nbsp;|&nbsp; <strong>Email:</strong> ${email} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
+    </div>
+  </div>
+  <div class="heading">Diagnostic Summary</div>
+  ${scoreRowsHtml}
+  <div class="heading">Domain Insights & Recommendations</div>
+  ${insightsRowsHtml}
+  <div class="playbook">
+    <div class="playbook-title">My 14-Day Micro-Experiment</div>
+    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>
+    <p class="quote">"${commitment || 'No active routine step written down yet.'}"</p>
+  </div>
+  <div class="footer">
+    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.
+  </div>
+</body>
+</html>
+      `.trim();
 
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
@@ -430,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fs.createReadStream(filePath).pipe(res);
   });
 
-  app.post("/api/organizations/:orgId/deploy-surveys", authenticateToken, requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/organizations/:orgId/deploy-surveys", requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
       const { method, participants } = req.body;
@@ -501,46 +509,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/auth/me", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/auth/me", async (req: AuthenticatedRequest, res: Response) => {
     res.json({ user: req.user });
   });
 
-  app.get("/api/organizations/:orgId", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/organizations/:orgId", async (req: AuthenticatedRequest, res: Response) => {
     const [org] = await db.select().from(organizations).where(eq(organizations.id, parseInt(req.params.orgId))).limit(1);
     res.json(org);
   });
 
-  app.get("/api/dashboard/stats", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/dashboard/stats", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getDashboardStats());
   });
 
-  app.get("/api/reports/macro/:tierType", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/macro/:tierType", requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string));
   });
 
-  app.get("/api/reports/macro/:tierType/download", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/macro/:tierType/download", requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
     const report = await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string);
     res.setHeader("Content-Type", "text/html");
     return res.send(compileMacroHtmlReport(report, "SyncShift Client"));
   });
 
-  app.get("/api/dashboard/activity", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/dashboard/activity", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getRecentActivity(parseInt(req.query.limit as string) || 10));
   });
 
-  app.get("/api/organizations", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/organizations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getOrganizations());
   });
 
-  app.post("/api/organizations", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/organizations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.status(201).json(await storage.createOrganization(insertOrganizationSchema.parse(req.body)));
   });
 
-  app.post("/api/surveys", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/surveys", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.status(201).json(await storage.createSurvey({ ...insertSurveySchema.parse(req.body), createdBy: req.user!.id }));
   });
 
-  app.get("/api/surveys/organization/:orgId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/surveys/organization/:orgId", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getSurveysByOrganization(parseInt(req.params.orgId)));
   });
 
@@ -557,11 +565,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/leaders", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/users/leaders", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email }).from(users).where(eq(users.role, 'leader')));
   });
 
-  app.post("/api/survey-cycles", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/survey-cycles", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.createSurveyCycle(insertSurveyCycleSchema.parse({ ...req.body, endDate: new Date(req.body.endDate) }));
     const token = Math.random().toString(36).substring(2, 8).toUpperCase();
     await storage.updateCycleInviteCode(cycle.id, token);
@@ -569,17 +577,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(201).json({ cycle });
   });
 
-  app.get("/api/survey-cycles", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
     let selector = db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, responseCount: surveyCycles.totalResponses, invitedCount: surveyCycles.totalInvites, organizationName: organizations.name, surveyTitle: surveys.title, leaderId: surveyCycles.leaderId }).from(surveyCycles).leftJoin(organizations, eq(surveyCycles.organizationId, organizations.id)).leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id));
-    if (req.user!.role === 'leader') selector = selector.where(eq(surveyCycles.leaderId, req.user!.id)) as any;
+    if (req.user && req.user.role === 'leader') selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
     res.json(await selector.orderBy(surveyCycles.createdAt));
   });
 
-  app.get("/api/survey-cycles/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getActiveCyclesWithProgress());
   });
 
-  app.get("/api/survey-cycles/:id/leader-summary", authenticateToken, requireRole(['admin', 'leader', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/leader-summary", requireRole(['admin', 'leader', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const responses = await db.select().from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id)));
     res.json({ selfAssessmentComplete: responses.some(r => r.respondentRelationship === 'Self'), stakeholderCount: responses.filter(r => r.respondentRelationship !== 'Self').length });
   });
@@ -589,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(cycle);
   });
 
-  app.post("/api/survey-invitations", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/survey-invitations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     for (const email of req.body.participantEmails) {
       if (email?.trim()) await storage.createSurveyInvitation({ cycleId: parseInt(req.body.cycleId), email: email.trim(), status: 'pending' });
     }
@@ -608,25 +616,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(201).json({ message: "Submitted successfully" });
   });
 
-  app.get("/api/survey-cycles/:id/respondents", authenticateToken, requireRole(['admin', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/respondents", requireRole(['admin', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await db.select({ id: surveyResponses.id, respondentName: surveyResponses.respondentName, respondentEmail: surveyResponses.respondentEmail, respondentRelationship: surveyResponses.respondentRelationship, submittedAt: surveyResponses.submittedAt }).from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id))).orderBy(surveyResponses.submittedAt));
   });
 
-  app.get("/api/survey-cycles/:id/progress", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.id));
     const progress = await storage.getCycleProgress(cycle.id);
     res.json({ cycle, leaderName: "SyncShift Target", ...progress });
   });
 
-  app.get("/api/reports/pending", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/pending", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getPendingReports());
   });
 
-  app.get("/api/reports/:cycleId/metrics", authenticateToken, requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/:cycleId/metrics", requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await generateSyncShiftReportData(parseInt(req.params.cycleId)));
   });
 
-  app.get("/api/reports/:cycleId/download", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/:cycleId/download", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const cycleId = parseInt(req.params.cycleId);
       const processedMetrics = await generateSyncShiftReportData(cycleId);
@@ -663,17 +671,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(await storage.getReport(parseInt(req.params.id)));
   });
 
-  app.post("/api/reports/:id/approve", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/:id/approve", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
     res.json({ message: "Approved successfully" });
   });
 
-  app.post("/api/reports/:id/release", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/:id/release", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateReportStatus(parseInt(req.params.id), "released", req.user!.id);
     res.json({ message: "Released successfully" });
   });
 
-  app.post("/api/reports/generate/:cycleId", authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/generate/:cycleId", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.cycleId));
     res.status(201).json(await storage.createReport({ cycleId: cycle.id, leaderId: cycle.leaderId, organizationId: cycle.organizationId, title: "Report - " + cycle.title, executiveSummary: "Compiled Analysis", strengths: [], developmentAreas: [], statistics: {}, status: "pending" }));
   });
@@ -694,21 +702,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(report);
   });
 
-  app.get("/api/owner/organizations/usage", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/owner/organizations/usage", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     res.json(await storage.getAllOrganizationsWithUsage());
   });
 
-  app.get("/api/owner/users", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/owner/users", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const allUsers = await storage.getAllUsers();
     res.json(allUsers.map(({ password, ...user }) => user));
   });
 
-  app.patch("/api/owner/users/:userId/role", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+  app.patch("/api/owner/users/:userId/role", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateUserRole(parseInt(req.params.userId), req.body.role);
     res.json({ message: "Role updated successfully" });
   });
 
-  app.patch("/api/owner/organizations/:orgId/credits", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+  app.patch("/api/owner/organizations/:orgId/credits", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const orgId = parseInt(req.params.orgId);
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
     const updatedCredits = (org.quantumCredits ?? 0) + req.body.creditsToAllocate;
@@ -716,7 +724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ success: true, newBalance: updatedCredits });
   });
 
-  app.post("/api/owner/organizations", authenticateToken, requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/owner/organizations", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const [newOrg] = await db.insert(organizations).values({ name: req.body.orgName, domain: req.body.domain, quantumCredits: 0 }).returning();
     await db.insert(users).values({ email: req.body.adminEmail, username: req.body.adminEmail.split('@')[0], password: await bcrypt.hash(req.body.adminPassword, 10), role: 'org_admin', organizationId: newOrg.id, firstName: req.body.adminFirstName.trim(), lastName: req.body.adminLastName.trim(), isActive: true });
     return res.status(201).json({ message: "Client provisioned successfully", organization: newOrg });
