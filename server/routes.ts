@@ -379,14 +379,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      const formData = new URLSearchParams();
-      formData.append("username", "J0n_Br04d");
-      formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
-      formData.append("text", reportHtml);
-
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
-        body: formData
+        headers: {
+          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "text=" + encodeURIComponent(reportHtml)
       });
 
       if (!pdfResponse.ok) {
@@ -634,14 +633,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
 
-      const formData = new URLSearchParams();
-      formData.append("username", "J0n_Br04d");
-      formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
-      formData.append("text", reportHtml);
-
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
-        body: formData
+        headers: {
+          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "text=" + encodeURIComponent(reportHtml)
       });
 
       if (!pdfResponse.ok) {
