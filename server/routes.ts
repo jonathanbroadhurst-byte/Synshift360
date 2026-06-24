@@ -726,7 +726,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to compile 360 PDF document." });
     }
   });
-
   app.get("/api/reports/:id", async (req: Request, res: Response) => {
     res.json(await storage.getReport(parseInt(req.params.id)));
   });
