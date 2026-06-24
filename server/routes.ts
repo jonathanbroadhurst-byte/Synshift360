@@ -182,12 +182,11 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
 
-  // Create a native Multipart Form stream payload instead of urlencoded text parameters
   const formData = new FormData();
-  
-  // Convert the string into a binary blob file container inside the form field structure
   const htmlBlob = new Blob([htmlContent], { type: "text/html" });
-  formData.append("file", htmlBlob, "index.html");
+  
+  // 🎯 STRICT API GATE CORRECTION
+  formData.append("src_file", htmlBlob, "index.html");
 
   let pdfResponse: Response;
   try {
@@ -195,7 +194,6 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
       method: "POST",
       headers: {
         "Authorization": `Basic ${authString}`
-        // Note: Do NOT set Content-Type header manually here; the runtime engine will inject the boundary tokens automatically for the FormData instance
       },
       body: formData
     });
