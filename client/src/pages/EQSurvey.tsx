@@ -138,20 +138,22 @@ export default function EQSurvey() {
         })
       });
 
-      if (response.ok) {
-        const htmlText = await response.text();
-        const blob = new Blob([htmlText], { type: "text/html" });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.html`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
+      if (!response.ok) {
+        throw new Error("PDF mapping response encountered a pipeline error status.");
       }
+
+      // Capture native binary data array buffer safely from server streams
+      const pdfBlob = await response.blob();
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Failed to execute safe file download:", err);
+      console.error("Failed to execute safe binary file download:", err);
     }
   };
 
@@ -255,35 +257,6 @@ export default function EQSurvey() {
               ))}
             </div>
 
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Domain Insights & Recommendations</h4>
-            <div className="space-y-4">
-              {processedResults.map((item, index) => {
-                const isHighest = index === 0;
-                const isLowest = index === 3;
-                
-                return (
-                  <div key={item.key} className={`p-5 rounded-xl border ${isHighest ? 'bg-blue-50/50 border-blue-100' : isLowest ? 'bg-amber-50/50 border-amber-100' : 'bg-gray-50/80 border-gray-200'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-white shadow-sm border border-gray-200">
-                        {isHighest ? "🏆 Strongest Element" : isLowest ? "🎯 Main Growth Horizon" : "⚡ Balanced Element"}
-                      </span>
-                      <h5 className="text-sm font-bold text-gray-900">{item.title}</h5>
-                    </div>
-                    
-                    <p className="text-xs text-gray-700 leading-relaxed mb-3">
-                      {item.analysis}
-                    </p>
-                    
-                    <div className="bg-white/80 border border-gray-100 p-3 rounded-lg">
-                      <p className="text-xs text-gray-800 leading-relaxed">
-                        <strong className="text-orange-600 font-bold uppercase tracking-wider text-[10px] block mb-0.5">Practical Action:</strong> 
-                        {item.action}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
 
           {/* ACTION PLAYBOOK SUBMISSION FOOTER */}
