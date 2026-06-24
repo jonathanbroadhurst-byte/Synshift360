@@ -181,11 +181,13 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   }
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
+  const primaryUrl = "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/";
+  const legacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
   const requestVariants: Array<{ url: string; field: string }> = [
-    { url: "https://api.pdfcrowd.com/convert/24.04/html-to-pdf/", field: "src" },
-    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "src" },
-    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "html_content" },
-    { url: "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", field: "text" },
+    { url: primaryUrl, field: "src" },
+    { url: legacyUrl, field: "src" },
+    { url: legacyUrl, field: "html_content" },
+    { url: legacyUrl, field: "text" },
   ];
 
   let lastStatus: number | undefined;
@@ -193,6 +195,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   let lastNetworkError = "";
 
   for (const variant of requestVariants) {
+    // Build a fresh multipart body per attempt; request bodies are single-use.
     const formData = new FormData();
     formData.append(variant.field, htmlContent);
 
@@ -217,6 +220,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
     lastStatus = pdfResponse.status;
     lastBody = (await pdfResponse.text().catch(() => "")).slice(0, 500);
 
+    // Authentication failures are deterministic, so fallback contract variants won't recover.
     if (pdfResponse.status === 401 || pdfResponse.status === 403) {
       break;
     }
