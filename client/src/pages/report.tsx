@@ -218,6 +218,12 @@ export default function Report() {
   const strengths = typeof (report as any).strengths === 'string' ? JSON.parse((report as any).strengths) : (report as any).strengths;
   const developmentAreas = typeof (report as any).developmentAreas === 'string' ? JSON.parse((report as any).developmentAreas) : (report as any).developmentAreas;
 
+  // Handles requesting the active PDF download byte binary from the backend cluster
+  const handleDownloadPdf = () => {
+    const token = localStorage.getItem('token'); 
+    window.open(`/api/reports/${(report as any).cycleId || reportId}/download?token=${token}`, '_blank');
+  };
+
   return (
     <div>
       <div className="min-h-screen syncshift-gradient">
@@ -252,7 +258,7 @@ export default function Report() {
                   <CheckCircle className="w-4 h-4 mr-1" />
                   {(report as any).status}
                 </Badge>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                   <Download className="w-4 h-4 mr-2" />
                   Export PDF
                 </Button>
@@ -557,12 +563,11 @@ export default function Report() {
               <CardContent>
                 <div className="space-y-6">
                   {developmentAreas && developmentAreas.map((area: any, index: number) => {
-                    // Extract key development theme for HBDI mapping
                     const developmentTheme = area.title.includes('Strategic') || area.title.includes('Vision') ? 'Strategic Leadership' :
                                            area.title.includes('Delegation') || area.title.includes('Empowerment') ? 'Delegation' :
                                            area.title.includes('Communication') || area.title.includes('Executive Presence') ? 'Communication' :
                                            area.title.includes('Executive Presence') ? 'Executive Presence' :
-                                           'Communication'; // Default fallback
+                                           'Communication';
                     
                     const activities = learningActivities[developmentTheme];
                     
