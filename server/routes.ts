@@ -622,10 +622,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/reports/:cycleId/download", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-    const processedMetrics = await generateSyncShiftReportData(parseInt(req.params.cycleId));
-    res.setHeader("Content-Type", "text/html");
-    return res.send(compileSyncShiftHtmlReport(processedMetrics, "Jane Leader", "SyncShift"));
-  });
+  try {
+    const cycleId = parseInt(req.params.cycleId);
+    const processedMetrics = await generateSyncShiftReportData(cycleId);
+    
+    // 1. Generate the raw layout text structures
+    const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
+
+    // 2. Wrap and ship directly to the remote print cluster pipeline
+    const formData = new URLSearchParams();
+    formData.append("src", reportHtml);
+
+    const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: formData
+    });
+
+    if (!pdfResponse.ok) throw new Error(`PDF Generation failed: ${pdfResponse.statusText}`);
+
+    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+
+    // 3. Set the download trigger headers for the browser
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.pdf"`);
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error("360 PDF engine processing fault:", error);
+    return res.status(500).json({ message: "Failed to compile 360 PDF document." });
+  }
+});
 
   app.get("/api/reports/:id", async (req: Request, res: Response) => {
     res.json(await storage.getReport(parseInt(req.params.id)));
