@@ -85,7 +85,20 @@ app.use((req, res, next) => {
     } catch (schemaErr) {
       console.warn("Pre-boot database column check bypassed:", schemaErr);
     }
+
+    // 1. MOUNT STATIC FILE SERVERS FIRST (Fixes the root 401 gate blocker)
+    if (app.get("env") !== "development") {
+      const path = await import("path");
+      const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
+      app.use(express.static(clientBuildPath));
+      
+      // Fallback fallback rule for root asset execution routing
+      app.get("/", (_req, res) => {
+        res.sendFile(path.resolve(clientBuildPath, "index.html"));
+      });
+    }
     
+    // 2. NOW MOUNT THE ROUTE ENGINES AND AUTHENTICATION
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -98,10 +111,6 @@ app.use((req, res, next) => {
       const path = await import("path");
       const clientBuildPath = path.resolve(process.cwd(), "dist", "public");
       
-      // 1. Explicitly serve static assets out of the client build block
-      app.use(express.static(clientBuildPath));
-
-      // 2. Fallback index redirect route rules
       app.get("*", (req, res) => {
         if (req.path.startsWith("/api")) {
           return res.status(404).json({ message: "API Route Not Found" });
