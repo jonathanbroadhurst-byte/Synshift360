@@ -285,6 +285,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fullName, email, metrics, commitment } = req.body;
       const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
+      // Sanitize input to clean text frames going into the PDF compiler string
+      const secureFullName = String(fullName || "Participant").replace(/[<>]/g, "");
+      const secureEmail = String(email || "").replace(/[<>]/g, "");
+      const secureCommitment = String(commitment || "No active routine step written down yet.")
+        .replace(/[<>]/g, "")
+        .replace(/\n/g, "<br/>");
+
       let scoreRowsHtml = "";
       if (Array.isArray(metrics)) {
         for (const m of metrics) {
@@ -354,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <div class="brand">⚡ Sync<span>Shift</span></div>
     <div class="title">Personal Intelligence Blueprint</div>
     <div class="meta">
-      <strong>Name:</strong> ${fullName} &nbsp;|&nbsp; <strong>Email:</strong> ${email} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
+      <strong>Name:</strong> ${secureFullName} &nbsp;|&nbsp; <strong>Email:</strong> ${secureEmail} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
     </div>
   </div>
   <div class="heading">Diagnostic Summary</div>
@@ -364,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <div class="playbook">
     <div class="playbook-title">My 14-Day Micro-Experiment</div>
     <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>
-    <p class="quote">"${commitment || 'No active routine step written down yet.'}"</p>
+    <p class="quote">"${secureCommitment}"</p>
   </div>
   <div class="footer">
     SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.
@@ -389,8 +396,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const pdfArrayBuffer = await pdfResponse.arrayBuffer();
       const pdfBuffer = Buffer.from(pdfArrayBuffer);
+      
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + fullName.replace(/\s+/g, '_') + ".pdf\"");
+      res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
       return res.send(pdfBuffer);
     } catch (error) {
       console.error("Server compilation engine fault:", error);
