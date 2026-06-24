@@ -368,179 +368,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/eq/download", async (req, res) => {
-    const reqId: string = (req.headers["x-request-id"] as string | undefined) ?? crypto.randomUUID();
-    res.setHeader("x-request-id", reqId);
-    const started = Date.now();
+async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
+  const pdfcrowdUsername = process.env.PDFCROWD_USERNAME;
+  const pdfcrowdApiKey = process.env.PDFCROWD_API_KEY;
 
-    try {
-      const { fullName, email, metrics, commitment } = req.body;
-      const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!pdfcrowdUsername || !pdfcrowdApiKey) {
+    throw new PdfConfigError("PDF conversion service credentials not configured. Contact administrator.");
+  }
 
-      const secureFullName = String(fullName || "Participant").replace(/[<>]/g, "");
-      const secureEmail = String(email || "").replace(/[<>]/g, "");
-      const secureCommitment = String(commitment || "No active routine step written down yet.")
-        .replace(/[<>]/g, "")
-        .replace(/\n/g, "<br/>");
+  const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
 
-      let scoreRowsHtml = "";
-      if (Array.isArray(metrics)) {
-        for (const m of metrics) {
-          let rawScore = typeof m.score === 'number' ? m.score : parseFloat(String(m.score || 0));
-          // Safety Guard: If string conversion falls back to NaN, force a solid 0.0 value baseline
-          if (isNaN(rawScore)) {
-            rawScore = 0.0;
-          }
-          
-          const percentage = Math.min(Math.max((rawScore / 5) * 100, 0), 100);
-          
-          let barColor = '#3b82f6';
-          if (m.key === 'self_management') barColor = '#6366f1';
-          if (m.key === 'social_awareness') barColor = '#f97316';
-          if (m.key === 'relationship_management') barColor = '#10b981';
+  const formData = new FormData();
+  const htmlBlob = new Blob([htmlContent], { type: "text/html" });
+  
+  // 🎯 STRICT API GATE CORRECTION
+  formData.append("src_file", htmlBlob, "index.html");
 
-          scoreRowsHtml += `
-            <div style="margin-bottom: 16px; clear: both; overflow: hidden;">
-              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 4px; color: #1e293b;">
-                <span style="float: left;">${m.title || 'Domain'}</span>
-                <span style="float: right;">${rawScore.toFixed(1)} / 5.0</span>
-              </div>
-              <div style="width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; clear: both; margin-top: 4px;">
-                <div style="height: 8px; border-radius: 4px; width: ${percentage}%; background-color: ${barColor};"></div>
-              </div>
-            </div>
-          `;
-        }
-      }
+  let pdfResponse: Response;
+  try {
+    pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${authString}`
+      },
+      body: formData
+    });
+  } catch (networkErr: any) {
+    throw new PdfUpstreamError(
+      "PDF provider unreachable",
+      undefined,
+      String(networkErr?.message ?? networkErr).slice(0, 500)
+    );
+  }
 
-      let insightsRowsHtml = "";
-      if (Array.isArray(metrics)) {
-        metrics.forEach((m: any, idx: number) => {
-          let cardStyle = '';
-          let badgeText = '⚡ Balanced Element';
-          if (idx === 0) { cardStyle = 'background: #f0fdf4; border-color: #bbf7d0; color: #166534;'; badgeText = '🏆 Strongest Element'; }
-          else if (idx === 3) { cardStyle = 'background: #eff6ff; border-color: #bfdbfe; color: #1e40af;'; badgeText = '🎯 Main Growth Horizon'; }
+  if (!pdfResponse.ok) {
+    const errText = (await pdfResponse.text().catch(() => "")).slice(0, 500);
+    throw new PdfUpstreamError(
+      "PDF provider rejected request",
+      pdfResponse.status,
+      errText
+    );
+  }
 
-          insightsRowsHtml += `
-            <div style="padding: 16px; border-radius: 10px; margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; ${cardStyle}">
-              <div style="font-size: 10pt; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText} &bull; ${m.title || 'Domain'}</div>
-              <p style="font-size: 9.5pt; color: #334155; margin: 0; line-height: 1.5;">${m.analysis || ''}</p>
-              <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px;">
-                <span style="font-size: 8pt; font-weight: 700; color: #f97316; text-transform: uppercase; display: block; margin-bottom: 2px;">Practical Action</span>
-                <p style="font-size: 9.5pt; color: #0f172a; margin: 0; font-weight: 500; line-height: 1.4;">${m.action || ''}</p>
-              </div>
-            </div>
-          `;
-        });
-      }
-
-      const reportHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    @page { size: A4; margin: 20mm 15mm; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; }
-    .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
-    .brand { font-size: 13pt; font-weight: 800; color: #0b1120; text-transform: uppercase; letter-spacing: 0.5px; }
-    .brand span { color: #f97316; }
-    .title { font-size: 20pt; font-weight: 800; color: #0b1120; margin: 5px 0; letter-spacing: -0.5px; }
-    .meta { font-size: 9.5pt; color: #475569; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; }
-    .heading { font-size: 12pt; font-weight: 700; color: #0b1120; margin-top: 25px; margin-bottom: 12px; text-transform: uppercase; border-left: 4px solid #f97316; padding-left: 8px; letter-spacing: 0.2px; }
-    .playbook { background: #0b1120; color: #ffffff; padding: 18px; border-radius: 12px; margin-top: 25px; page-break-inside: avoid; }
-    .playbook-title { font-size: 11pt; font-weight: 700; color: #f97316; text-transform: uppercase; margin: 0 0 4px 0; }
-    .quote { font-style: italic; font-size: 10pt; color: #f1f5f9; border-left: 3px solid #f97316; padding-left: 10px; margin: 8px 0 0 0; }
-    .footer { font-size: 8.5pt; color: #64748b; text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="brand">⚡ Sync<span>Shift</span></div>
-    <div class="title">Personal Intelligence Blueprint</div>
-    <div class="meta">
-      <strong>Name:</strong> ${secureFullName} &nbsp;|&nbsp; <strong>Email:</strong> ${secureEmail} &nbsp;|&nbsp; <strong>Date Generated:</strong> ${dateStr}
-    </div>
-  </div>
-  <div class="heading">Diagnostic Summary</div>
-  ${scoreRowsHtml}
-  <div class="heading">Domain Insights & Recommendations</div>
-  ${insightsRowsHtml}
-  <div class="playbook">
-    <div class="playbook-title">My 14-Day Micro-Experiment</div>
-    <p style="color: #94a3b8; font-size: 9pt; margin: 0 0 6px 0;">Your personal routine commitment:</p>
-    <p class="quote">"${secureCommitment}"</p>
-  </div>
-  <div class="footer">
-    SyncShift Intelligence Matrix &bull; Follow-up care loop updates initiate in 14 days.
-  </div>
-</body>
-</html>
-      `.trim();
-
-      const pdfBuffer = await convertHtmlToPdf(reportHtml);
-
-      console.log(JSON.stringify({
-        level: "info",
-        msg: "EQ PDF generated",
-        reqId,
-        route: "/api/eq/download",
-        htmlLength: reportHtml.length,
-        durationMs: Date.now() - started,
-      }));
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=\"SyncShift_EQ_Profile_" + secureFullName.replace(/\s+/g, '_') + ".pdf\"");
-      return res.send(pdfBuffer);
-    } catch (error) {
-      if (error instanceof PdfConfigError) {
-        console.error(JSON.stringify({
-          level: "error",
-          msg: "PDF config error",
-          reqId,
-          route: "/api/eq/download",
-          error: error.message,
-          durationMs: Date.now() - started,
-        }));
-        return res.status(503).json({
-          error: "PDF service unavailable",
-          code: "PDF_CONFIG_MISSING",
-          requestId: reqId,
-        });
-      }
-
-      if (error instanceof PdfUpstreamError) {
-        console.error(JSON.stringify({
-          level: "error",
-          msg: "PDF upstream error",
-          reqId,
-          route: "/api/eq/download",
-          upstreamStatus: error.status,
-          upstreamBody: error.providerBody,
-          durationMs: Date.now() - started,
-        }));
-        return res.status(502).json({
-          error: "PDF provider failed",
-          code: "PDF_UPSTREAM_ERROR",
-          requestId: reqId,
-        });
-      }
-
-      console.error(JSON.stringify({
-        level: "error",
-        msg: "Unhandled EQ PDF error",
-        reqId,
-        route: "/api/eq/download",
-        error: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - started,
-      }));
-      return res.status(500).json({
-        error: "Internal server error",
-        code: "EQ_DOWNLOAD_FAILED",
-        requestId: reqId,
-      });
-    }
-  });
+  return Buffer.from(await pdfResponse.arrayBuffer());
+}
 
   app.post("/api/login", async (req: Request, res: Response) => {
     try {
