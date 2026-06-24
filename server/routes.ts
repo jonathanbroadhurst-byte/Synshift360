@@ -78,7 +78,7 @@ async function ensureSchemaUpToDate() {
     // 3. Apply column updates AFTER the tables are guaranteed to exist
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
-
+    await db.execute(sql`ALTER TABLE eq_commitments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;`); // <-- Add this line here
     console.log("⚡ Column structures and EQ tables verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
     console.error("⚠️ Schema auto-alignment encountered an issue:", error);
