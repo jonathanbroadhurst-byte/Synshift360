@@ -43,7 +43,8 @@ async function ensureSchemaUpToDate() {
     console.log("🔍 Checking database column structure alignments...");
     await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS quantum_credits INTEGER DEFAULT 0 NOT NULL;`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name TEXT;`);
-    
+    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS eq_questions (
         id SERIAL PRIMARY KEY,
