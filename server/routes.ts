@@ -170,6 +170,7 @@ export class PdfUpstreamError extends Error {
 const PDF_RETRY_BASE_DELAY_MS = 250;
 const PDF_RETRY_JITTER_MS = 250;
 const PDF_UPSTREAM_INTERNAL_ERROR = "internal error";
+const PDF_MAX_REPEATED_INTERNAL_ERRORS = 3;
 type PdfFetchResponse = Awaited<ReturnType<typeof fetch>>;
 
 const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -187,6 +188,8 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const htmlToPdfLegacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
   // Known PDFCrowd contract variants. We try multiple field names because provider
   // behavior differs across endpoint generations/accounts (observed 400 "internal error").
+  // URL-encoded variants are prioritized first because they are smaller and typically
+  // accepted by API gateways before falling back to multipart payloads.
   const requestVariants: Array<{ url: string; field: string; transport: "multipart" | "urlencoded" }> = [
     { url: htmlToPdfUrl, field: "html_content", transport: "urlencoded" },
     { url: htmlToPdfUrl, field: "text", transport: "urlencoded" },
@@ -203,13 +206,14 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
   for (const variant of requestVariants) {
     // Build a fresh body per attempt because field names and transports vary.
-    const body = variant.transport === "multipart"
-      ? (() => {
-          const formData = new FormData();
-          formData.append(variant.field, htmlContent);
-          return formData;
-        })()
-      : new URLSearchParams({ [variant.field]: htmlContent });
+    let body: FormData | URLSearchParams;
+    if (variant.transport === "multipart") {
+      const formData = new FormData();
+      formData.append(variant.field, htmlContent);
+      body = formData;
+    } else {
+      body = new URLSearchParams({ [variant.field]: htmlContent });
+    }
 
     const headers: Record<string, string> = {
       "Authorization": `Basic ${authString}`,
@@ -247,7 +251,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
     // to recover and only adds latency.
     if (pdfResponse.status === 400 && normalizedBody === PDF_UPSTREAM_INTERNAL_ERROR) {
       repeatedInternalError400 += 1;
-      if (repeatedInternalError400 >= 3) {
+      if (repeatedInternalError400 >= PDF_MAX_REPEATED_INTERNAL_ERRORS) {
         break;
       }
     }
