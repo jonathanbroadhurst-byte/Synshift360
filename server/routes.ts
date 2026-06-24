@@ -182,15 +182,22 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
 
+  // Create a native Multipart Form stream payload instead of urlencoded text parameters
+  const formData = new FormData();
+  
+  // Convert the string into a binary blob file container inside the form field structure
+  const htmlBlob = new Blob([htmlContent], { type: "text/html" });
+  formData.append("file", htmlBlob, "index.html");
+
   let pdfResponse: Response;
   try {
     pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${authString}`,
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Authorization": `Basic ${authString}`
+        // Note: Do NOT set Content-Type header manually here; the runtime engine will inject the boundary tokens automatically for the FormData instance
       },
-      body: "text=" + encodeURIComponent(htmlContent)
+      body: formData
     });
   } catch (networkErr: any) {
     throw new PdfUpstreamError(
