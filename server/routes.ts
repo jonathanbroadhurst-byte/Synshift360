@@ -388,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: `src=${encodeURIComponent(reportHtml)}`
+        body: `text=${encodeURIComponent(reportHtml)}``
       });
 
       if (!pdfResponse.ok) throw new Error(`API stream rejected: ${pdfResponse.statusText}`);
@@ -641,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: `src=${encodeURIComponent(reportHtml)}`
+        body: `text=${encodeURIComponent(reportHtml)}`
       });
 
       if (!pdfResponse.ok) throw new Error(`PDF Generation failed: ${pdfResponse.statusText}`);
