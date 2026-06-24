@@ -117,6 +117,7 @@ app.use((req, res, next) => {
     if (isProductionBuild) {
       log(`Production assets discovered at ${clientBuildPath}. Mounting static loaders.`);
       app.use(express.static(clientBuildPath));
+      app.get("/favicon.ico", (_req, res) => res.status(204).end());
       
       // Explicit fallback routing for core root index asset mapping
       app.get("/", (_req, res) => {

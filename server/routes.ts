@@ -186,13 +186,19 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   const legacyUrl = "https://api.pdfcrowd.com/convert/24.04/html/to/pdf/";
   // Known PDFCrowd contract variants. We try multiple field names because provider
   // behavior differs across endpoint generations/accounts (observed 400 "internal error").
-  const requestVariants: Array<{ url: string; field: string }> = [
-    { url: primaryUrl, field: "html_content" },
-    { url: primaryUrl, field: "src" },
-    { url: primaryUrl, field: "text" },
-    { url: legacyUrl, field: "src" },
-    { url: legacyUrl, field: "html_content" },
-    { url: legacyUrl, field: "text" },
+  const requestVariants: Array<{ url: string; field: string; transport: "multipart" | "urlencoded" }> = [
+    { url: primaryUrl, field: "html_content", transport: "urlencoded" },
+    { url: primaryUrl, field: "text", transport: "urlencoded" },
+    { url: primaryUrl, field: "src", transport: "urlencoded" },
+    { url: primaryUrl, field: "html_content", transport: "multipart" },
+    { url: primaryUrl, field: "text", transport: "multipart" },
+    { url: primaryUrl, field: "src", transport: "multipart" },
+    { url: legacyUrl, field: "src", transport: "urlencoded" },
+    { url: legacyUrl, field: "html_content", transport: "urlencoded" },
+    { url: legacyUrl, field: "text", transport: "urlencoded" },
+    { url: legacyUrl, field: "src", transport: "multipart" },
+    { url: legacyUrl, field: "html_content", transport: "multipart" },
+    { url: legacyUrl, field: "text", transport: "multipart" },
   ];
 
   let lastStatus: number | undefined;
@@ -200,20 +206,28 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   let lastNetworkError = "";
 
   for (const variant of requestVariants) {
-    // Multipart form-data is used because PDFCrowd endpoint variants accept form fields,
-    // and it avoids brittle manual URL encoding for large HTML payloads.
-    // Build a fresh body per attempt because field names vary between attempts.
-    const formData = new FormData();
-    formData.append(variant.field, htmlContent);
+    // Build a fresh body per attempt because field names and transports vary.
+    const body = variant.transport === "multipart"
+      ? (() => {
+          const formData = new FormData();
+          formData.append(variant.field, htmlContent);
+          return formData;
+        })()
+      : new URLSearchParams({ [variant.field]: htmlContent });
+
+    const headers: Record<string, string> = {
+      "Authorization": `Basic ${authString}`,
+    };
+    if (variant.transport === "urlencoded") {
+      headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
+    }
 
     let pdfResponse: PdfFetchResponse;
     try {
       pdfResponse = await fetch(variant.url, {
         method: "POST",
-        headers: {
-          "Authorization": `Basic ${authString}`,
-        },
-        body: formData
+        headers,
+        body
       });
     } catch (networkErr: any) {
       lastNetworkError = String(networkErr?.message ?? networkErr).slice(0, 500);
