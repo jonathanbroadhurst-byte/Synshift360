@@ -182,15 +182,17 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
   const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
 
+  const formData = new FormData();
+  formData.append("html_content", htmlContent);
+
   let pdfResponse: Response;
   try {
     pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
       method: "POST",
       headers: {
         "Authorization": `Basic ${authString}`,
-        "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: "text=" + encodeURIComponent(htmlContent)
+      body: formData
     });
   } catch (networkErr: any) {
     throw new PdfUpstreamError(
