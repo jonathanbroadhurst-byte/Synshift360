@@ -78,7 +78,8 @@ async function ensureSchemaUpToDate() {
     // 3. Apply column updates AFTER the tables are guaranteed to exist
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
-    await db.execute(sql`ALTER TABLE eq_commitments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;`); // <-- Add this line here
+    await db.execute(sql`ALTER TABLE eq_commitments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;`);
+
     console.log("⚡ Column structures and EQ tables verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
     console.error("⚠️ Schema auto-alignment encountered an issue:", error);
@@ -381,16 +382,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-     const formData = new URLSearchParams();
-formData.append("src", reportHtml); // <-- Let URLSearchParams handle the raw string directly
-
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         headers: {
           "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: formData
+        body: `src=${encodeURIComponent(reportHtml)}`
       });
 
       if (!pdfResponse.ok) throw new Error(`API stream rejected: ${pdfResponse.statusText}`);
@@ -636,17 +634,14 @@ formData.append("src", reportHtml); // <-- Let URLSearchParams handle the raw st
       // 1. Generate the raw layout text structures
       const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
 
-      // 2. Wrap and ship directly to the remote print cluster pipeline
-      const formData = new URLSearchParams();
-      formData.append("src", encodeURIComponent(reportHtml));
-
+      // 2. Ship directly to the remote print cluster pipeline using explicit serialization string syntax
       const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
         method: "POST",
         headers: {
           "Authorization": "Basic " + Buffer.from("demo:ce544b6ea52a5621fb9d55f8b542d14d").toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: formData
+        body: `src=${encodeURIComponent(reportHtml)}`
       });
 
       if (!pdfResponse.ok) throw new Error(`PDF Generation failed: ${pdfResponse.statusText}`);
