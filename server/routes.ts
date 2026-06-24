@@ -204,6 +204,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
   let lastStatus: number | undefined;
   let lastBody = "";
   let lastNetworkError = "";
+  let repeatedInternalError400 = 0;
 
   for (const variant of requestVariants) {
     // Build a fresh body per attempt because field names and transports vary.
@@ -219,7 +220,7 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
       "Authorization": `Basic ${authString}`,
     };
     if (variant.transport === "urlencoded") {
-      headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
+      headers["Content-Type"] = "application/x-www-form-urlencoded;charset=utf-8";
     }
 
     let pdfResponse: PdfFetchResponse;
@@ -240,10 +241,20 @@ async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
 
     lastStatus = pdfResponse.status;
     lastBody = (await pdfResponse.text().catch(() => "")).slice(0, 500);
+    const normalizedBody = lastBody.trim().toLowerCase();
 
     // Authentication failures are deterministic, so fallback contract variants won't recover.
     if (pdfResponse.status === 401 || pdfResponse.status === 403) {
       break;
+    }
+
+    // Multiple variants returning the same provider-side 400 "internal error" is unlikely
+    // to recover and only adds latency.
+    if (pdfResponse.status === 400 && normalizedBody === "internal error") {
+      repeatedInternalError400 += 1;
+      if (repeatedInternalError400 >= 3) {
+        break;
+      }
     }
   }
 
