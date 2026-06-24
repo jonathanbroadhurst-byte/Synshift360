@@ -125,37 +125,49 @@ export default function EQSurvey() {
     setStep(3); 
   };
 
-  const handlePDFDownload = async () => {
+  const handleDownload = async () => {
     try {
+      // 1. Send the data payload directly to the anonymous backend lane
       const response = await fetch("/api/eq/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          fullName,
-          email,
-          metrics: processedResults,
-          commitment: commitments["social_awareness"] || ""
-        })
+          fullName: name, // Uses the state variable for name from your form
+          email: email,   // Uses the state variable for email from your form
+          metrics: processedResults, 
+          commitment: microExperiment, // Uses your 14-day textarea state variable
+        }),
       });
 
       if (!response.ok) {
         throw new Error("PDF mapping response encountered a pipeline error status.");
       }
 
-      const pdfBlob = await response.blob();
-      const url = window.URL.createObjectURL(pdfBlob);
+      // 2. Extract the response cleanly as plain text strings
+      const htmlTextContent = await response.text();
+
+      // 3. Package the text into a standalone browser-readable HTML file structure
+      const blob = new Blob([htmlTextContent], { type: "text/html;charset=utf-8" });
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `SyncShift_EQ_Profile_${fullName.replace(/\s+/g, '_')}.pdf`);
+      
+      link.href = downloadUrl;
+      link.download = `SyncShift_EQ_Profile_${name.replace(/\s+/g, "_")}.html`;
+      
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to execute safe binary file download:", err);
+      
+      // 4. Tear down temporary document anchors to clear memory leaks
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("Failed to execute safe binary file download:", error);
+      alert("We encountered an issue compiling your report copy. Please try again.");
     }
   };
-
   const submitFinalLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setStep(4);
