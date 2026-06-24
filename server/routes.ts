@@ -68,7 +68,7 @@ async function ensureSchemaUpToDate() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         domain_name TEXT NOT NULL,
-        commitment_text TEXT NOT NULL,
+        commitment_text NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -379,17 +379,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `</html>`
       ].join('');
 
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+      const formData = new URLSearchParams();
+      formData.append("username", "J0n_Br04d");
+      formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
+      formData.append("text", reportHtml);
+
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/api/pdf/v1/from/text", {
         method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: "text=" + encodeURIComponent(reportHtml)
+        body: formData
       });
 
       if (!pdfResponse.ok) {
-        throw new Error("API stream rejected");
+        const errText = await pdfResponse.text();
+        throw new Error(`Pdfcrowd rejection: ${pdfResponse.status} - ${errText}`);
       }
 
       const pdfArrayBuffer = await pdfResponse.arrayBuffer();
@@ -632,17 +634,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const reportHtml = compileSyncShiftHtmlReport(processedMetrics, "Jonathan Broadhurst", "SyncShift");
 
-      const pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
+      const formData = new URLSearchParams();
+      formData.append("username", "J0n_Br04d");
+      formData.append("api_key", "ef461a481b5d437a880e92880de5bade");
+      formData.append("text", reportHtml);
+
+      const pdfResponse = await fetch("https://api.pdfcrowd.com/api/pdf/v1/from/text", {
         method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from("J0n_Br04d:ef461a481b5d437a880e92880de5bade").toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: "text=" + encodeURIComponent(reportHtml)
+        body: formData
       });
 
       if (!pdfResponse.ok) {
-        throw new Error("PDF Generation failed");
+        const errText = await pdfResponse.text();
+        throw new Error(`Pdfcrowd rejection: ${pdfResponse.status} - ${errText}`);
       }
 
       const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
