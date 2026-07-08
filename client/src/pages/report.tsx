@@ -218,10 +218,49 @@ export default function Report() {
   const strengths = typeof (report as any).strengths === 'string' ? JSON.parse((report as any).strengths) : (report as any).strengths;
   const developmentAreas = typeof (report as any).developmentAreas === 'string' ? JSON.parse((report as any).developmentAreas) : (report as any).developmentAreas;
 
-  // Handles requesting the active PDF download byte binary from the backend cluster
-  const handleDownloadPdf = () => {
-    const token = localStorage.getItem('token'); 
-    window.open(`/api/reports/${(report as any).cycleId || reportId}/download?token=${token}`, '_blank');
+ // Handles requesting the active HTML download string template from the backend cluster
+  const handleDownloadPdf = async () => {
+    try {
+      const targetId = (report as any).cycleId || reportId;
+      const token = localStorage.getItem('token'); 
+
+      const response = await fetch(`/api/reports/${targetId}/download`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Report mapping response encountered a pipeline error status.");
+      }
+
+      // 1. Extract the dynamically generated HTML/SVG document string
+      const htmlTextContent = await response.text();
+
+      // 2. Wrap it into a safe browser readable text/html data blob
+      const blob = new Blob([htmlTextContent], { type: "text/html;charset=utf-8" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      // 3. Mount a silent link element to download the file directly
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      
+      // Compute a clear name for the file system
+      const safeTitle = (report as any)?.title || `SyncShift_360_Report_Cycle_${targetId}`;
+      link.download = `${safeTitle.replace(/\s+/g, "_")}.html`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // 4. Tear down the temporary object link to prevent browser memory leaks
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("Failed to execute safe file download:", error);
+      alert("We encountered an issue compiling your report copy. Please try again.");
+    }
   };
 
   return (
