@@ -653,26 +653,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cycleId = parseInt(req.params.cycleId);
       const processedMetrics = await generateSyncShiftReportData(cycleId);
       
+      // Fetch the deployment cycle details
       const cycle = await storage.getSurveyCycle(cycleId);
       if (!cycle) {
         return res.status(404).json({ message: "Survey cycle not found" });
       }
       
+      // Resolve target user name details safely
       const leader = await storage.getUser(cycle.leaderId);
-      const leaderName = leader ? `${leader.firstName} ${leader.lastName}` : "SyncShift Report";
+      const leaderName = leader ? `${leader.firstName} ${leader.lastName}` : "SyncShift Target Profile";
       
-      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, leaderName, "SyncShift");
-      const pdfBuffer = await convertHtmlToPdf(reportHtml);
+      // Compile the comprehensive visual HTML template directly (includes your embedded SVG radar engine)
+      const reportHtml = compileSyncShiftHtmlReport(processedMetrics, leaderName, "SyncShift Evaluation Matrix");
       
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.pdf"`);
-      return res.send(pdfBuffer);
+      // Instruct the browser to handle this directly as a standalone HTML download asset
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.html"`);
+      
+      return res.send(reportHtml);
     } catch (error) {
-      console.error("360 PDF download failed:", error);
-      return res.status(500).json({ message: error instanceof Error ? error.message : "Failed to compile PDF report." });
+      console.error("360 HTML document asset compilation failed:", error);
+      return res.status(500).json({ message: error instanceof Error ? error.message : "Failed to compile offline HTML report asset." });
     }
   });
-
+  
   app.get("/api/reports/:id", async (req: Request, res: Response) => {
     return res.json(await storage.getReport(parseInt(req.params.id)));
   });
