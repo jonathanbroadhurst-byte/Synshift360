@@ -154,11 +154,6 @@ function getDynamicExplanation(key: string, self: number, ext: number, isSuppres
   if (delta >= 1.0) return pool.positive;
   return pool.aligned;
 }
-  const pool = commentaryBank[key] || commentaryBank["direction"];
-  if (delta <= -1.0) return pool.blindspot;
-  if (delta >= 1.0) return pool.positive;
-  return pool.aligned;
-}
 
 /**
  * Compiles the raw dynamic dashboard HTML string matching the SyncShift brand identity
