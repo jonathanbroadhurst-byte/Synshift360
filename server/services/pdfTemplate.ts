@@ -107,38 +107,38 @@ function generateRadarSVG(dimensions: any): string {
 }
 
 /**
- * Evaluates live numerical deltas and returns deep context commentary
+ * Evaluates live numerical deltas and returns clean, high-impact context commentary
  */
 function getDynamicExplanation(key: string, self: number, ext: number, isSuppressed: boolean): string {
   if (isSuppressed) {
-    return "Detailed stakeholder consensus metrics are currently suppressed on this framework vector to strictly ensure respondent anonymity protocols.";
+    return "Detailed stakeholder consensus metrics are currently hidden on this dimension to protect respondent anonymity.";
   }
 
   const delta = ext - self;
 
   const commentaryBank: Record<string, { blindspot: string; aligned: string; positive: string }> = {
     direction: {
-      blindspot: "You maintain absolute clarity regarding long-term vision benchmarks. However, your team scored you significantly lower on communication. This indicates your roadmap is localized inside leadership columns; because context isn't broadcast frequently enough, stakeholders absorb daily strategy pivots as erratic volatility rather than systematic milestones.",
+      blindspot: "There is a major communication breakdown here. Individual directors have absolute clarity regarding their own plans, but they are keeping those roadmaps to themselves. Because executives aren't broadcasting the big picture frequently enough, employees experience daily operational shifts as random, unpredictable changes rather than steps toward a shared goal.",
       aligned: "Your vision transmission parameters are highly synchronized. The strategic objectives you intentionally broadcast mirror the exact execution priorities recognized across your active department teams.",
       positive: "Your organizational network demonstrates extreme strategic resonance. Your operational teams absorb, own, and champion the long-term strategic map at a level that outpaces your personal assumptions."
     },
     systems: {
-      blindspot: "An operational breakdown point is developing. While you prioritize strategic orchestration, your teams indicate that baseline execution frameworks, feedback loops, or task tracking infrastructure are missing. This gap causes critical workflow drag as individuals work around system mechanics.",
+      blindspot: "An operational breakdown point is developing. While you prioritize high-level management, your teams indicate that basic execution frameworks, task tracking, or feedback loops are missing. This gap forces staff to invent workarounds, causing major day-to-day workflow drag.",
       aligned: "Operational delivery infrastructures are highly stable. The workflow routines, task handoffs, and accountability loops you have configured allow departments to run cleanly without management dependencies.",
       positive: "Your execution parameters are running with exceptional autonomy. Teams value and lean on your operational guardrails even higher than your estimation, using them to deliver consistent outcomes with near-zero friction."
     },
     purpose: {
-      blindspot: "A cultural trust drift is observable. While you feel your operational principles are transparently clear, stakeholders experience a values mismatch. This variance often implies that corporate decisions are perceived as purely transactional, risking baseline team engagement.",
+      blindspot: "A corporate trust drift is happening. While you feel your operational principles are transparently clear, staff on the ground experience a core values mismatch. This gap means corporate decisions are perceived as purely transactional, risking baseline team engagement.",
       aligned: "Your values and authentic leadership presence match the structural expectations of your team completely. This shared connection anchors core relational capital that you can safely lean on during heavy organizational adjustments.",
       positive: "Stakeholders recognize a profound level of authentic purpose behind your executive actions, establishing a powerful cultural baseline of safety that inspires high organizational accountability."
     },
     skills: {
-      blindspot: "Capability mismatch vector. Your personal pivot agility outruns your team's current development training wheels, or vice versa. This structural variance suggests that tactical requirements are changing faster than systemic skills can realistically adapt.",
+      blindspot: "Capability mismatch vector. Your leadership team's tactical requirements are shifting faster than systemic skills can realistically adapt, leaving your groups under-trained to hit new targets smoothly.",
       aligned: "Tactical adaptive readiness is beautifully matched. Your group's developmental capabilities match marketplace shifts, enabling fast adjustments without burning out team units.",
       positive: "Your operational network displays exceptional problem-solving capacity, executing complex skill-set transitions swiftly to absorb fresh marketplace challenges without project interruptions."
     },
     team: {
-      blindspot: "A structural team silo warning is active. While you see your internal department parameters as highly supportive, your peers and reports experience fragmented workflows. Sub-groups are hoarding operational context, leading to internal resource friction.",
+      blindspot: "A severe culture block is forming here. While executive directors believe department communication is smooth, employees report highly isolated team behaviors. Sub-groups are hoarding information, looking out for their own local targets, and creating massive drag during cross-department handoffs.",
       aligned: "Internal group norms are deeply cohesive. Teams practice healthy mutual support parameters, ensuring open cross-functional communication balances cleanly against performance requirements.",
       positive: "Your department operations have achieved complete high-velocity alignment. Teams resolve complex issues autonomously, driving collective accountability loops that remove cross-department friction completely."
     },
@@ -149,6 +149,11 @@ function getDynamicExplanation(key: string, self: number, ext: number, isSuppres
     }
   };
 
+  const pool = commentaryBank[key] || commentaryBank["direction"];
+  if (delta <= -1.0) return pool.blindspot;
+  if (delta >= 1.0) return pool.positive;
+  return pool.aligned;
+}
   const pool = commentaryBank[key] || commentaryBank["direction"];
   if (delta <= -1.0) return pool.blindspot;
   if (delta >= 1.0) return pool.positive;
