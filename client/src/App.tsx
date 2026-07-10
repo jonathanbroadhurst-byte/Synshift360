@@ -20,6 +20,7 @@ import Quantum360Start from "@/pages/quantum360-start";
 import MacroReportsDashboard from "@/pages/admin/MacroReports"; // 📊 Added the Analytics Import
 import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
+import Public360Gateway from "@/pages/Public360Gateway";
 
 function Router() {
   return (
@@ -30,7 +31,8 @@ function Router() {
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/login" component={Login} />
-
+<Route path="/360" component={Public360Gateway} />
+      
       {/* Platform Owner / Super Admin Workspace Guard */}
       <Route path="/admin/owner-dashboard">
         <RequireAuth roles={["owner", "super_admin"]}>
