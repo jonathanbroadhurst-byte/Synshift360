@@ -26,7 +26,16 @@ function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/" component={Home} />
+      <Route path="/">
+  {() => {
+    // Read the URL parameters directly in the browser
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('page') === '360') {
+      return <Public360Gateway />;
+    }
+    return <Home />;
+  }}
+</Route>
       <Route path="/contact-form" component={ContactForm} />
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
