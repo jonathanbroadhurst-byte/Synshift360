@@ -22,7 +22,7 @@ import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
 import Public360Gateway from "@/pages/public360gateway";
 
-// 🌐 CONDITIONAL ROOT VIEW: Intercepts public link query parameters to bypass backend token gates
+// 🌐 CONDITIONAL ROOT VIEW: Direct routing updates
 function PublicRootHandler() {
   const params = new URLSearchParams(window.location.search);
   const pageParam = params.get('page');
@@ -32,7 +32,8 @@ function PublicRootHandler() {
   }
   
   if (pageParam === 'eq') {
-    return <SurveyAccess />;
+    // SWITCH THIS HERE: Swapping to your lead capture capture page component
+    return <ContactForm />;
   }
   
   return <Home />;
