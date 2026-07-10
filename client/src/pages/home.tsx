@@ -4,13 +4,12 @@ import { Compass, Cpu, Target, User, Users, TrendingUp, ArrowRight, BrainCircuit
 import EQSurvey from "./EQSurvey"; 
 
 export default function Home() {
-  const [showPublicEQ, setShowPublicEQ] = useState(false);
-export default function Home() {
   // Read the URL parameters directly when the component mounts
   const params = new URLSearchParams(window.location.search);
   
   // If ?page=eq is present, initialize with the survey already visible
   const [showPublicEQ, setShowPublicEQ] = useState(params.get('page') === 'eq');
+
   const frameworkPillars = [
     { 
       icon: <Compass className="w-5 h-5" />, 
