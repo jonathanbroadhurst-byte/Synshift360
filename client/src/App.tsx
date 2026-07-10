@@ -20,7 +20,7 @@ import Quantum360Start from "@/pages/quantum360-start";
 import MacroReportsDashboard from "@/pages/admin/MacroReports"; // 📊 Added the Analytics Import
 import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
-import Public360Gateway from "@/pages/Public360Gateway";
+import Public360Gateway from "@/pages/public360gateway";
 
 function Router() {
   return (
