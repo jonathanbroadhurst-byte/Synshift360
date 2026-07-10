@@ -31,11 +31,7 @@ function PublicRootHandler() {
     return <Public360Gateway />;
   }
   
-  if (pageParam === 'eq') {
-    // SWITCH THIS HERE: Swapping to your lead capture capture page component
-    return <ContactForm />;
-  }
-  
+  // Both paths now route directly to Home, keeping your UI clean and unified
   return <Home />;
 }
 
