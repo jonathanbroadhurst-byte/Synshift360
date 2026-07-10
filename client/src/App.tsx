@@ -22,26 +22,26 @@ import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
 import Public360Gateway from "@/pages/public360gateway";
 
+// 🌐 CONDITIONAL ROOT VIEW: Handled cleanly to let wouter compile state natively
+function PublicRootHandler() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('page') === '360') {
+    return <Public360Gateway />;
+  }
+  return <Home />;
+}
+
 function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/">
-  {() => {
-    // Read the URL parameters directly in the browser
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('page') === '360') {
-      return <Public360Gateway />;
-    }
-    return <Home />;
-  }}
-</Route>
+      <Route path="/" component={PublicRootHandler} />
       <Route path="/contact-form" component={ContactForm} />
       <Route path="/survey-access" component={SurveyAccess} />
       <Route path="/survey/:inviteCode" component={Survey} />
       <Route path="/login" component={Login} />
-<Route path="/360" component={Public360Gateway} />
-      
+      <Route path="/360" component={Public360Gateway} />
+        
       {/* Platform Owner / Super Admin Workspace Guard */}
       <Route path="/admin/owner-dashboard">
         <RequireAuth roles={["owner", "super_admin"]}>
@@ -65,7 +65,7 @@ function Router() {
           <Dashboard />
         </RequireAuth>
       </Route>
-      
+        
       {/* 📊 Added the Hierarchical Systemic Alignment Delta Dashboard Route */}
       <Route path="/admin/macro-reports">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
