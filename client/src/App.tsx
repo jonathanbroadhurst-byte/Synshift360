@@ -22,12 +22,19 @@ import { AuthProvider, RequireAuth } from "@/lib/auth";
 import LeaderDashboard from "@/pages/leader-dashboard";
 import Public360Gateway from "@/pages/public360gateway";
 
-// 🌐 CONDITIONAL ROOT VIEW: Handled cleanly to let wouter compile state natively
+// 🌐 CONDITIONAL ROOT VIEW: Intercepts public link query parameters to bypass backend token gates
 function PublicRootHandler() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('page') === '360') {
+  const pageParam = params.get('page');
+
+  if (pageParam === '360') {
     return <Public360Gateway />;
   }
+  
+  if (pageParam === 'eq') {
+    return <SurveyAccess />;
+  }
+  
   return <Home />;
 }
 
