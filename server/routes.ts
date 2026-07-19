@@ -534,7 +534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // -------------------------------------------------------------------------
   // 🔒 STAGE 2: THE ENFORCEMENT VALVE (ALL LOGGED-IN ACTIONS START HERE)
   // -------------------------------------------------------------------------
-  app.use(authenticateToken);
+ app.use("/api", authenticateToken);
 
   app.get("/api/auth/me", async (req: AuthenticatedRequest, res: Response) => {
     return res.json({ user: req.user });
