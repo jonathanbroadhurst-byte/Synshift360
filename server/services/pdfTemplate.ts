@@ -2,12 +2,14 @@ import { AggregatedReportData } from "./reporting";
 
 /**
  * Dynamically computes a high-fidelity, gradient-filled visual SVG radar chart
+ * Upgraded to support a 7-spoke heptagonal framework blueprint.
  */
 function generateRadarSVG(dimensions: any): string {
   const cx = 250;
-  const cy = 210;
+  const cy = 230; // Adjusted slightly to allow space for top labels
   const rMax = 140;
-  const keys = ["direction", "systems", "purpose", "skills", "team", "impact"];
+  // Expanded to include the 7 dynamic keys matching the reporting engine
+  const keys = ["direction", "systems", "purpose", "skills", "team", "impact", "cross_level"];
   
   const valToR = (val: number) => (val / 7.0) * rMax;
 
@@ -16,7 +18,8 @@ function generateRadarSVG(dimensions: any): string {
   const alignPts: string[] = [];
 
   keys.forEach((key, i) => {
-    const angle = i * (2 * Math.PI / 6) - (Math.PI / 2);
+    // Calculated using a strict 7-slice angular layout (51.43 degrees offset)
+    const angle = i * (2 * Math.PI / 7) - (Math.PI / 2);
     const dim = dimensions[key];
     
     // Personal Competency Levers (Intent Line)
@@ -28,12 +31,12 @@ function generateRadarSVG(dimensions: any): string {
     alignPts.push(`${cx + rAlign * Math.cos(angle)},${cy + rAlign * Math.sin(angle)}`);
   });
 
-  // Render concentric ring webs
+  // Render concentric ring webs for a 7-spoke heptagon grid
   let webGrid = "";
   for (let level = 1; level <= 7; level++) {
     const pts: string[] = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = i * (2 * Math.PI / 6) - (Math.PI / 2);
+    for (let i = 0; i < 7; i++) {
+      const angle = i * (2 * Math.PI / 7) - (Math.PI / 2);
       const r = valToR(level);
       pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
     }
@@ -48,11 +51,12 @@ function generateRadarSVG(dimensions: any): string {
     "Purpose & Authenticity",
     "Skills & Agility",
     "Team & Norms",
-    "Impact & Reputation"
+    "Impact & Reputation",
+    "Cross-Level Alignment"
   ];
 
   keys.forEach((key, i) => {
-    const angle = i * (2 * Math.PI / 6) - (Math.PI / 2);
+    const angle = i * (2 * Math.PI / 7) - (Math.PI / 2);
     const r = valToR(7);
     axisElements += `  <line x1="${cx}" y1="${cy}" x2="${cx + r * Math.cos(angle)}" y2="${cy + r * Math.sin(angle)}" stroke="#CBD5E1" stroke-width="1.2" stroke-dasharray="4,4" />\n`;
     
@@ -72,7 +76,7 @@ function generateRadarSVG(dimensions: any): string {
   });
 
   return `
-  <svg viewBox="0 0 500 460" width="100%" height="420" xmlns="http://www.w3.org/2000/svg">
+  <svg viewBox="0 0 500 470" width="100%" height="420" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#D97706" stop-opacity="0.25" />
@@ -82,9 +86,6 @@ function generateRadarSVG(dimensions: any): string {
         <stop offset="0%" stop-color="#1E3A8A" stop-opacity="0.25" />
         <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.05" />
       </linearGradient>
-      <filter id="dotShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
-      </filter>
     </defs>
     ${webGrid}
     ${axisElements}
@@ -96,12 +97,12 @@ function generateRadarSVG(dimensions: any): string {
     <circle cx="${cx}" cy="${cy}" r="4" fill="#0A192F" />
 
     <!-- Inline Modern Legend Bar Map -->
-    <g transform="translate(110, 435)">
+    <g transform="translate(110, 445)">
       <rect x="0" y="0" width="12" height="12" rx="3" fill="#D97706" />
       <text x="18" y="10" font-family="Arial" font-size="9.5" font-weight="bold" fill="#475569">Leadership Intent (Self)</text>
       
-      <rect x="150" y="0" width="12" height="12" rx="3" fill="#1E3A8A" />
-      <text x="168" y="10" font-family="Arial" font-size="9.5" font-weight="bold" fill="#475569">Systemic Impact (Stakeholders)</text>
+      <rect x="160" y="0" width="12" height="12" rx="3" fill="#1E3A8A" />
+      <text x="178" y="10" font-family="Arial" font-size="9.5" font-weight="bold" fill="#475569">Systemic Impact (Stakeholders)</text>
     </g>
   </svg>`;
 }
@@ -116,9 +117,10 @@ function getDynamicExplanation(key: string, self: number, ext: number, isSuppres
 
   const delta = ext - self;
 
+  // Injected the 4 new metrics completely into the text analyzer blocks
   const commentaryBank: Record<string, { blindspot: string; aligned: string; positive: string }> = {
     direction: {
-      blindspot: "There is a major communication breakdown here. Individual directors have absolute clarity regarding their own plans, but they are keeping those roadmaps to themselves. Because executives aren't broadcasting the big picture frequently enough, employees experience daily operational shifts as random, unpredictable changes rather than steps toward a shared goal.",
+      blindspot: "Your leadership has developed a strategic transmission drift. While you feel you regularly connect tasks to the corporate vision, your team is executing in a context vacuum. They experience their daily tasks as purely transactional, unable to see how their immediate workload contributes to the organization's broader purpose.",
       aligned: "Your vision transmission parameters are highly synchronized. The strategic objectives you intentionally broadcast mirror the exact execution priorities recognized across your active department teams.",
       positive: "Your organizational network demonstrates extreme strategic resonance. Your operational teams absorb, own, and champion the long-term strategic map at a level that outpaces your personal assumptions."
     },
@@ -128,24 +130,29 @@ function getDynamicExplanation(key: string, self: number, ext: number, isSuppres
       positive: "Your execution parameters are running with exceptional autonomy. Teams value and lean on your operational guardrails even higher than your estimation, using them to deliver consistent outcomes with near-zero friction."
     },
     purpose: {
-      blindspot: "A corporate trust drift is happening. While you feel your operational principles are transparently clear, staff on the ground experience a core values mismatch. This gap means corporate decisions are perceived as purely transactional, risking baseline team engagement.",
-      aligned: "Your values and authentic leadership presence match the structural expectations of your team completely. This shared connection anchors core relational capital that you can safely lean on during heavy organizational adjustments.",
-      positive: "Stakeholders recognize a profound level of authentic purpose behind your executive actions, establishing a powerful cultural baseline of safety that inspires high organizational accountability."
+      blindspot: "Your leadership has developed a strategic transmission drift. While you feel you regularly connect tasks to the corporate vision, your team is executing in a context vacuum. They experience their daily tasks as purely transactional, unable to see how their immediate workload contributes to the organization's broader purpose.",
+      aligned: "Your strategic purpose transmission is beautifully synchronized. The macro vision you broadcast maps directly into the daily operational meaning experienced by your team on the ground.",
+      positive: "Your department has achieved complete purpose resonance. Your team owns, articulates, and derives deep personal meaning from the corporate vision at a level that completely outpaces your assumptions."
     },
     skills: {
-      blindspot: "Capability mismatch vector. Your leadership team's tactical requirements are shifting faster than systemic skills can realistically adapt, leaving your groups under-trained to hit new targets smoothly.",
-      aligned: "Tactical adaptive readiness is beautifully matched. Your group's developmental capabilities match marketplace shifts, enabling fast adjustments without burning out team units.",
-      positive: "Your operational network displays exceptional problem-solving capacity, executing complex skill-set transitions swiftly to absorb fresh marketplace challenges without project interruptions."
+      blindspot: "A structural risk-aversion default has set in. While you believe you are encouraging new ideas, your team experiences a distinct psychological safety vacuum. They do not feel empowered to take calculated risks or iterate quickly because they perceive that past failures carry a penalties premium.",
+      aligned: "Your developmental sandbox is highly stable. You successfully balance operational delivery with a safe psychological space, giving your team the functional confidence to experiment, fail forward, and iterate swiftly.",
+      positive: "Your department has established an exceptional high-trust innovation loop. Your team actively treats failures as pure navigation data, aggressively piloting fresh concepts and adapting to changes with absolute autonomy."
     },
     team: {
-      blindspot: "A severe culture block is forming here. While executive directors believe department communication is smooth, employees report highly isolated team behaviors. Sub-groups are hoarding information, looking out for their own local targets, and creating massive drag during cross-department handoffs.",
+      blindspot: "A structural risk-aversion default has set in. While you believe you are encouraging new ideas, your team experiences a distinct psychological safety vacuum. They do not feel empowered to take calculated risks or iterate quickly because they perceive that past failures carry a penalties premium. Sub-groups are context-hoarding, creating communication friction[cite: 2].",
       aligned: "Internal group norms are deeply cohesive. Teams practice healthy mutual support parameters, ensuring open cross-functional communication balances cleanly against performance requirements.",
       positive: "Your department operations have achieved complete high-velocity alignment. Teams resolve complex issues autonomously, driving collective accountability loops that remove cross-department friction completely."
     },
     impact: {
-      blindspot: "Brand projection drift. Your personal energy output does not match the actual reputation parameters acknowledged across the enterprise matrix. External stakeholder columns do not fully see or register your core tactical achievements.",
-      aligned: "Corporate brand authority parameters are perfectly secure. Your performance choices map cleanly into consistent reputation metrics recognized universally across external operational lines.",
-      positive: "Your leadership footprint commands exceptional authority across the ecosystem, creating deep executive influence that effortlessly opens doors across high-level strategic nodes."
+      blindspot: "An execution bottleneck is actively stalling your velocity. While you believe your goals are clear and strategically sound, your team's operational feedback indicates a target mismatch. Priorities are either conflicting or poorly defined, causing the team to consistently miss key milestones despite high effort.",
+      aligned: "Your execution parameters are tightly locked. The measurable goals you establish are perfectly matched to your strategic priorities, allowing your team to predictably and consistently hit their operational targets.",
+      positive: "Your team demonstrates elite execution velocity. Because you align work cleanly with overarching priorities, your team operates with near-zero friction, consistently outpacing and exceeding all macro performance baselines."
+    },
+    cross_level: {
+      blindspot: "A severe cross-functional silo warning is active. While you believe your team's goals are cleanly integrated across the wider enterprise, your immediate peers and reports experience major boundary friction. Your objectives are isolated, causing dropped handoffs and resource tension with neighboring departments.",
+      aligned: "Your cross-functional boundary parameters are highly secure. Your team’s objectives are cleanly linked and transparently visible to other parts of the organization, preventing internal drag during joint operations.",
+      positive: "Your department operates with complete cross-enterprise integration. Your workflow handoffs are entirely seamless, and your team autonomously co-engineers objectives with neighboring business units to remove systemic friction across the entire enterprise matrix."
     }
   };
 
@@ -232,7 +239,7 @@ export function compileSyncShiftHtmlReport(data: AggregatedReportData, leaderNam
     <table class="cover-meta-table">
       <tr><td class="cover-meta-label">Prepared For</td><td class="cover-meta-value">${leaderName}</td></tr>
       <tr><td class="cover-meta-label">Organisation</td><td class="cover-meta-value">${orgName}</td></tr>
-      <tr><td class="cover-meta-label">Diagnostic Baseline</td><td class="cover-meta-value">SyncShift Interleaved Dual-Line Core Matrix</td></tr>
+      <tr><td class="cover-meta-label">Diagnostic Baseline</td><td class="cover-meta-value">SyncShift Interleaved Dual-Line Core Matrix (7-Dimension Criteria)</td></tr>
       <tr><td class="cover-meta-label">Total Responses</td><td class="cover-meta-value">${data.totalResponses} submissions</td></tr>
     </table>
   </div>
