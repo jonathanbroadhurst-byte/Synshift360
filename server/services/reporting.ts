@@ -2,14 +2,15 @@ import { db } from "../db";
 import { surveyCycles, surveyResponses, users, organizations } from "@shared/schema";
 import { eq, inArray } from "drizzle-orm";
 
-// Define the 6 explicit dimensions matching the SyncShift Framework
+// 1. UPDATE TO THE NEW 7 EXPLICIT DIMENSIONS
 export const SYNCSHIFT_DIMENSIONS = [
-  "direction", // Direction & Sense-Making
-  "systems",   // Systems & Delivery
-  "purpose",   // Purpose & Authenticity
-  "skills",    // Skills & Agility
-  "team",      // Team & Norms
-  "impact"     // Impact & Reputation
+  "direction",    // Direction & Sense-Making (Metrics 1, 7)
+  "systems",      // Systems & Delivery (Metric 5)
+  "purpose",      // Purpose & Authenticity (Metrics 2, 10)
+  "skills",       // Skills & Agility (Metrics 3, 12)
+  "team",         // Team & Norms (Metrics 4, 8)
+  "impact",       // Impact & Reputation (Metrics 6, 11, 9)
+  "cross_level"   // Cross-Level Alignment (Metric 13)
 ];
 
 export interface AggregatedReportData {
@@ -20,10 +21,10 @@ export interface AggregatedReportData {
   dimensions: {
     [key: string]: {
       name: string;
-      selfScore: number;       // Intent / Personal Capability Levers
-      externalScore: number;   // Impact / Systemic Alignment Outcomes
-      delta: number;           // Perception Gap Vector
-      isSuppressed: boolean;   // Protected by Anonymity Guardrail
+      selfScore: number;
+      externalScore: number;
+      delta: number;
+      isSuppressed: boolean;
     };
   };
   rawBreakdown: any[];
@@ -38,36 +39,54 @@ export interface MacroTierReportData {
   pillars: {
     [key: string]: {
       name: string;
-      leaderSelfAvg: number;       // Collective self-perception
-      stakeholderAvg: number;      // Collective operational reality
-      blindspotDelta: number;      // Self vs External Alignment Gap
-      cohesionVariance: number;    // Internal tier consistency score (Lower = Highly Cohesive)
+      leaderSelfAvg: number;
+      stakeholderAvg: number;
+      blindspotDelta: number;
+      cohesionVariance: number;
     };
   };
   functionalFrictionIndex?: Array<{
     deptA: string;
     deptB: string;
-    frictionDelta: number;        // Mathematical variance between departments
+    frictionDelta: number;
   }>;
 }
 
 /**
- * Helper function to instantiate an empty statistical accumulator
+ * 2. EXPANDED ACCUMULATOR FOR 7 DIMENSIONS
  */
 function createDimensionAccumulator() {
   return {
-    direction: { name: "Direction & Sense-Making", selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
-    systems:   { name: "Systems & Delivery",       selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
-    purpose:   { name: "Purpose & Authenticity",   selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
-    skills:    { name: "Skills & Agility",          selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
-    team:      { name: "Team & Norms",              selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
-    impact:    { name: "Impact & Reputation",       selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] }
+    direction:   { name: "Direction & Sense-Making", selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    systems:     { name: "Systems & Delivery",       selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    purpose:     { name: "Purpose & Authenticity",   selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    skills:      { name: "Skills & Agility",         selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    team:        { name: "Team & Norms",             selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    impact:      { name: "Impact & Reputation",      selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] },
+    cross_level: { name: "Cross-Level Alignment",    selfSum: 0, selfCount: 0, extSum: 0, extCount: 0, selfScores: [] as number[] }
   };
 }
 
 /**
- * Computes standard variance to measure Team/Functional cohesion limits
+ * MAPPING FUNCTION: Safely routes any metric ID directly to its designated dimension
  */
+function mapMetricToDimension(qId: string | number): string | null {
+  // Converts "metric_1" or "1" into an integer cleanly
+  const idStr = String(qId).replace('metric_', '');
+  const idNum = parseInt(idStr);
+
+  switch (idNum) {
+    case 1: case 7: return "direction";
+    case 5: return "systems";
+    case 2: case 10: return "purpose";
+    case 3: case 12: return "skills";
+    case 4: case 8: return "team";
+    case 6: case 9: case 11: return "impact";
+    case 13: return "cross_level";
+    default: return null;
+  }
+}
+
 function calculateVariance(values: number[]): number {
   if (values.length <= 1) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -76,7 +95,7 @@ function calculateVariance(values: number[]): number {
 }
 
 /**
- * 1:1 Individual Leader Interleaved Matrix Report Generator
+ * 1:1 INDIVIDUAL REPORT GENERATOR
  */
 export async function generateSyncShiftReportData(cycleId: number): Promise<AggregatedReportData> {
   const [cycle] = await db.select().from(surveyCycles).where(eq(surveyCycles.id, cycleId)).limit(1);
@@ -84,11 +103,8 @@ export async function generateSyncShiftReportData(cycleId: number): Promise<Aggr
 
   const allResponses = await db.select().from(surveyResponses).where(eq(surveyResponses.cycleId, cycleId));
 
-  const selfGroup = allResponses.filter(r => r.respondentRelationship?.toLowerCase() === 'self');
   const externalGroup = allResponses.filter(r => r.respondentRelationship?.toLowerCase() !== 'self');
-
-  const totalExternalCount = externalGroup.length;
-  const clearAnonymity = totalExternalCount >= 3;
+  const clearAnonymity = externalGroup.length >= 3;
 
   const dimensionAccumulator = createDimensionAccumulator();
 
@@ -97,12 +113,11 @@ export async function generateSyncShiftReportData(cycleId: number): Promise<Aggr
       typeof response.responses === 'string' ? JSON.parse(response.responses) : (response.responses as any) || [];
 
     answersList.forEach((item) => {
-      const qId = parseInt(item.questionId);
       const score = parseInt(item.value);
-      
-      if (isNaN(qId) || isNaN(score)) return;
+      if (isNaN(score)) return;
 
-      const dimensionKey = SYNCSHIFT_DIMENSIONS[(qId - 1) % 6];
+      // 3. EXPLICIT MAPPING RATHER THAN MODULO MATH
+      const dimensionKey = mapMetricToDimension(item.questionId);
       const isSelf = response.respondentRelationship?.toLowerCase() === 'self';
 
       if (dimensionKey && dimensionAccumulator[dimensionKey as keyof typeof dimensionAccumulator]) {
@@ -127,9 +142,7 @@ export async function generateSyncShiftReportData(cycleId: number): Promise<Aggr
     let finalExt = data.extCount > 0 ? Number((data.extSum / data.extCount).toFixed(2)) : 0;
     
     const shouldSuppress = !clearAnonymity;
-    if (shouldSuppress) {
-      finalExt = 0; 
-    }
+    if (shouldSuppress) finalExt = 0; 
 
     finalizedDimensions[key] = {
       name: data.name,
@@ -155,7 +168,7 @@ export async function generateSyncShiftReportData(cycleId: number): Promise<Aggr
 }
 
 /**
- * MACRO ENGINE: Compiles Team, Function, and Org alignment reports using Delta Maps
+ * MACRO ENGINE: Compiles Team, Function, and Org alignment reports
  */
 export async function generateMacroTierReport(
   orgId: number, 
@@ -163,7 +176,6 @@ export async function generateMacroTierReport(
   identifierValue?: string
 ): Promise<MacroTierReportData> {
   
-  // 1. Fetch relevant target user profiles within scope boundaries
   let targetUsers = await db.select().from(users).where(eq(users.organizationId, orgId));
   
   if (tierType === "team" && identifierValue) {
@@ -173,15 +185,12 @@ export async function generateMacroTierReport(
   }
 
   const leaderIds = targetUsers.map(u => u.id);
-  
-  // Rule: High trust parameters require a minimum of 5 leaders to compile a macro tier matrix
   const thresholdCleared = leaderIds.length >= 5;
 
   if (leaderIds.length === 0) {
     throw new Error(`No active data sources tracked under the target parameters: ${identifierValue || 'All'}`);
   }
 
-  // 2. Extract corresponding survey cycle tokens
   const activeCycles = await db.select().from(surveyCycles).where(inArray(surveyCycles.leaderId, leaderIds));
   const cycleIds = activeCycles.map(c => c.id);
 
@@ -192,17 +201,16 @@ export async function generateMacroTierReport(
 
   const accumulator = createDimensionAccumulator();
 
-  // 3. Process data loops into dimensional matrices
   allResponses.forEach((response) => {
     const answersList: Array<{ questionId: any; type: string; value: any }> = 
       typeof response.responses === 'string' ? JSON.parse(response.responses) : (response.responses as any) || [];
 
     answersList.forEach((item) => {
-      const qId = parseInt(item.questionId);
       const score = parseInt(item.value);
-      if (isNaN(qId) || isNaN(score)) return;
+      if (isNaN(score)) return;
 
-      const dimensionKey = SYNCSHIFT_DIMENSIONS[(qId - 1) % 6];
+      // 4. EXPLICIT MACRO METRIC MAPPING
+      const dimensionKey = mapMetricToDimension(item.questionId);
       const isSelf = response.respondentRelationship?.toLowerCase() === 'self';
 
       if (dimensionKey && accumulator[dimensionKey as keyof typeof accumulator]) {
@@ -210,7 +218,7 @@ export async function generateMacroTierReport(
         if (isSelf) {
           target.selfSum += score;
           target.selfCount += 1;
-          target.selfScores.push(score); // Kept for calculating Cohesion Variance scores
+          target.selfScores.push(score); 
         } else {
           target.extSum += score;
           target.extCount += 1;
@@ -219,12 +227,9 @@ export async function generateMacroTierReport(
     });
   });
 
-  // 4. Assemble Delta Mapping Vectors
   const compiledPillars: any = {};
   SYNCSHIFT_DIMENSIONS.forEach((key) => {
     const data = accumulator[key as keyof typeof accumulator];
-    
-    // Safety fallback boundaries for non-released metadata parameters
     const avgSelf = data.selfCount > 0 ? Number((data.selfSum / data.selfCount).toFixed(2)) : 0;
     const avgExt = data.extCount > 0 ? Number((data.extSum / data.extCount).toFixed(2)) : 0;
 
@@ -246,18 +251,15 @@ export async function generateMacroTierReport(
     pillars: compiledPillars
   };
 
-  // 5. Compute Systemic Functional Friction Matrix maps if compiling Organization level reviews
   if (tierType === "organisation" && thresholdCleared) {
     const departmentsList = Array.from(new Set(targetUsers.map(u => u.department).filter(Boolean))) as string[];
     const frictionMap: Array<{ deptA: string; deptB: string; frictionDelta: number }> = [];
 
-    // Calculate alignment variances across tracking department permutations
     for (let i = 0; i < departmentsList.length; i++) {
       for (let j = i + 1; j < departmentsList.length; j++) {
         const deptA = departmentsList[i];
         const deptB = departmentsList[j];
 
-        // Fetch department profiles
         const leadersA = targetUsers.filter(u => u.department === deptA).map(u => u.id);
         const leadersB = targetUsers.filter(u => u.department === deptB).map(u => u.id);
 
