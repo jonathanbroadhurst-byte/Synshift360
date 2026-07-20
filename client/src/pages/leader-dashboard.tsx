@@ -32,14 +32,16 @@ export default function LeaderDashboard() {
     enabled: !!user?.organizationId,
   });
 
-// 1. Prioritize an active cycle assigned directly to this user as leader
-// 2. Fall back to general organization cycles only if no direct cycle exists
+// Explicit, domain-driven selection: Personal Leader Cycle takes absolute precedence
+const myLeaderCycles = surveyCycles?.filter(
+  (cycle) => (cycle.status === 'active' || cycle.isActive === true) && cycle.leaderId === user?.id
+);
+
+// Fallback to org cycles ONLY if the user has no personal leader cycle active
 const activeCycle = 
+  (myLeaderCycles && myLeaderCycles.length > 0 ? myLeaderCycles[myLeaderCycles.length - 1] : null) ||
   surveyCycles?.find(
-    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && user?.id && cycle.leaderId === user.id
-  ) ||
-  surveyCycles?.find(
-    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && user?.organizationId && cycle.organizationId === user.organizationId
+    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && cycle.organizationId === user?.organizationId
   );
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
