@@ -85,7 +85,7 @@ export default function Survey() {
     setResponses(prev => ({ ...prev, [questionId]: { type: 'text', value } }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
@@ -96,7 +96,7 @@ export default function Survey() {
           inviteCode,
           respondentName,
           respondentEmail,
-          respondentRelationship,
+          relationship: respondentRelationship, // 👈 Maps state value to the 'relationship' key expected by routes.ts
           responses: Object.entries(responses).map(([questionId, answer]) => ({ questionId, ...answer }))
         }),
       });
