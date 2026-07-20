@@ -32,14 +32,15 @@ export default function LeaderDashboard() {
     enabled: !!user?.organizationId,
   });
 
-  // Clean, explicit matching based on domain authority
-const activeCycle = surveyCycles?.find((cycle) => {
-  const isActive = cycle.status === 'active' || cycle.isActive === true;
-  const belongsToOrg = user?.organizationId && cycle.organizationId === user.organizationId;
-  const assignedToUser = user?.id && cycle.leaderId === user.id;
-
-  return isActive && (belongsToOrg || assignedToUser);
-});
+// 1. Prioritize an active cycle assigned directly to this user as leader
+// 2. Fall back to general organization cycles only if no direct cycle exists
+const activeCycle = 
+  surveyCycles?.find(
+    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && user?.id && cycle.leaderId === user.id
+  ) ||
+  surveyCycles?.find(
+    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && user?.organizationId && cycle.organizationId === user.organizationId
+  );
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
