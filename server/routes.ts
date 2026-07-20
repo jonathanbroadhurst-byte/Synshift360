@@ -502,17 +502,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 🎯 ITEM 4 FIX: Accept and store relationship type ('Self', 'Peer', etc.)
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
-      const { inviteCode, responses, relationship } = req.body;
+      const { inviteCode, responses, relationship, respondentRelationship } = req.body;
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
       if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
 
-      const respondentRelationship = relationship || 'Stakeholder';
+      // Accepts either key name from the incoming payload
+      const finalRelationship = relationship || respondentRelationship || 'Stakeholder';
 
       await storage.createSurveyResponse({ 
         cycleId: cycle.id, 
         invitationId: null, 
         responses: responses, 
-        respondentRelationship: respondentRelationship, 
+        respondentRelationship: finalRelationship, 
         responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), 
         disabled: false 
       });
