@@ -499,23 +499,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(cycle);
   });
 
+  // 🎯 ITEM 4 FIX: Accept and store relationship type ('Self', 'Peer', etc.)
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
-    const cycle = await storage.getSurveyCycleByInviteCode(req.body.inviteCode);
-    if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
-    await storage.createSurveyResponse({ cycleId: cycle.id, invitationId: null, responses: req.body.responses, responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), disabled: false });
-    await storage.updateSurveyCycleStats(cycle.id);
-    return res.status(201).json({ message: "Submitted successfully" });
+    try {
+      const { inviteCode, responses, relationship } = req.body;
+      const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
+      if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
+
+      const respondentRelationship = relationship || 'Stakeholder';
+
+      await storage.createSurveyResponse({ 
+        cycleId: cycle.id, 
+        invitationId: null, 
+        responses: responses, 
+        respondentRelationship: respondentRelationship, 
+        responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), 
+        disabled: false 
+      });
+
+      await storage.updateSurveyCycleStats(cycle.id);
+      return res.status(201).json({ message: "Submitted successfully" });
+    } catch (error) {
+      console.error("Error saving survey response:", error);
+      return res.status(500).json({ message: "Submission failed" });
+    }
   });
 
   app.get("/api/quantum360/survey", async (req: Request, res: Response) => {
     return res.json(await storage.getSurveyByType("quantum"));
-  });
-
-  app.post("/api/quantum360/create-cycle", async (req: Request, res: Response) => {
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const cycle = await storage.createSurveyCycle({ surveyId: 2, leaderId: 1, organizationId: 1, title: req.body.title || "Quantum Assessment", status: 'active', endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) });
-    await storage.updateCycleInviteCode(cycle.id, inviteCode);
-    return res.status(201).json({ cycle, inviteCode });
   });
 
   app.get("/api/quantum360/reports/:cycleId", async (req: Request, res: Response) => {
@@ -534,10 +545,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // -------------------------------------------------------------------------
   // 🔒 STAGE 2: THE ENFORCEMENT VALVE (ALL LOGGED-IN ACTIONS START HERE)
   // -------------------------------------------------------------------------
- app.use("/api", authenticateToken);
+  app.use("/api", authenticateToken);
 
   app.get("/api/auth/me", async (req: AuthenticatedRequest, res: Response) => {
     return res.json({ user: req.user });
+  });
+
+  // 🎯 ITEM 3 FIX: Moved under Stage 2 to dynamically bind user's organizationId & leaderId
+  app.post("/api/quantum360/create-cycle", async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const targetOrgId = req.user?.organizationId || req.body.organizationId || 1;
+      const targetLeaderId = req.user?.id || 1;
+
+      const cycle = await storage.createSurveyCycle({ 
+        surveyId: 2, 
+        leaderId: targetLeaderId, 
+        organizationId: targetOrgId, 
+        title: req.body.title || "Quantum Assessment", 
+        status: 'active', 
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) 
+      });
+
+      await storage.updateCycleInviteCode(cycle.id, inviteCode);
+      return res.status(201).json({ cycle, inviteCode });
+    } catch (error) {
+      console.error("Error creating quantum cycle:", error);
+      return res.status(500).json({ message: "Failed to create quantum cycle" });
+    }
   });
 
   app.get("/api/organizations/:orgId", async (req: AuthenticatedRequest, res: Response) => {
@@ -653,20 +688,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cycleId = parseInt(req.params.cycleId);
       const processedMetrics = await generateSyncShiftReportData(cycleId);
       
-      // Fetch the deployment cycle details
       const cycle = await storage.getSurveyCycle(cycleId);
       if (!cycle) {
         return res.status(404).json({ message: "Survey cycle not found" });
       }
       
-      // Resolve target user name details safely
       const leader = await storage.getUser(cycle.leaderId);
       const leaderName = leader ? `${leader.firstName} ${leader.lastName}` : "SyncShift Target Profile";
       
-      // Compile the comprehensive visual HTML template directly (includes your embedded SVG radar engine)
       const reportHtml = compileSyncShiftHtmlReport(processedMetrics, leaderName, "SyncShift Evaluation Matrix");
       
-      // Instruct the browser to handle this directly as a standalone HTML download asset
       res.setHeader("Content-Type", "text/html");
       res.setHeader("Content-Disposition", `attachment; filename="SyncShift_360_Report_Cycle_${cycleId}.html"`);
       
@@ -746,15 +777,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       return res.status(500).json({ message: "Deployment crash." });
     }
-  });
-
-  app.get("/api/owner/organizations/usage", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await storage.getAllOrganizationsWithUsage());
-  });
-
-  app.get("/api/owner/users", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
-    const allUsers = await storage.getAllUsers();
-    return res.json(allUsers.map(({ password, ...user }) => user));
   });
 
   app.get("/api/owner/organizations/usage", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
