@@ -32,9 +32,11 @@ export default function LeaderDashboard() {
     enabled: !!user?.organizationId,
   });
 
-  const activeCycle = surveyCycles?.find(
-    (cycle) => (cycle.status === 'active' || cycle.isActive === true) && cycle.leaderId === user?.id
-  );
+  // ✅ UPDATED MATCHING LOGIC:
+const activeCycle = surveyCycles?.find(
+  (cycle) => (cycle.status === 'active' || cycle.isActive === true) && 
+             (cycle.organizationId === user?.organizationId || cycle.leaderId === user?.id)
+);
 
   const inviteCode = activeCycle?.inviteCode || activeCycle?.id;
 
