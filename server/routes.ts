@@ -639,11 +639,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(201).json({ cycle });
   });
 
-  app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
-    let selector = db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, responseCount: surveyResponses.id }).from(surveyCycles).leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id));
-    if (req.user && req.user.role === 'leader') selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
-    return res.json(await selector.orderBy(surveyCycles.createdAt));
-  });
+  // ✅ New Block
+app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    let selector = db.select({ 
+      id: surveyCycles.id, 
+      title: surveyCycles.title, 
+      status: surveyCycles.status, 
+      inviteCode: surveyCycles.inviteCode, 
+      endDate: surveyCycles.endDate, 
+      organizationId: surveyCycles.organizationId,
+      leaderId: surveyCycles.leaderId,
+      responseCount: sql<number>`count(${surveyResponses.id})::int`
+    })
+    .from(surveyCycles)
+    .leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id))
+    .groupBy(surveyCycles.id);
+
+    // Filter cycles by organization ID for Org Admins & Company Admins
+    if (req.user && req.user.role !== 'owner' && req.user.organizationId) {
+      selector = selector.where(eq(surveyCycles.organizationId, req.user.organizationId)) as any;
+    } 
+    // Fallback filter for direct standalone Leaders
+    else if (req.user && req.user.role === 'leader') {
+      selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
+    }
+
+    const cycles = await selector.orderBy(surveyCycles.createdAt);
+    return res.json(cycles);
+  } catch (error) {
+    console.error("Error fetching survey cycles:", error);
+    return res.status(500).json({ message: "Failed to fetch survey cycles" });
+  }
+});
 
   app.get("/api/survey-cycles/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await storage.getActiveCyclesWithProgress());
