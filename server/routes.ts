@@ -270,7 +270,10 @@ const authenticateToken = async (req: AuthenticatedRequest, res: Response, next:
 const requireRole = (roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(403).json({ message: 'Insufficient permissions' });
-    if (req.user.role === 'owner') return next();
+    
+    // 🎯 Allows both 'owner' and 'super_admin' to bypass tenant role guards
+    if (req.user.role === 'owner' || req.user.role === 'super_admin') return next();
+    
     if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Insufficient permissions' });
     next();
   };
@@ -543,6 +546,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return fs.createReadStream(filePath).pipe(res);
   });
 
+  // 🎯 Add under Stage 1 (Public Lanes) so logout never returns 401
+app.post("/api/logout", (req: Request, res: Response) => {
+  if (req.session) {
+    req.session.destroy(() => {});
+  }
+  return res.status(200).json({ message: "Logged out successfully" });
+});
+
   // -------------------------------------------------------------------------
   // 🔒 STAGE 2: THE ENFORCEMENT VALVE (ALL LOGGED-IN ACTIONS START HERE)
   // -------------------------------------------------------------------------
@@ -581,9 +592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(org);
   });
 
-  app.get("/api/dashboard/stats", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await storage.getDashboardStats());
-  });
+  // 🎯 Allow org_admin and company_admin alongside admin
+app.get("/api/dashboard/stats", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  return res.json(await storage.getDashboardStats());
+});
 
   app.get("/api/reports/macro/:tierType", requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string));
@@ -595,10 +607,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.send(compileMacroHtmlReport(report, "SyncShift Client"));
   });
 
-  app.get("/api/dashboard/activity", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await storage.getRecentActivity(parseInt(req.query.limit as string) || 10));
-  });
-
+  app.get("/api/dashboard/activity", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  return res.json(await storage.getRecentActivity(parseInt(req.query.limit as string) || 10));
+});
+  
   app.get("/api/organizations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await storage.getOrganizations());
   });
@@ -704,9 +716,9 @@ app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) =
     return res.json({ cycle, leaderName: "SyncShift Target", ...progress });
   });
 
-  app.get("/api/reports/pending", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await storage.getPendingReports());
-  });
+  app.get("/api/reports/pending", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  return res.json(await storage.getPendingReports());
+});
 
   app.get("/api/reports/:cycleId/metrics", requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await generateSyncShiftReportData(parseInt(req.params.cycleId)));
