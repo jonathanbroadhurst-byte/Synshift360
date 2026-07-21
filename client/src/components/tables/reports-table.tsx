@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { apiRequest } from '@/lib/queryClient';
+import { downloadReportFile } from '@/lib/download';
 
 interface ReportsTableProps {
   onPreviewReport: (reportId: number) => void;
@@ -200,6 +201,18 @@ export default function ReportsTable({ onPreviewReport }: ReportsTableProps) {
                         <i className="fas fa-eye mr-1"></i>
                         Preview
                       </Button>
+
+                      {/* 🎯 Rule 3 Solution: Programmatic Authenticated Download Stream */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadReportFile(report.cycleId || report.id)}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        <i className="fas fa-download mr-1"></i>
+                        Download
+                      </Button>
+
                       <Button
                         variant="ghost"
                         size="sm"
