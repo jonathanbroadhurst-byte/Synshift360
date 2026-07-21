@@ -1,24 +1,19 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
-  }
-}
-
+/**
+ * Custom API request wrapper for mutation calls and imperative fetch operations.
+ */
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
   const token = localStorage.getItem('token');
-  const headers: Record<string, string> = {};
   
+  const headers: Record<string, string> = {};
   if (data) {
     headers["Content-Type"] = "application/json";
   }
-  
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -29,39 +24,52 @@ export async function apiRequest(
     body: data ? JSON.stringify(data) : undefined,
   });
 
-  await throwIfResNotOk(res);
+  // Handle unauthorized or expired sessions silently without window.alert
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }
+
   return res;
 }
 
-type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const token = localStorage.getItem('token');
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+/**
+ * Default Query Function for React Query fetching queryKey URLs.
+ */
+const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = {};
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(queryKey[0] as string, { headers });
+
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('token');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
     }
+    throw new Error("Session expired or unauthorized");
+  }
 
-    const res = await fetch(queryKey.join("/") as string, {
-      headers,
-    });
+  if (!res.ok) {
+    throw new Error(`API Request failed with status ${res.status}`);
+  }
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+  return res.json();
+};
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
-
+/**
+ * Global React Query Client Configuration
+ */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      queryFn: defaultQueryFn,
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
