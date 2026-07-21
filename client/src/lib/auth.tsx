@@ -8,7 +8,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: string;
+  role: 'owner' | 'super_admin' | 'org_admin' | 'company_admin' | 'admin' | 'leader' | string;
   firstName?: string;
   lastName?: string;
   organizationId?: number;
@@ -28,26 +28,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // 1. Session Check
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return null;
-        const res = await fetch("/api/auth/me", { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.status === 401) { localStorage.removeItem('token'); return null; }
+        const res = await fetch("/api/auth/me", { 
+          headers: { 'Authorization': `Bearer ${token}` } 
+        });
+        if (res.status === 401) { 
+          localStorage.removeItem('token'); 
+          return null; 
+        }
         if (!res.ok) throw new Error("Failed to load user session.");
         const data = await res.json();
         return data.user ? data.user : data;
-      } catch (err) { return null; }
+      } catch (err) { 
+        return null; 
+      }
     },
     retry: false,
   });
 
+  // 2. Login Mutation (Aligned with routes.ts req.body)
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
       const res = await apiRequest("POST", "/api/login", {
-        username: credentials.email,
+        email: credentials.email, // Fixed key alignment with Express backend
         password: credentials.password
       });
       if (!res.ok) {
@@ -67,17 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       queryClient.setQueryData(["/api/auth/me"], userProfile);
 
-      // Redirect dynamically based on distinct application roles
-      if (userProfile.role === 'owner' || userProfile.role === 'super_admin') {
-        window.location.href = '/admin/owner-dashboard';
-      } else if (userProfile.role === 'org_admin' || userProfile.role === 'admin' || userProfile.role === 'company_admin') {
-        window.location.href = '/dashboard';
-      } else {
-        window.location.href = '/dashboard';
-      }
+      // Route through the central Master Router Gate at /dashboard
+      setLocation("/dashboard");
     }
   });
 
+  // 3. Logout Mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
       localStorage.removeItem('token');
@@ -118,16 +122,24 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
-  if (!user) { setTimeout(() => setLocation("/login"), 0); return null; }
-  
-  if (roles && !roles.includes(user.role)) {
-    if (user.role === 'owner' || user.role === 'super_admin') {
-      setTimeout(() => setLocation("/admin/owner-dashboard"), 0);
-    } else {
-      setTimeout(() => setLocation("/dashboard"), 0);
-    }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    setTimeout(() => setLocation("/login"), 0);
     return null;
   }
+
+  // Owner/Super Admin bypasses all sub-role checks globally
+  if (roles && !roles.includes(user.role) && user.role !== 'owner' && user.role !== 'super_admin') {
+    setTimeout(() => setLocation("/dashboard"), 0);
+    return null;
+  }
+
   return <>{children}</>;
 }
