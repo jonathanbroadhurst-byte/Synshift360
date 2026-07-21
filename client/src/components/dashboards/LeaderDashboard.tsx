@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth';
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
 import { Zap, CheckCircle2, Clock, Share2, Download, ArrowRight } from 'lucide-react';
