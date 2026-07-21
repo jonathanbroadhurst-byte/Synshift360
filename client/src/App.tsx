@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,7 +13,6 @@ import Login from "@/pages/login";
 import Survey from "@/pages/survey";
 import Report from "@/pages/report";
 import Organizations from "@/pages/organizations";
-import Surveys from "@/pages/surveys";
 import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
 import MacroReportsDashboard from "@/pages/admin/MacroReports";
@@ -68,6 +67,13 @@ function Router() {
         </RequireAuth>
       </Route>
 
+      {/* 🎯 Rule 2 Fix: Redirect legacy /surveys directly to the Master Dashboard Gate */}
+      <Route path="/surveys">
+        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+          <Redirect to="/dashboard" />
+        </RequireAuth>
+      </Route>
+
       {/* 📊 Hierarchical Macro Analytics Route */}
       <Route path="/admin/macro-reports">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
@@ -78,12 +84,6 @@ function Router() {
       <Route path="/organizations">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
           <Organizations />
-        </RequireAuth>
-      </Route>
-
-      <Route path="/surveys">
-        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
-          <Surveys />
         </RequireAuth>
       </Route>
 
