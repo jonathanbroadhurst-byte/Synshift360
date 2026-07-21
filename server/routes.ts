@@ -244,7 +244,7 @@ async function sendQuantumEmail(toEmail: string, firstName: string, surveyTitle:
 }
 
 // =========================================================================
-// 🛡️ SECURITY TOKEN MIDDWARE GATE
+// 🛡️ SECURITY TOKEN MIDDLEWARE GATE
 // =========================================================================
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -271,7 +271,7 @@ const requireRole = (roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(403).json({ message: 'Insufficient permissions' });
     
-    // 🎯 Allows both 'owner' and 'super_admin' to bypass tenant role guards
+    // 🎯 Allows both 'owner' and 'super_admin' to bypass tenant role guards globally
     if (req.user.role === 'owner' || req.user.role === 'super_admin') return next();
     
     if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Insufficient permissions' });
@@ -281,7 +281,9 @@ const requireRole = (roles: string[]) => {
 
 const requireOwner = () => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user || req.user.role !== 'owner') return res.status(403).json({ message: 'Owner access required' });
+    if (!req.user || (req.user.role !== 'owner' && req.user.role !== 'super_admin')) {
+      return res.status(403).json({ message: 'Owner access required' });
+    }
     next();
   };
 };
@@ -367,11 +369,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ⚡ HOISTED ANONYMOUS LANES DOWNLOAD TRIGGER
   app.post("/api/eq/download", async (req, res) => {
     const reqId: string = (req.headers["x-request-id"] as string | undefined) ?? crypto.randomUUID();
     res.setHeader("x-request-id", reqId);
-    const started = Date.now();
 
     try {
       const { fullName, email, metrics, commitment } = req.body;
@@ -497,19 +497,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public logout endpoint (never returns 401)
+  app.post("/api/logout", (req: Request, res: Response) => {
+    if (req.session) {
+      req.session.destroy(() => {});
+    }
+    return res.status(200).json({ message: "Logged out successfully" });
+  });
+
   app.get("/api/survey-cycles/:inviteCode", async (req: Request, res: Response) => {
     const [cycle] = await db.select({ id: surveyCycles.id, title: surveyCycles.title, status: surveyCycles.status, inviteCode: surveyCycles.inviteCode, endDate: surveyCycles.endDate, surveyId: surveyCycles.surveyId }).from(surveyCycles).where(eq(surveyCycles.inviteCode, req.params.inviteCode)).limit(1);
     return res.json(cycle);
   });
 
-  // 🎯 ITEM 4 FIX: Accept and store relationship type ('Self', 'Peer', etc.)
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
       const { inviteCode, responses, relationship, respondentRelationship } = req.body;
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
       if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
 
-      // Accepts either key name from the incoming payload
       const finalRelationship = relationship || respondentRelationship || 'Stakeholder';
 
       await storage.createSurveyResponse({ 
@@ -546,14 +552,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return fs.createReadStream(filePath).pipe(res);
   });
 
-  // 🎯 Add under Stage 1 (Public Lanes) so logout never returns 401
-app.post("/api/logout", (req: Request, res: Response) => {
-  if (req.session) {
-    req.session.destroy(() => {});
-  }
-  return res.status(200).json({ message: "Logged out successfully" });
-});
-
   // -------------------------------------------------------------------------
   // 🔒 STAGE 2: THE ENFORCEMENT VALVE (ALL LOGGED-IN ACTIONS START HERE)
   // -------------------------------------------------------------------------
@@ -563,7 +561,6 @@ app.post("/api/logout", (req: Request, res: Response) => {
     return res.json({ user: req.user });
   });
 
-  // 🎯 ITEM 3 FIX: Moved under Stage 2 to dynamically bind user's organizationId & leaderId
   app.post("/api/quantum360/create-cycle", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -592,38 +589,38 @@ app.post("/api/logout", (req: Request, res: Response) => {
     return res.json(org);
   });
 
-  // 🎯 Allow org_admin and company_admin alongside admin
-app.get("/api/dashboard/stats", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-  return res.json(await storage.getDashboardStats());
-});
+  // Updated Admin Permissions across all dashboard routes
+  app.get("/api/dashboard/stats", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    return res.json(await storage.getDashboardStats());
+  });
 
-  app.get("/api/reports/macro/:tierType", requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/macro/:tierType", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string));
   });
 
-  app.get("/api/reports/macro/:tierType/download", requireRole(['admin', 'org_admin', 'company_admin', 'owner']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/macro/:tierType/download", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const report = await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string);
     res.setHeader("Content-Type", "text/html");
     return res.send(compileMacroHtmlReport(report, "SyncShift Client"));
   });
 
   app.get("/api/dashboard/activity", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-  return res.json(await storage.getRecentActivity(parseInt(req.query.limit as string) || 10));
-});
-  
-  app.get("/api/organizations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+    return res.json(await storage.getRecentActivity(parseInt(req.query.limit as string) || 10));
+  });
+
+  app.get("/api/organizations", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await storage.getOrganizations());
   });
 
-  app.post("/api/organizations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/organizations", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.status(201).json(await storage.createOrganization(insertOrganizationSchema.parse(req.body)));
   });
 
-  app.post("/api/surveys", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/surveys", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.status(201).json(await storage.createSurvey({ ...insertSurveySchema.parse(req.body), createdBy: req.user!.id }));
   });
 
-  app.get("/api/surveys/organization/:orgId", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/surveys/organization/:orgId", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await storage.getSurveysByOrganization(parseInt(req.params.orgId)));
   });
 
@@ -640,11 +637,11 @@ app.get("/api/dashboard/stats", requireRole(['admin', 'org_admin', 'company_admi
     }
   });
 
-  app.get("/api/users/leaders", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/users/leaders", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email }).from(users).where(eq(users.role, 'leader')));
   });
 
-  app.post("/api/survey-cycles", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/survey-cycles", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.createSurveyCycle(insertSurveyCycleSchema.parse({ ...req.body, endDate: new Date(req.body.endDate) }));
     const token = Math.random().toString(36).substring(2, 8).toUpperCase();
     await storage.updateCycleInviteCode(cycle.id, token);
@@ -652,50 +649,47 @@ app.get("/api/dashboard/stats", requireRole(['admin', 'org_admin', 'company_admi
     return res.status(201).json({ cycle });
   });
 
-  // ✅ New Block
-app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    let selector = db.select({ 
-      id: surveyCycles.id, 
-      title: surveyCycles.title, 
-      status: surveyCycles.status, 
-      inviteCode: surveyCycles.inviteCode, 
-      endDate: surveyCycles.endDate, 
-      organizationId: surveyCycles.organizationId,
-      leaderId: surveyCycles.leaderId,
-      responseCount: sql<number>`count(${surveyResponses.id})::int`
-    })
-    .from(surveyCycles)
-    .leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id))
-    .groupBy(surveyCycles.id);
+  app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      let selector = db.select({ 
+        id: surveyCycles.id, 
+        title: surveyCycles.title, 
+        status: surveyCycles.status, 
+        inviteCode: surveyCycles.inviteCode, 
+        endDate: surveyCycles.endDate, 
+        organizationId: surveyCycles.organizationId,
+        leaderId: surveyCycles.leaderId,
+        responseCount: sql<number>`count(${surveyResponses.id})::int`
+      })
+      .from(surveyCycles)
+      .leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id))
+      .groupBy(surveyCycles.id);
 
-    // Filter cycles by organization ID for Org Admins & Company Admins
-    if (req.user && req.user.role !== 'owner' && req.user.organizationId) {
-      selector = selector.where(eq(surveyCycles.organizationId, req.user.organizationId)) as any;
-    } 
-    // Fallback filter for direct standalone Leaders
-    else if (req.user && req.user.role === 'leader') {
-      selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
+      if (req.user && req.user.role !== 'owner' && req.user.role !== 'super_admin' && req.user.organizationId) {
+        selector = selector.where(eq(surveyCycles.organizationId, req.user.organizationId)) as any;
+      } 
+      else if (req.user && req.user.role === 'leader') {
+        selector = selector.where(eq(surveyCycles.leaderId, req.user.id)) as any;
+      }
+
+      const cycles = await selector.orderBy(surveyCycles.createdAt);
+      return res.json(cycles);
+    } catch (error) {
+      console.error("Error fetching survey cycles:", error);
+      return res.status(500).json({ message: "Failed to fetch survey cycles" });
     }
+  });
 
-    const cycles = await selector.orderBy(surveyCycles.createdAt);
-    return res.json(cycles);
-  } catch (error) {
-    console.error("Error fetching survey cycles:", error);
-    return res.status(500).json({ message: "Failed to fetch survey cycles" });
-  }
-});
-
-  app.get("/api/survey-cycles/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/progress", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await storage.getActiveCyclesWithProgress());
   });
 
-  app.get("/api/survey-cycles/:id/leader-summary", requireRole(['admin', 'leader', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/leader-summary", requireRole(['admin', 'leader', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const responses = await db.select().from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id)));
     return res.json({ selfAssessmentComplete: responses.some(r => r.respondentRelationship === 'Self'), stakeholderCount: responses.filter(r => r.respondentRelationship !== 'Self').length });
   });
 
-  app.post("/api/survey-invitations", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/survey-invitations", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     for (const email of req.body.participantEmails) {
       if (email?.trim()) await storage.createSurveyInvitation({ cycleId: parseInt(req.body.cycleId), email: email.trim(), status: 'pending' });
     }
@@ -706,21 +700,21 @@ app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) =
     return res.json(await storage.getSurveyInvitationByToken(req.params.token));
   });
 
-  app.get("/api/survey-cycles/:id/respondents", requireRole(['admin', 'org_admin', 'company_admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/respondents", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await db.select({ id: surveyResponses.id, respondentName: surveyResponses.respondentName, respondentEmail: surveyResponses.respondentEmail, respondentRelationship: surveyResponses.respondentRelationship }).from(surveyResponses).where(eq(surveyResponses.cycleId, parseInt(req.params.id))));
   });
 
-  app.get("/api/survey-cycles/:id/progress", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/survey-cycles/:id/progress", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.id));
     const progress = await storage.getCycleProgress(cycle.id);
     return res.json({ cycle, leaderName: "SyncShift Target", ...progress });
   });
 
   app.get("/api/reports/pending", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-  return res.json(await storage.getPendingReports());
-});
+    return res.json(await storage.getPendingReports());
+  });
 
-  app.get("/api/reports/:cycleId/metrics", requireRole(['admin', 'leader']), async (req: AuthenticatedRequest, res: Response) => {
+  app.get("/api/reports/:cycleId/metrics", requireRole(['admin', 'leader', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     return res.json(await generateSyncShiftReportData(parseInt(req.params.cycleId)));
   });
 
@@ -753,17 +747,17 @@ app.get("/api/survey-cycles", async (req: AuthenticatedRequest, res: Response) =
     return res.json(await storage.getReport(parseInt(req.params.id)));
   });
 
-  app.post("/api/reports/:id/approve", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/:id/approve", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateReportStatus(parseInt(req.params.id), "approved", req.user!.id);
     return res.json({ message: "Approved successfully" });
   });
 
-  app.post("/api/reports/:id/release", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/:id/release", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateReportStatus(parseInt(req.params.id), "released", req.user!.id);
     return res.json({ message: "Released successfully" });
   });
 
-  app.post("/api/reports/generate/:cycleId", requireRole(['admin']), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/reports/generate/:cycleId", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     const cycle = await storage.getSurveyCycle(parseInt(req.params.cycleId));
     return res.status(201).json(await storage.createReport({ cycleId: cycle.id, leaderId: cycle.leaderId, organizationId: cycle.organizationId, title: "Report - " + cycle.title, executiveSummary: "", status: 'pending' }));
   });
