@@ -1,4 +1,4 @@
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth';
 import OrgAdminDashboard from '@/components/dashboards/OrgAdminDashboard';
 import LeaderDashboard from '@/components/dashboards/LeaderDashboard';
 import OwnerDashboard from '@/components/dashboards/OwnerDashboard';
@@ -15,16 +15,16 @@ export default function Dashboard() {
     );
   }
 
-  // 2. Owner / Super Admin View (e.g., jonathan.broadhurst@me.com)
+  // 2. Owner / Super Admin View
   if (user.role === 'owner' || user.role === 'super_admin') {
     return <OwnerDashboard />;
   }
 
-  // 3. Organization Admin View (e.g., jonathan@ignite-me.com)
+  // 3. Organization Admin View
   if (user.role === 'org_admin' || user.role === 'company_admin') {
     return <OrgAdminDashboard />;
   }
 
-  // 4. Individual Leader View (Default / Individual 360 Loop)
+  // 4. Individual Leader View
   return <LeaderDashboard />;
 }
