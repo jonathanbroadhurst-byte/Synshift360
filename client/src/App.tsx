@@ -8,8 +8,7 @@ import Home from "@/pages/home";
 import ContactForm from "@/pages/contact-form";
 import CreateSurvey from "@/pages/create-survey";
 import SurveyAccess from "@/pages/survey-access";
-import Dashboard from "@/pages/dashboard";
-import OwnerDashboard from "@/pages/owner-dashboard";
+import Dashboard from "@/pages/dashboard"; // 🎯 Master Role-Based Router Gate
 import Login from "@/pages/login";
 import Survey from "@/pages/survey";
 import Report from "@/pages/report";
@@ -17,12 +16,11 @@ import Organizations from "@/pages/organizations";
 import Surveys from "@/pages/surveys";
 import Quantum360 from "@/pages/quantum360";
 import Quantum360Start from "@/pages/quantum360-start";
-import MacroReportsDashboard from "@/pages/admin/MacroReports"; // 📊 Added the Analytics Import
+import MacroReportsDashboard from "@/pages/admin/MacroReports";
 import { AuthProvider, RequireAuth } from "@/lib/auth";
-import LeaderDashboard from "@/pages/leader-dashboard";
 import Public360Gateway from "@/pages/public360gateway";
 
-// 🌐 CONDITIONAL ROOT VIEW: Direct routing updates
+// 🌐 CONDITIONAL ROOT VIEW
 function PublicRootHandler() {
   const params = new URLSearchParams(window.location.search);
   const pageParam = params.get('page');
@@ -31,7 +29,6 @@ function PublicRootHandler() {
     return <Public360Gateway />;
   }
   
-  // Both paths now route directly to Home, keeping your UI clean and unified
   return <Home />;
 }
 
@@ -46,31 +43,32 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/360" component={Public360Gateway} />
         
-      {/* Platform Owner / Super Admin Workspace Guard */}
-      <Route path="/admin/owner-dashboard">
-        <RequireAuth roles={["owner", "super_admin"]}>
-          <OwnerDashboard />
-        </RequireAuth>
-      </Route>
-      <Route path="/owner">
-        <RequireAuth roles={["owner", "super_admin"]}>
-          <OwnerDashboard />
-        </RequireAuth>
-      </Route>
-
-      {/* Tenant / Corporate Admin Workspace Guard (e.g., ignite-me admins) */}
+      {/* 🎯 Master Role-Based Dashboard Routes */}
       <Route path="/dashboard">
-        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
-          <LeaderDashboard />
-        </RequireAuth>
-      </Route>
-      <Route path="/admin">
-        <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
+        <RequireAuth>
           <Dashboard />
         </RequireAuth>
       </Route>
-        
-      {/* 📊 Added the Hierarchical Systemic Alignment Delta Dashboard Route */}
+
+      <Route path="/admin">
+        <RequireAuth>
+          <Dashboard />
+        </RequireAuth>
+      </Route>
+
+      <Route path="/admin/owner-dashboard">
+        <RequireAuth>
+          <Dashboard />
+        </RequireAuth>
+      </Route>
+
+      <Route path="/owner">
+        <RequireAuth>
+          <Dashboard />
+        </RequireAuth>
+      </Route>
+
+      {/* 📊 Hierarchical Macro Analytics Route */}
       <Route path="/admin/macro-reports">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
           <MacroReportsDashboard />
@@ -82,6 +80,7 @@ function Router() {
           <Organizations />
         </RequireAuth>
       </Route>
+
       <Route path="/surveys">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
           <Surveys />
@@ -94,16 +93,19 @@ function Router() {
           <CreateSurvey />
         </RequireAuth>
       </Route>
+
       <Route path="/quantum360">
         <RequireAuth>
           <Quantum360 />
         </RequireAuth>
       </Route>
+
       <Route path="/quantum360/start">
         <RequireAuth>
           <Quantum360Start />
         </RequireAuth>
       </Route>
+
       <Route path="/report/:reportId">
         <RequireAuth>
           <Report />
@@ -119,6 +121,7 @@ function Router() {
           </div>
         </RequireAuth>
       </Route>
+
       <Route path="/users">
         <RequireAuth roles={["org_admin", "admin", "owner", "super_admin"]}>
           <div className="p-8 bg-gray-950 min-h-screen text-white">
@@ -127,6 +130,7 @@ function Router() {
           </div>
         </RequireAuth>
       </Route>
+
       <Route path="/compliance">
         <RequireAuth roles={["org_admin", "admin", "owner", "super_admin"]}>
           <div className="p-8 bg-gray-950 min-h-screen text-white">
