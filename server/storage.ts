@@ -6,7 +6,7 @@ import {
   type Report, type InsertReport, type AuditLog, type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -182,8 +182,43 @@ export class DatabaseStorage implements IStorage {
     return { totalInvites: invitations.length };
   }
 
-  async getActiveCyclesWithProgress(): Promise<any> {
-    return await db.select().from(surveyCycles).where(eq(surveyCycles.status, 'active'));
+  async getActiveCyclesWithProgress(): Promise<any[]> {
+    try {
+      const activeCycles = await db
+        .select({
+          cycleId: surveyCycles.id,
+          title: surveyCycles.title,
+          status: surveyCycles.status,
+          endDate: surveyCycles.endDate,
+          inviteCode: surveyCycles.inviteCode,
+          leaderFirstName: users.firstName,
+          leaderLastName: users.lastName,
+          surveyTitle: surveys.title,
+          totalResponses: sql<number>`count(${surveyResponses.id})::int`
+        })
+        .from(surveyCycles)
+        .leftJoin(users, eq(surveyCycles.leaderId, users.id))
+        .leftJoin(surveys, eq(surveyCycles.surveyId, surveys.id))
+        .leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id))
+        .where(eq(surveyCycles.status, 'active'))
+        .groupBy(surveyCycles.id, users.firstName, users.lastName, surveys.title);
+
+      return activeCycles.map(item => ({
+        cycle: {
+          id: item.cycleId,
+          title: item.title,
+          status: item.status,
+          endDate: item.endDate,
+          inviteCode: item.inviteCode
+        },
+        leaderName: `${item.leaderFirstName || 'Unassigned'} ${item.leaderLastName || ''}`.trim(),
+        surveyTitle: item.surveyTitle || 'SyncShift Assessment',
+        completionPercentage: Math.min(Math.round(((item.totalResponses || 0) / 5) * 100), 100)
+      }));
+    } catch (error) {
+      console.error("Error building active cycle progress data:", error);
+      return [];
+    }
   }
 
   async getAllOrganizationsWithUsage(): Promise<Array<{
