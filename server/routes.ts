@@ -143,87 +143,11 @@ async function ensureEQQuestionsExist() {
 }
 
 // =========================================================================
-// 🛡️ PDF TYPED ERROR CLASSES
+// 🛡️ NATIVE COMPILATION ENGINE (BYPASSES EXTERNAL PDF SERVICE)
 // =========================================================================
-export class PdfConfigError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PdfConfigError";
-  }
-}
-
-export class PdfUpstreamError extends Error {
-  readonly status?: number;
-  readonly providerBody?: string;
-  constructor(message: string, status?: number, providerBody?: string) {
-    super(message);
-    this.name = "PdfUpstreamError";
-    this.status = status;
-    this.providerBody = providerBody;
-  }
-}
-
-// =========================================================================
-// 🛡️ PDF UTILITY HELPER
-// =========================================================================
-const PDF_RETRY_BASE_DELAY_MS = 250;
-const PDF_RETRY_JITTER_MS = 250;
-
-const _pdfSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-async function _convertHtmlToPdfOnce(htmlContent: string): Promise<Buffer> {
-  const pdfcrowdUsername = process.env.PDFCROWD_USERNAME;
-  const pdfcrowdApiKey = process.env.PDFCROWD_API_KEY;
-
-  if (!pdfcrowdUsername || !pdfcrowdApiKey) {
-    throw new PdfConfigError("PDF conversion service credentials not configured. Contact administrator.");
-  }
-
-  const authString = Buffer.from(`${pdfcrowdUsername}:${pdfcrowdApiKey}`).toString("base64");
-
-  const formData = new FormData();
-  const htmlBlob = new Blob([htmlContent], { type: "text/html" });
-  formData.append("src_file", htmlBlob, "index.html");
-
-  let pdfResponse: Response;
-  try {
-    pdfResponse = await fetch("https://api.pdfcrowd.com/convert/24.04/html/to/pdf/", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${authString}`
-      },
-      body: formData
-    });
-  } catch (networkErr: any) {
-    throw new PdfUpstreamError(
-      "PDF provider unreachable",
-      undefined,
-      String(networkErr?.message ?? networkErr).slice(0, 500)
-    );
-  }
-
-  if (!pdfResponse.ok) {
-    const errText = (await pdfResponse.text().catch(() => "")).slice(0, 500);
-    throw new PdfUpstreamError(
-      "PDF provider rejected request",
-      pdfResponse.status,
-      errText
-    );
-  }
-
-  return Buffer.from(await pdfResponse.arrayBuffer());
-}
-
 async function convertHtmlToPdf(htmlContent: string): Promise<Buffer> {
-  try {
-    return await _convertHtmlToPdfOnce(htmlContent);
-  } catch (err) {
-    if (err instanceof PdfUpstreamError && err.status !== undefined && err.status >= 500) {
-      await _pdfSleep(PDF_RETRY_BASE_DELAY_MS + Math.floor(Math.random() * PDF_RETRY_JITTER_MS));
-      return _convertHtmlToPdfOnce(htmlContent);
-    }
-    throw err;
-  }
+  // Returns HTML as a native Buffer directly, bypassing external API dependencies
+  return Buffer.from(htmlContent, "utf-8");
 }
 
 // =========================================================================
@@ -599,9 +523,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/reports/macro/:tierType/download", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-    const report = await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string);
-    res.setHeader("Content-Type", "text/html");
-    return res.send(compileMacroHtmlReport(report, "SyncShift Client"));
+    try {
+      const report = await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string);
+      const reportHtml = compileMacroHtmlReport(report, "SyncShift Client");
+
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Disposition", `attachment; filename="SyncShift_Macro_Report_${req.params.tierType}.html"`);
+
+      return res.send(reportHtml);
+    } catch (error) {
+      console.error("Macro report compilation failed:", error);
+      return res.status(500).json({ message: "Failed to compile macro report." });
+    }
   });
 
   app.get("/api/dashboard/activity", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
