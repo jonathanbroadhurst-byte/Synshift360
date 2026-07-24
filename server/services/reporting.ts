@@ -185,7 +185,6 @@ export async function generateMacroTierReport(
   }
 
   const leaderIds = targetUsers.map(u => u.id);
-  const thresholdCleared = leaderIds.length >= 5;
 
   // Read custom threshold from environment variables, fallback securely to 5
   const minCohortSize = process.env.MIN_COHORT_SIZE ? parseInt(process.env.MIN_COHORT_SIZE, 10) : 5;
