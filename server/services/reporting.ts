@@ -187,8 +187,14 @@ export async function generateMacroTierReport(
   const leaderIds = targetUsers.map(u => u.id);
   const thresholdCleared = leaderIds.length >= 5;
 
-  if (leaderIds.length === 0) {
-    throw new Error(`No active data sources tracked under the target parameters: ${identifierValue || 'All'}`);
+  // Read custom threshold from environment variables, fallback securely to 5
+  const minCohortSize = process.env.MIN_COHORT_SIZE ? parseInt(process.env.MIN_COHORT_SIZE, 10) : 5;
+  const thresholdCleared = leaderIds.length >= minCohortSize;
+
+  if (!thresholdCleared) {
+    throw new Error(
+      `Insufficient active data sources (${leaderIds.length}/${minCohortSize} required) under the target parameters: ${identifierValue || 'All'}`
+    );
   }
 
   const activeCycles = await db.select().from(surveyCycles).where(inArray(surveyCycles.leaderId, leaderIds));
