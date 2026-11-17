@@ -20,8 +20,12 @@ export default function Organizations() {
   const { toast } = useToast();
 
   const { data: organizations, isLoading } = useQuery({
-    queryKey: ['/api/organizations'],
+    queryKey: ['/api/owner/organizations/usage'],
   });
+  // usage endpoint returns [{ organization, activeSurveys, totalParticipants, completedResponses, pendingResponses }]
+  const orgsArray = Array.isArray(organizations)
+    ? organizations.map((item: any) => ({ ...(item.organization ?? item) }))
+    : [];
 
   const createOrganizationMutation = useMutation({
     mutationFn: async (data: { name: string; domain: string }) => {
@@ -29,7 +33,7 @@ export default function Organizations() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
       setIsCreateDialogOpen(false);
       setNewOrgName('');
       setNewOrgDomain('');
@@ -108,8 +112,10 @@ export default function Organizations() {
 
         {/* Organizations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {organizations?.map((org: any) => (
-            <Card key={org.id} className="hover:shadow-lg transition-shadow">
+          {organizations?.map((item: any) => {
+            const org = item.organization ?? item;
+            return (
+              <Card key={org.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -133,14 +139,21 @@ export default function Organizations() {
                       <Users className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">Members</span>
                     </div>
-                    <span className="text-sm font-medium">0</span>
+                    <span className="text-sm font-medium">{item.totalParticipants ?? 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Activity className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">Active Surveys</span>
                     </div>
-                    <span className="text-sm font-medium">0</span>
+                    <span className="text-sm font-medium">{item.activeSurveys ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Activity className="w-4 h-4 text-green-500" />
+                      <span className="text-sm text-gray-600">Completed Responses</span>
+                    </div>
+                    <span className="text-sm font-medium text-green-700">{item.completedResponses ?? 0}</span>
                   </div>
                   <div className="pt-2">
                     <p className="text-xs text-gray-500">
@@ -150,7 +163,8 @@ export default function Organizations() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {/* Empty State */}

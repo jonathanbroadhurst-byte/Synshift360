@@ -236,9 +236,38 @@ export class DatabaseStorage implements IStorage {
     pendingResponses: number;
   }>> {
     const orgs = await db.select().from(organizations);
-    return await Promise.all(orgs.map(async (org) => {
-      const cycles = await db.select().from(surveyCycles).where(eq(surveyCycles.organizationId, org.id));
-      return { organization: org, activeSurveys: cycles.filter(c => c.status === 'active').length, totalParticipants: 0, completedResponses: 0, pendingResponses: 0 };
+    const allUsers = await db.select().from(users);
+    const allCycles = await db.select().from(surveyCycles);
+    const allResponses = await db.select().from(surveyResponses);
+    const userByOrg = new Map<number, User[]>();
+    for (const u of allUsers) {
+      if (u.organizationId == null) continue;
+      const arr = userByOrg.get(u.organizationId) ?? [];
+      arr.push(u);
+      userByOrg.set(u.organizationId, arr);
+    }
+    const cycleByOrg = new Map<number, SurveyCycle[]>();
+    for (const c of allCycles) {
+      if (c.organizationId == null) continue;
+      const arr = cycleByOrg.get(c.organizationId) ?? [];
+      arr.push(c);
+      cycleByOrg.set(c.organizationId, arr);
+    }
+    const cycleIdToOrg = new Map<number, number>();
+    for (const c of allCycles) if (c.organizationId != null) cycleIdToOrg.set(c.id, c.organizationId);
+
+    return Promise.resolve(orgs.map((org) => {
+      const members = userByOrg.get(org.id) ?? [];
+      const cycles = cycleByOrg.get(org.id) ?? [];
+      const active = cycles.filter(c => c.status === 'active').length;
+      const responsesForOrg = allResponses.filter(r => cycleIdToOrg.get(r.cycleId) === org.id);
+      return {
+        organization: org,
+        activeSurveys: active,
+        totalParticipants: members.length,
+        completedResponses: responsesForOrg.length,
+        pendingResponses: Math.max(0, cycles.length * 5 - responsesForOrg.length),
+      };
     }));
   }
 

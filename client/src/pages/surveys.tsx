@@ -57,8 +57,14 @@ export default function Surveys() {
   // Sorting state for templates + cycles
   const [templateSort, setTemplateSort] = useState<'title' | 'questions' | 'organisation'>('title');
   const [templateDir, setTemplateDir] = useState<'asc' | 'desc'>('asc');
-  const [cycleSort, setCycleSort] = useState<'title' | 'status' | 'responses' | 'endDate'>('endDate');
+  const [cycleSort, setCycleSort] = useState<'title' | 'status' | 'responses' | 'endDate' | 'organisation'>('endDate');
   const [cycleDir, setCycleDir] = useState<'asc' | 'desc'>('asc');
+
+  const orgNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    orgsArray.forEach((o: any) => o.id != null && m.set(o.id, o.name));
+    return m;
+  }, [orgsArray]);
 
   const sortedSurveys = useMemo(() => {
     const arr = [...surveysArray];
@@ -87,6 +93,7 @@ export default function Surveys() {
       if (cycleSort === 'status') { va = a.status; vb = b.status; }
       else if (cycleSort === 'responses') { va = a.responseCount || 0; vb = b.responseCount || 0; }
       else if (cycleSort === 'endDate') { va = new Date(a.endDate).getTime(); vb = new Date(b.endDate).getTime(); }
+      else if (cycleSort === 'organisation') { va = (orgNameById.get(a.organizationId) || '').toLowerCase(); vb = (orgNameById.get(b.organizationId) || '').toLowerCase(); }
       else { va = (a.title || '').toLowerCase(); vb = (b.title || '').toLowerCase(); }
       const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
       return cycleDir === 'asc' ? cmp : -cmp;
@@ -98,7 +105,7 @@ export default function Surveys() {
     if (templateSort === key) setTemplateDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setTemplateSort(key); setTemplateDir('asc'); }
   };
-  const toggleCycleSort = (key: 'title' | 'status' | 'responses' | 'endDate') => {
+  const toggleCycleSort = (key: 'title' | 'status' | 'responses' | 'endDate' | 'organisation') => {
     if (cycleSort === key) setCycleDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setCycleSort(key); setCycleDir('asc'); }
   };
@@ -356,6 +363,7 @@ export default function Surveys() {
                   <button onClick={() => toggleCycleSort('status')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Status <SortIcon_Dir active={cycleSort === 'status'} dir={cycleDir} /></button>
                   <button onClick={() => toggleCycleSort('responses')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Submissions <SortIcon_Dir active={cycleSort === 'responses'} dir={cycleDir} /></button>
                   <button onClick={() => toggleCycleSort('endDate')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">End Date <SortIcon_Dir active={cycleSort === 'endDate'} dir={cycleDir} /></button>
+                  <button onClick={() => toggleCycleSort('organisation')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Organisation <SortIcon_Dir active={cycleSort === 'organisation'} dir={cycleDir} /></button>
                 </div>
               </div>
 
@@ -370,6 +378,7 @@ export default function Surveys() {
                       <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
                         <tr>
                           <th className="py-3 px-4 text-left">Cycle Title</th>
+                          <th className="py-3 px-4 text-left">Organisation</th>
                           <th className="py-3 px-4 text-left">Status</th>
                           <th className="py-3 px-4 text-center">Submissions</th>
                           <th className="py-3 px-4 text-left">Direct Loop Link</th>
@@ -381,6 +390,7 @@ export default function Surveys() {
                         {sortedCycles.map((cycle: any) => (
                           <tr key={cycle.id} className="hover:bg-gray-50/50">
                             <td className="py-3 px-4 font-medium text-gray-900">{cycle.title}</td>
+                            <td className="py-3 px-4 text-gray-700">{orgNameById.get(cycle.organizationId) || '—'}</td>
                             <td className="py-3 px-4">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${cycle.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-600'}`}>
                                 {cycle.status}
