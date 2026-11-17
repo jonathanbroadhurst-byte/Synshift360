@@ -40,7 +40,7 @@ export default function OwnerDashboard() {
   
   // Calculate total Quantum Credits across all provisioned client organizations
   const totalActiveCredits = usageData?.reduce(
-    (acc: number, org: any) => acc + (org.quantumCredits || 0), 0
+    (acc: number, item: any) => acc + ((item.organization?.quantumCredits as number) || 0), 0
   ) || 0;
 
   // Execute an addition (positive) or deduction (negative) of credits for a client
@@ -132,14 +132,16 @@ export default function OwnerDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {usageData.map((org: any) => (
+                    {usageData.map((item: any) => {
+                      const org = item.organization ?? item;
+                      return (
                       <tr key={org.id} className="hover:bg-gray-50/50">
                         <td className="py-3 px-4 font-medium text-gray-900">{org.name}</td>
                         <td className="py-3 px-4 text-gray-500">{org.domain || 'N/A'}</td>
                         <td className="py-3 px-4 text-center font-semibold text-amber-600">
                           {org.quantumCredits ?? 0}
                         </td>
-                        <td className="py-3 px-4 text-center">{org.activeCycleCount || 0}</td>
+                        <td className="py-3 px-4 text-center">{item.activeSurveys ?? item.activeCycleCount ?? 0}</td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <input
@@ -174,7 +176,8 @@ export default function OwnerDashboard() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
