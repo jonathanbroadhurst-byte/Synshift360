@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, FileText, Users, Calendar, Clock, Upload, Download, SortAsc, SortDesc } from 'lucide-react';
+import { Plus, FileText, Users, Calendar, Clock, Upload, Download, SortAsc, SortDesc, Building2 } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +30,12 @@ export default function Surveys() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: surveys } = useQuery({
-    queryKey: ['/api/surveys/organization', user?.organizationId || 1],
-  });
+  const isOwnerView = user?.role === 'owner' || user?.role === 'super_admin';
+  const { data: surveys } = useQuery(
+    isOwnerView
+      ? { queryKey: ['/api/surveys/all'] }
+      : { queryKey: ['/api/surveys/organization', user?.organizationId || 1] }
+  );
 
   const { data: cycles, isLoading: cyclesLoading } = useQuery({
     queryKey: ['/api/survey-cycles'],
@@ -52,7 +55,7 @@ export default function Surveys() {
   const leadersArray = Array.isArray(leaders) ? leaders : [];
 
   // Sorting state for templates + cycles
-  const [templateSort, setTemplateSort] = useState<'title' | 'questions'>('title');
+  const [templateSort, setTemplateSort] = useState<'title' | 'questions' | 'organisation'>('title');
   const [templateDir, setTemplateDir] = useState<'asc' | 'desc'>('asc');
   const [cycleSort, setCycleSort] = useState<'title' | 'status' | 'responses' | 'endDate'>('endDate');
   const [cycleDir, setCycleDir] = useState<'asc' | 'desc'>('asc');
@@ -64,6 +67,9 @@ export default function Surveys() {
       if (templateSort === 'questions') {
         va = Array.isArray(a.questions) ? a.questions.length : JSON.parse(a.questions || '[]').length;
         vb = Array.isArray(b.questions) ? b.questions.length : JSON.parse(b.questions || '[]').length;
+      } else if (templateSort === 'organisation') {
+        va = (a.organizationName || '').toLowerCase();
+        vb = (b.organizationName || '').toLowerCase();
       } else {
         va = (a.title || '').toLowerCase();
         vb = (b.title || '').toLowerCase();
@@ -88,7 +94,7 @@ export default function Surveys() {
     return arr;
   }, [cyclesArray, cycleSort, cycleDir]);
 
-  const toggleTemplateSort = (key: 'title' | 'questions') => {
+  const toggleTemplateSort = (key: 'title' | 'questions' | 'organisation') => {
     if (templateSort === key) setTemplateDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setTemplateSort(key); setTemplateDir('asc'); }
   };
@@ -307,6 +313,11 @@ export default function Surveys() {
                   <button onClick={() => toggleTemplateSort('questions')} className="px-3 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">
                     Questions <SortIcon_Dir active={templateSort === 'questions'} dir={templateDir} /> <SortIcon isActive={templateSort === 'questions'} />
                   </button>
+                  {isOwnerView && (
+                    <button onClick={() => toggleTemplateSort('organisation')} className="px-3 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">
+                      Organisation <SortIcon_Dir active={templateSort === 'organisation'} dir={templateDir} /> <SortIcon isActive={templateSort === 'organisation'} />
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -319,7 +330,14 @@ export default function Surveys() {
                         </div>
                         <div>
                           <CardTitle className="text-lg">{survey.title}</CardTitle>
-                          <p className="text-sm text-gray-500">{Array.isArray(survey.questions) ? survey.questions.length : JSON.parse(survey.questions || '[]').length} questions</p>
+                          <p className="text-sm text-gray-500">
+                            {Array.isArray(survey.questions) ? survey.questions.length : JSON.parse(survey.questions || '[]').length} questions
+                            {isOwnerView && survey.organizationName && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <Building2 className="w-3 h-3 mr-1" />{survey.organizationName}
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
                       <Badge variant="default">Active</Badge>

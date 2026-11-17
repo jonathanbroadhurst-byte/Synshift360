@@ -17,6 +17,7 @@ export interface IStorage {
   createOrganization(insertOrg: InsertOrganization): Promise<Organization>;
   createSurvey(insertSurvey: InsertSurvey): Promise<Survey>;
   getSurveysByOrganization(orgId: number): Promise<Survey[]>;
+  getAllSurveys(): Promise<Survey[]>;
   getSurveyByType(surveyType: string): Promise<Survey | undefined>;
   createSurveyCycle(insertCycle: InsertSurveyCycle): Promise<SurveyCycle>;
   getSurveyCycle(id: number): Promise<SurveyCycle | undefined>;
@@ -88,6 +89,10 @@ export class DatabaseStorage implements IStorage {
 
   async getSurveysByOrganization(orgId: number): Promise<Survey[]> {
     return await db.select().from(surveys).where(eq(surveys.organizationId, orgId));
+  }
+
+  async getAllSurveys(): Promise<Survey[]> {
+    return await db.select().from(surveys);
   }
 
   async getSurveyByType(surveyType: string): Promise<Survey | undefined> {

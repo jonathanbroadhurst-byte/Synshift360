@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import Sidebar from '@/components/layout/sidebar';
+import Header from '@/components/layout/header';
 
 interface MacroReportPayload {
   tierType: "organisation" | "leadership" | "function" | "team";
@@ -94,7 +96,11 @@ export default function MacroReportsDashboard() {
     : [];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen flex bg-gray-50">
+      <Sidebar />
+      <main className="flex-1 flex flex-col">
+        <Header />
+        <div className="p-6 max-w-7xl mx-auto space-y-6 w-full">
       
       {/* 🧭 ADMINISTRATIVE SELECTION & ACTION ROUTER */}
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between pb-4 border-b gap-4">
@@ -360,6 +366,8 @@ export default function MacroReportsDashboard() {
           )}
         </>
       )}
+        </div>
+      </main>
     </div>
   );
 }

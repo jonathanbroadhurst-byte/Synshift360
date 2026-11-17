@@ -583,6 +583,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(await storage.getSurveysByOrganization(parseInt(req.params.orgId)));
   });
 
+  // Owner-facing: all surveys across every org, each tagged with its org name (for cross-org browsing/sorting)
+  app.get("/api/surveys/all", requireRole(['owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    const allSurveys = await storage.getAllSurveys();
+    const allOrgs = await storage.getOrganizations();
+    const orgById = new Map(allOrgs.map(o => [o.id, o.name]));
+    return res.json(allSurveys.map((s: any) => ({ ...s, organizationName: orgById.get(s.organizationId) || '—', questionCount: Array.isArray(s.questions) ? s.questions.length : JSON.parse(s.questions || '[]').length })));
+  });
+
   app.post("/api/surveys/personal", async (req: Request, res: Response) => {
     try {
       const { surveyData } = req.body;
