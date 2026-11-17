@@ -519,22 +519,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/reports/macro/:tierType", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-    return res.json(await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string));
+    // Owner/super_admin may target any org via ?orgId=; org-bound admins are locked to their own org.
+    const requestedOrgId = req.query.orgId ? parseInt(req.query.orgId as string, 10) : null;
+    const isOwner = req.user!.role === 'owner' || req.user!.role === 'super_admin';
+    if (isOwner && !requestedOrgId) {
+      return res.status(400).json({ message: "An organization (orgId) is required to generate a scope report." });
+    }
+    const orgId = isOwner ? requestedOrgId! : req.user!.organizationId!;
+    try {
+      return res.json(await generateMacroTierReport(orgId, req.params.tierType as any, req.query.identifier as string));
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message || "Failed to generate macro report." });
+    }
   });
 
   app.get("/api/reports/macro/:tierType/download", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const report = await generateMacroTierReport(req.user!.organizationId!, req.params.tierType as any, req.query.identifier as string);
+      const requestedOrgId = req.query.orgId ? parseInt(req.query.orgId as string, 10) : null;
+      const isOwner = req.user!.role === 'owner' || req.user!.role === 'super_admin';
+      if (isOwner && !requestedOrgId) {
+        return res.status(400).json({ message: "An organization (orgId) is required to generate a scope report." });
+      }
+      const orgId = isOwner ? requestedOrgId! : req.user!.organizationId!;
+      const report = await generateMacroTierReport(orgId, req.params.tierType as any, req.query.identifier as string);
       const reportHtml = compileMacroHtmlReport(report, "SyncShift Client");
 
       res.setHeader("Content-Type", "text/html");
       res.setHeader("Content-Disposition", `attachment; filename="SyncShift_Macro_Report_${req.params.tierType}.html"`);
 
       return res.send(reportHtml);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Macro report compilation failed:", error);
-      return res.status(500).json({ message: "Failed to compile macro report." });
+      return res.status(400).json({ message: error?.message || "Failed to compile macro report." });
     }
+  });
+
+  // Distinct teams / functions (departments) across leaders in an org, for report-scope selectors
+  app.get("/api/organizations/:orgId/groupings", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    const orgId = parseInt(req.params.orgId);
+    const orgUsers = await db.select({ teamName: users.teamName, department: users.department }).from(users).where(eq(users.organizationId, orgId));
+    const teams = Array.from(new Set(orgUsers.map(u => u.teamName).filter(Boolean) as string[]));
+    const functions = Array.from(new Set(orgUsers.map(u => u.department).filter(Boolean) as string[]));
+    return res.json({ teams, functions });
   });
 
   app.get("/api/dashboard/activity", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
@@ -766,6 +792,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/owner/users/:userId/role", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     await storage.updateUserRole(parseInt(req.params.userId), req.body.role);
     return res.json({ message: "Role updated successfully" });
+  });
+
+  // Assign a user both a role AND their bound organization (e.g. make someone org_admin of Emenex)
+  app.post("/api/owner/users/:userId/assign", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    const { role, organizationId } = req.body as { role?: string; organizationId?: number };
+    if (!role || !organizationId) {
+      return res.status(400).json({ message: "Both 'role' and 'organizationId' are required." });
+    }
+    const allowedRoles = ['org_admin', 'company_admin', 'leader', 'admin'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: `Invalid role '${role}'. Allowed: ${allowedRoles.join(', ')}` });
+    }
+    // Validate org exists
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+    if (!org) return res.status(404).json({ message: "Organization not found." });
+
+    await storage.assignUserRoleOrg(userId, role, organizationId);
+    return res.json({ message: `${role} assigned to organization #${organizationId}.` });
+  });
+
+  // Create a fresh org_admin account bound to an EXISTING organization (e.g. Emenex)
+  app.post("/api/owner/organizations/:orgId/admins", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    const orgId = parseInt(req.params.orgId);
+    const { email, password, firstName, lastName } = req.body as { email?: string; password?: string; firstName?: string; lastName?: string };
+    if (!email || !password) {
+      return res.status(400).json({ message: "email and password are required." });
+    }
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    if (!org) return res.status(404).json({ message: "Organization not found." });
+
+    const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (existing) return res.status(409).json({ message: "A user with that email already exists." });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await storage.createAdminForOrg(orgId, { email, password: hashed, firstName, lastName });
+    return res.status(201).json({ message: `Admin created for ${org.name}.`, user: { id: user.id, email: user.email, role: user.role, organizationId: user.organizationId } });
   });
 
   app.patch("/api/owner/organizations/:orgId/credits", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {

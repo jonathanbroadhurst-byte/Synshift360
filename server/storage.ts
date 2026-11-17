@@ -45,6 +45,8 @@ export interface IStorage {
   }>>;
   getOrganizationAdmins(orgId: number): Promise<User[]>;
   updateUserRole(userId: number, role: string): Promise<void>;
+  assignUserRoleOrg(userId: number, role: string, organizationId: number): Promise<void>;
+  createAdminForOrg(orgId: number, data: { email: string; password: string; firstName?: string; lastName?: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
   logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
 }
@@ -241,6 +243,24 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserRole(userId: number, role: string): Promise<void> {
     await db.update(users).set({ role }).where(eq(users.id, userId));
+  }
+
+  async assignUserRoleOrg(userId: number, role: string, organizationId: number): Promise<void> {
+    await db.update(users).set({ role, organizationId }).where(eq(users.id, userId));
+  }
+
+  async createAdminForOrg(orgId: number, data: { email: string; password: string; firstName?: string; lastName?: string }): Promise<User> {
+    const [user] = await db.insert(users).values({
+      email: data.email,
+      username: data.email.split('@')[0],
+      password: data.password,
+      role: 'org_admin',
+      organizationId: orgId,
+      firstName: data.firstName || 'Admin',
+      lastName: data.lastName || 'User',
+      isActive: true,
+    }).returning();
+    return user;
   }
 
   async getAllUsers(): Promise<User[]> {

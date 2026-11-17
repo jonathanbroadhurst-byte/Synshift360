@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar 
@@ -13,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 
 interface MacroReportPayload {
-  tierType: "team" | "function" | "organisation";
+  tierType: "organisation" | "leadership" | "function" | "team";
   tierName: string;
   leaderCount: number;
   thresholdCleared: boolean;
@@ -34,15 +35,42 @@ interface MacroReportPayload {
   }>;
 }
 
+const tierOptions: Array<{ value: string; label: string; usesIdentifier: boolean }> = [
+  { value: "organisation", label: "🏢 Organisation Wide", usesIdentifier: false },
+  { value: "leadership", label: "🎯 Leadership Group", usesIdentifier: true },
+  { value: "function", label: "📐 Functional Context", usesIdentifier: true },
+  { value: "team", label: "👥 Team Cohort", usesIdentifier: true },
+];
+
 export default function MacroReportsDashboard() {
-  const [tierType, setTierType] = useState<"team" | "function" | "organisation">("organisation");
+  const { user } = useAuth();
+  const isOwner = user?.role === 'owner' || user?.role === 'super_admin';
+  const [tierType, setTierType] = useState<string>("organisation");
   const [identifier, setIdentifier] = useState<string>("all");
+  const [orgId, setOrgId] = useState<string>("");
+
+  // Owner/super_admin picks the target client organization; org-bound admins are locked to their own.
+  const { data: organizations } = useQuery<any[]>({ queryKey: ['/api/organizations'] });
+
+  // Dynamic team/function/leadership-group options for the selected org
+  const activeOrgId = isOwner ? orgId : (user?.organizationId?.toString() || '');
+  const { data: groupings } = useQuery<any>({
+    queryKey: [`/api/organizations/${activeOrgId}/groupings`],
+    enabled: !!activeOrgId,
+  });
+
+  const applyTier = (t: string) => { setTierType(t); setIdentifier('all'); };
+  const effectiveOrgId = activeOrgId;
 
   // Fetch metrics dynamically from your live API gateway router path
   const { data: report, isLoading, error } = useQuery<MacroReportPayload>({
-    queryKey: [`/api/reports/macro/${tierType}`, identifier],
+    queryKey: [`/api/reports/macro/${tierType}`, identifier, effectiveOrgId],
+    enabled: !!activeOrgId,
     queryFn: async () => {
-      const url = `/api/reports/macro/${tierType}${identifier !== "all" ? `?identifier=${encodeURIComponent(identifier)}` : ""}`;
+      const params = new URLSearchParams();
+      params.set('orgId', effectiveOrgId);
+      if (identifier !== 'all') params.set('identifier', identifier);
+      const url = `/api/reports/macro/${tierType}?${params.toString()}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
@@ -82,14 +110,34 @@ export default function MacroReportsDashboard() {
 
         {/* CONTROLS CLUSTER */}
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={tierType} onValueChange={(val: any) => { setTierType(val); setIdentifier("all"); }}>
+          {/* Org selector (owner/super_admin can target any client org) */}
+          {isOwner && (
+            <Select value={orgId} onValueChange={(val: any) => { setOrgId(val); setIdentifier('all'); }}>
+              <SelectTrigger className="w-[200px] bg-white shadow-sm border-slate-200">
+                <SelectValue placeholder={organizations?.length ? "Choose Organization" : "No orgs"} />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations?.map((org) => (
+                  <SelectItem key={org.id} value={String(org.id)}>{org.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {!isOwner && (
+            <div className="text-sm text-slate-500 bg-slate-100 px-3 py-2 rounded-lg">
+              Scoped to: <span className="font-semibold text-slate-700">{organizations?.find(o => o.id === user?.organizationId)?.name || 'your org'}</span>
+            </div>
+          )}
+
+          <Select value={tierType} onValueChange={applyTier}>
             <SelectTrigger className="w-[180px] bg-white shadow-sm border-slate-200">
               <SelectValue placeholder="Select Tier Matrix" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="organisation">🏢 Organisation Wide</SelectItem>
-              <SelectItem value="function">📐 Functional Context</SelectItem>
-              <SelectItem value="team">👥 Team Cohort</SelectItem>
+              {tierOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -101,16 +149,13 @@ export default function MacroReportsDashboard() {
               <SelectContent>
                 <SelectItem value="all">View All Entries</SelectItem>
                 {tierType === "function" ? (
-                  <>
-                    <SelectItem value="Operations">Operations Department</SelectItem>
-                    <SelectItem value="Sales">Sales & Business Development</SelectItem>
-                    <SelectItem value="Finance">Finance & Governance</SelectItem>
-                  </>
+                  (groupings?.functions?.length ? groupings.functions : ["Operations", "Sales", "Finance"]).map((f: string) => (
+                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                  ))
                 ) : (
-                  <>
-                    <SelectItem value="Senior Leadership">Senior Leadership Team (SLT)</SelectItem>
-                    <SelectItem value="Project Alpha">Project Alpha Core Execution Team</SelectItem>
-                  </>
+                  (groupings?.teams?.length ? groupings.teams : ["Senior Leadership", "Project Alpha"]).map((t: string) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))
                 )}
               </SelectContent>
             </Select>
@@ -119,7 +164,10 @@ export default function MacroReportsDashboard() {
           {/* 🖨️ EXECUTIVE BRIEF DOWNLOAD BUTTON */}
           <button
             onClick={() => {
-              const url = `/api/reports/macro/${tierType}/download${identifier !== "all" ? `?identifier=${encodeURIComponent(identifier)}` : ""}`;
+              const params = new URLSearchParams();
+              params.set('orgId', effectiveOrgId);
+              if (identifier !== 'all') params.set('identifier', identifier);
+              const url = `/api/reports/macro/${tierType}/download?${params.toString()}`;
               // Force direct session attachment streaming inside a safe secondary window context
               const token = localStorage.getItem("token");
               fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -142,6 +190,26 @@ export default function MacroReportsDashboard() {
           </button>
         </div>
       </div>
+
+      {/* ⚠️ NO ORG SELECTED (owner) */}
+      {isOwner && !activeOrgId && (
+        <Alert className="bg-blue-50 border-blue-200 text-blue-900 shadow-sm">
+          <ShieldAlert className="h-5 w-5 text-blue-600" />
+          <AlertTitle className="font-semibold text-blue-950">Select an organization to begin</AlertTitle>
+          <AlertDescription className="text-blue-800 mt-1">
+            Choose a client organization from the dropdown above, then pick a reporting scope (organisation-wide, leadership group, function, or team).
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!isOwner && !user?.organizationId && (
+        <Alert variant="destructive" className="bg-amber-50 border-amber-200 text-amber-900 shadow-sm">
+          <ShieldAlert className="h-5 w-5 text-amber-600" />
+          <AlertDescription className="text-amber-800 mt-1">
+            Your account is not bound to an organization. Contact the platform owner to assign you before generating reports.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ⚠️ HIGH TRUST ANONYMITY SAFETY GATE GUARDRAILS */}
       {report && !report.thresholdCleared && (

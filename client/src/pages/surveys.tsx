@@ -221,7 +221,7 @@ export default function Surveys() {
 
   if (cyclesLoading) {
     return (
-      <RequireAuth roles={['admin']}>
+      <RequireAuth roles={['owner','org_admin','company_admin','admin','super_admin']}>
         <div className="min-h-screen flex bg-gray-50 items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -230,7 +230,7 @@ export default function Surveys() {
   }
 
   return (
-    <RequireAuth roles={['admin']}>
+    <RequireAuth roles={['owner','org_admin','company_admin','admin','super_admin']}>
       <div className="min-h-screen flex bg-gray-50">
         <Sidebar />
         <main className="flex-1 flex flex-col">

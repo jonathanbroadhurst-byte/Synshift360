@@ -1,6 +1,6 @@
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
-import { Shield, Building2, Coins, Users, PlusCircle, Settings, Loader2 } from 'lucide-react';
+import { Shield, Building2, Coins, Users, PlusCircle, Settings, Loader2, UserCog, KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -9,6 +9,11 @@ export default function OwnerDashboard() {
   const queryClient = useQueryClient();
   // Per-organization pending credit amounts keyed by org id
   const [creditInputs, setCreditInputs] = useState<Record<number, string>>({});
+  // Admin-assignment row selectors keyed by user id: { role, orgId }
+  const [assignState, setAssignState] = useState<Record<number, { role: string; orgId: string }>>({});
+  // Create-admin per org modal state
+  const [createOrgId, setCreateOrgId] = useState<number | null>(null);
+  const [newAdmin, setNewAdmin] = useState({ email: '', password: '', firstName: '', lastName: '' });
 
   // 1. Query all provisioned organizations and credit usage across the platform
   const { data: usageData, isLoading: isLoadingOrgs } = useQuery<any[]>({
@@ -18,6 +23,11 @@ export default function OwnerDashboard() {
   // 2. Query system-wide registered users
   const { data: usersData, isLoading: isLoadingUsers } = useQuery<any[]>({
     queryKey: ['/api/owner/users'],
+  });
+
+  // Flat organization list (for admin-assignment + create-admin org selectors)
+  const { data: organizations } = useQuery<any[]>({
+    queryKey: ['/api/organizations'],
   });
 
   // 3. Allocate / adjust quantum credits for a specific client organization
@@ -34,6 +44,45 @@ export default function OwnerDashboard() {
       alert(err?.message ?? 'Failed to update credits. Try again.');
     },
   });
+
+  // Assign an existing user a role + bound organization
+  const assignUserMutation = useMutation({
+    mutationFn: async ({ userId, role, organizationId }: { userId: number; role: string; organizationId: number }) => {
+      const res = await apiRequest('POST', `/api/owner/users/${userId}/assign`, { role, organizationId });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      alert(data.message ?? 'User assigned successfully.');
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
+    },
+    onError: (err: any) => alert(err?.message ?? 'Failed to assign user.'),
+  });
+
+  // Create a fresh org_admin for an existing organization (e.g. Emenex)
+  const createAdminMutation = useMutation({
+    mutationFn: async ({ orgId, data }: { orgId: number; data: { email: string; password: string; firstName: string; lastName: string } }) => {
+      const res = await apiRequest('POST', `/api/owner/organizations/${orgId}/admins`, data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      alert(data.message ?? 'Admin created.');
+      setCreateOrgId(null);
+      setNewAdmin({ email: '', password: '', firstName: '', lastName: '' });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/users'] });
+    },
+    onError: (err: any) => alert(err?.message ?? 'Failed to create admin.'),
+  });
+
+  const submitAssign = (userId: number) => {
+    const s = assignState[userId];
+    if (!s?.role || !s?.orgId) {
+      alert('Select both a role and an organization first.');
+      return;
+    }
+    assignUserMutation.mutate({ userId, role: s.role, organizationId: parseInt(s.orgId, 10) });
+    setAssignState((p) => ({ ...p, [userId]: { role: '', orgId: '' } }));
+  };
 
   const totalOrganizations = usageData?.length || 0;
   const totalUsers = usersData?.length || 0;
@@ -176,6 +225,157 @@ export default function OwnerDashboard() {
                           </div>
                         </td>
                       </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* 👥 ADMIN & USER ROLE MANAGEMENT */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <UserCog className="h-5 w-5 text-indigo-600" /> Admin & User Role Management
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Assign users a role and bind them to an organization, or create a new admin account for an existing client.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={createOrgId ?? ''}
+                  onChange={(e) => setCreateOrgId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 bg-white"
+                >
+                  <option value="">Select org…</option>
+                  {organizations?.map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!createOrgId}
+                  onClick={() => setNewAdmin({ email: '', password: '', firstName: '', lastName: '' })}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40"
+                >
+                  <KeyRound className="h-4 w-4" /> Create Admin
+                </button>
+              </div>
+            </div>
+
+            {/* Create-admin form (inline, shown once an org is picked to create an admin for) */}
+            {createOrgId && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newAdmin.email || !newAdmin.password) { alert('Email and password are required.'); return; }
+                  createAdminMutation.mutate({ orgId: createOrgId, data: newAdmin });
+                }}
+                className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-indigo-50/50 border border-indigo-100 rounded-lg"
+              >
+                <input
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="First name (optional)"
+                  value={newAdmin.firstName}
+                  onChange={(e) => setNewAdmin((p) => ({ ...p, firstName: e.target.value }))}
+                />
+                <input
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="Last name (optional)"
+                  value={newAdmin.lastName}
+                  onChange={(e) => setNewAdmin((p) => ({ ...p, lastName: e.target.value }))}
+                />
+                <input
+                  type="email"
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="admin@email.com"
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin((p) => ({ ...p, email: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="Password"
+                  value={newAdmin.password}
+                  onChange={(e) => setNewAdmin((p) => ({ ...p, password: e.target.value }))}
+                />
+                <button type="submit" disabled={createAdminMutation.isPending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {createAdminMutation.isPending ? 'Creating…' : 'Create Admin'}
+                </button>
+              </form>
+            )}
+
+            {isLoadingUsers ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-gray-600">
+                  <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
+                    <tr>
+                      <th className="py-3 px-4">User</th>
+                      <th className="py-3 px-4">Email</th>
+                      <th className="py-3 px-4">Current Role</th>
+                      <th className="py-3 px-4">Organization</th>
+                      <th className="py-3 px-4">Assign / Change</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {usersData?.map((user: any) => {
+                      const pending = assignState[user.id];
+                      const org = organizations?.find((o) => o.id === user.organizationId);
+                      return (
+                        <tr key={user.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-4 font-medium text-gray-900">{user.firstName} {user.lastName}</td>
+                          <td className="py-3 px-4 text-gray-500">{user.email}</td>
+                          <td className="py-3 px-4 capitalize">{user.role?.replace('_', ' ')}</td>
+                          <td className="py-3 px-4 text-gray-500">{org?.name || '— (unassigned)'}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={pending?.role ?? ''}
+                                onChange={(e) => setAssignState((p) => ({ ...p, [user.id]: { ...(p[user.id] ?? {}), role: e.target.value } }))}
+                                className="rounded-md border border-gray-300 px-2 py-1 text-sm bg-white text-gray-700"
+                              >
+                                <option value="">Role…</option>
+                                <option value="org_admin">org_admin</option>
+                                <option value="company_admin">company_admin</option>
+                                <option value="leader">leader</option>
+                                <option value="admin">admin</option>
+                              </select>
+                              <select
+                                value={pending?.orgId ?? ''}
+                                onChange={(e) => setAssignState((p) => ({ ...p, [user.id]: { ...(p[user.id] ?? {}), orgId: e.target.value } }))}
+                                className="rounded-md border border-gray-300 px-2 py-1 text-sm bg-white text-gray-700"
+                              >
+                                <option value="">Org…</option>
+                                {organizations?.map((o) => (
+                                  <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              disabled={assignUserMutation.isPending && assignUserMutation.variables?.userId === user.id}
+                              onClick={() => submitAssign(user.id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 disabled:opacity-50"
+                            >
+                              {assignUserMutation.isPending && assignUserMutation.variables?.userId === user.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Settings className="h-3.5 w-3.5" />
+                              )}
+                              Assign
+                            </button>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>

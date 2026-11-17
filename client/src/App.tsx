@@ -6,11 +6,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import ContactForm from "@/pages/contact-form";
-import CreateSurvey from "@/pages/create-survey";
+import Survey from "@/pages/survey";
 import SurveyAccess from "@/pages/survey-access";
+import Surveys from "@/pages/surveys";
+import CreateSurvey from "@/pages/create-survey";
 import Dashboard from "@/pages/dashboard"; // 🎯 Master Role-Based Router Gate
 import Login from "@/pages/login";
-import Survey from "@/pages/survey";
 import Report from "@/pages/report";
 import Organizations from "@/pages/organizations";
 import Quantum360 from "@/pages/quantum360";
@@ -67,10 +68,10 @@ function Router() {
         </RequireAuth>
       </Route>
 
-      {/* 🎯 Rule 2 Fix: Redirect legacy /surveys directly to the Master Dashboard Gate */}
+      {/* Survey Management (org_admin/company_admin/owner manage deployment + track results) */}
       <Route path="/surveys">
         <RequireAuth roles={["org_admin", "admin", "company_admin", "owner", "super_admin"]}>
-          <Redirect to="/dashboard" />
+          <Surveys />
         </RequireAuth>
       </Route>
 

@@ -31,7 +31,7 @@ export interface AggregatedReportData {
 }
 
 export interface MacroTierReportData {
-  tierType: "team" | "function" | "organisation";
+  tierType: "organisation" | "leadership" | "function" | "team";
   tierName: string;
   leaderCount: number;
   thresholdCleared: boolean;
@@ -172,13 +172,19 @@ export async function generateSyncShiftReportData(cycleId: number): Promise<Aggr
  */
 export async function generateMacroTierReport(
   orgId: number, 
-  tierType: "team" | "function" | "organisation", 
+  tierType: "organisation" | "leadership" | "function" | "team", 
   identifierValue?: string
 ): Promise<MacroTierReportData> {
   
   let targetUsers = await db.select().from(users).where(eq(users.organizationId, orgId));
   
-  if (tierType === "team" && identifierValue) {
+  // Leadership group = the org's assessed leaders, optionally narrowed to a named leadership cohort (team_name)
+  if (tierType === "leadership") {
+    targetUsers = targetUsers.filter(u => u.role === 'leader' || u.role === 'org_admin' || u.role === 'company_admin');
+    if (identifierValue) {
+      targetUsers = targetUsers.filter(u => u.teamName?.toLowerCase() === identifierValue.toLowerCase());
+    }
+  } else if (tierType === "team" && identifierValue) {
     targetUsers = targetUsers.filter(u => u.teamName?.toLowerCase() === identifierValue.toLowerCase());
   } else if (tierType === "function" && identifierValue) {
     targetUsers = targetUsers.filter(u => u.department?.toLowerCase() === identifierValue.toLowerCase());
