@@ -6,7 +6,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar 
 } from "recharts";
 import { 
-  ShieldAlert, Users, Layers, Landmark, TrendingUp, HelpCircle, ArrowUpRight, Zap, Download 
+  ShieldAlert, Users, Layers, Landmark, HelpCircle, Zap, Download 
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,6 +94,24 @@ export default function MacroReportsDashboard() {
         "Cohesion Disruption (Variance)": report.pillars[key].cohesionVariance,
       }))
     : [];
+
+  // 📟 LIVE SYSTEM CORE STATE — computed from the actual dimension deltas in this report
+  function computeCoreState(r?: MacroReportPayload): { label: string; tone: 'green' | 'amber' | 'rose'; note: string } {
+    if (!r?.thresholdCleared || !r.pillars) return { label: 'Awaiting Data', tone: 'amber', note: 'No cleared cohort yet to detect systemic state.' };
+    const deltas = Object.values(r.pillars).map((p) => Math.abs(p.blindspotDelta ?? 0));
+    if (deltas.length === 0) return { label: 'Awaiting Data', tone: 'amber', note: 'No aligned dimensions to score yet.' };
+    const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+    if (avgDelta < 0.5) return { label: 'Balanced Flow', tone: 'green', note: `Self-vs-stakeholder deltas average a tight ${avgDelta.toFixed(2)} across dimensions.` };
+    if (avgDelta < 1.0) return { label: 'Minor Drift', tone: 'amber', note: `Perception deltas average ${avgDelta.toFixed(2)} — early misalignment signals.` };
+    if (avgDelta < 1.8) return { label: 'Disturbed Flow', tone: 'rose', note: `Average delta of ${avgDelta.toFixed(2)} indicates structural misalignment.` };
+    return { label: 'Severe Misalignment', tone: 'rose', note: `Average delta of ${avgDelta.toFixed(2)} — significant leader-vs-stakeholder divergence.` };
+  }
+  const core = computeCoreState(report);
+  const coreTone = {
+    green: { text: 'text-emerald-300', chip: 'bg-emerald-500/20 text-emerald-100', icon: '✓' },
+    amber: { text: 'text-amber-300', chip: 'bg-amber-500/20 text-amber-100', icon: '↗' },
+    rose: { text: 'text-rose-300', chip: 'bg-rose-500/20 text-rose-100', icon: '✕' },
+  }[core.tone];
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -264,15 +282,15 @@ export default function MacroReportsDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-slate-150 bg-gradient-to-br from-indigo-900 to-slate-900 text-white">
-              <CardContent className="pt-6 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-indigo-200">System Core State</p>
-                  <p className="text-xl font-bold mt-1 flex items-center gap-1 text-emerald-300">
-                    <TrendingUp className="h-5 w-5 animate-pulse" /> Balanced Flow
-                  </p>
+            <Card className={`shadow-sm bg-gradient-to-br ${core.tone === 'rose' ? 'from-rose-900 to-slate-900' : core.tone === 'amber' ? 'from-amber-900 to-slate-900' : 'from-indigo-900 to-slate-900'} text-white`}>
+              <CardContent className="pt-6">
+                <p className="text-xs font-medium uppercase tracking-wider text-white/60">System Core State</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${coreTone.text} ${coreTone.chip}`}>
+                    {coreTone.icon} {core.label}
+                  </span>
                 </div>
-                <div className="p-3 bg-white/10 text-white rounded-xl"><ArrowUpRight className="h-6 w-6" /></div>
+                <p className="mt-2 text-xs text-white/70 leading-relaxed">{core.note}</p>
               </CardContent>
             </Card>
           </div>
