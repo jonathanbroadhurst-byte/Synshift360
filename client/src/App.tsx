@@ -113,13 +113,15 @@ function Router() {
         </RequireAuth>
       </Route>
 
-      {/* Shared Internal Modules */}
+      {/* Reports hub: point at the live macro-reporting console (org/leadership/function/team tiers) */}
       <Route path="/reports">
-        <RequireAuth>
-          <div className="p-8 bg-gray-950 min-h-screen text-white">
-            <h1 className="text-2xl font-bold">Reports</h1>
-            <p className="text-gray-400 mt-2">Report management coming soon...</p>
-          </div>
+        <RequireAuth roles={["admin", "org_admin", "company_admin", "owner", "super_admin"]}>
+          <MacroReportsDashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/reports/:shortcut">
+        <RequireAuth roles={["admin", "org_admin", "company_admin", "owner", "super_admin"]}>
+          <MacroReportsDashboard />
         </RequireAuth>
       </Route>
 

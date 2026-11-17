@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, FileText, Users, Calendar, Clock, Upload, Download } from 'lucide-react';
+import { Plus, FileText, Users, Calendar, Clock, Upload, Download, SortAsc, SortDesc } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,55 @@ export default function Surveys() {
   const surveysArray = Array.isArray(surveys) ? surveys : (surveys as any)?.surveys || [];
   const cyclesArray = Array.isArray(cycles) ? cycles : (cycles as any)?.cycles || [];
   const leadersArray = Array.isArray(leaders) ? leaders : [];
+
+  // Sorting state for templates + cycles
+  const [templateSort, setTemplateSort] = useState<'title' | 'questions'>('title');
+  const [templateDir, setTemplateDir] = useState<'asc' | 'desc'>('asc');
+  const [cycleSort, setCycleSort] = useState<'title' | 'status' | 'responses' | 'endDate'>('endDate');
+  const [cycleDir, setCycleDir] = useState<'asc' | 'desc'>('asc');
+
+  const sortedSurveys = useMemo(() => {
+    const arr = [...surveysArray];
+    arr.sort((a: any, b: any) => {
+      let va: any, vb: any;
+      if (templateSort === 'questions') {
+        va = Array.isArray(a.questions) ? a.questions.length : JSON.parse(a.questions || '[]').length;
+        vb = Array.isArray(b.questions) ? b.questions.length : JSON.parse(b.questions || '[]').length;
+      } else {
+        va = (a.title || '').toLowerCase();
+        vb = (b.title || '').toLowerCase();
+      }
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+      return templateDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [surveysArray, templateSort, templateDir]);
+
+  const sortedCycles = useMemo(() => {
+    const arr = [...cyclesArray];
+    arr.sort((a: any, b: any) => {
+      let va: any, vb: any;
+      if (cycleSort === 'status') { va = a.status; vb = b.status; }
+      else if (cycleSort === 'responses') { va = a.responseCount || 0; vb = b.responseCount || 0; }
+      else if (cycleSort === 'endDate') { va = new Date(a.endDate).getTime(); vb = new Date(b.endDate).getTime(); }
+      else { va = (a.title || '').toLowerCase(); vb = (b.title || '').toLowerCase(); }
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+      return cycleDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [cyclesArray, cycleSort, cycleDir]);
+
+  const toggleTemplateSort = (key: 'title' | 'questions') => {
+    if (templateSort === key) setTemplateDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setTemplateSort(key); setTemplateDir('asc'); }
+  };
+  const toggleCycleSort = (key: 'title' | 'status' | 'responses' | 'endDate') => {
+    if (cycleSort === key) setCycleDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setCycleSort(key); setCycleDir('asc'); }
+  };
+  const SortIcon_Dir = ({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) =>
+    active ? (dir === 'asc' ? <SortAsc className="inline h-3.5 w-3.5" /> : <SortDesc className="inline h-3.5 w-3.5" />) : null;
+  const SortIcon = ({ isActive }: { isActive: boolean }) => isActive ? null : <SortAsc className="inline h-3 w-3 opacity-40" />;
 
   const { data: respondents, isLoading: respondentsLoading } = useQuery<any[]>({
     queryKey: [`/api/survey-cycles/${respondentsCycleId}/respondents`],
@@ -248,9 +297,20 @@ export default function Surveys() {
             </div>
 
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Survey Templates</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Available Survey Templates</h2>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500 font-medium">Sort:</span>
+                  <button onClick={() => toggleTemplateSort('title')} className="px-3 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">
+                    Title <SortIcon_Dir active={templateSort === 'title'} dir={templateDir} /> <SortIcon isActive={templateSort === 'title'} />
+                  </button>
+                  <button onClick={() => toggleTemplateSort('questions')} className="px-3 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">
+                    Questions <SortIcon_Dir active={templateSort === 'questions'} dir={templateDir} /> <SortIcon isActive={templateSort === 'questions'} />
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {surveysArray?.map((survey: any) => (
+                {sortedSurveys?.map((survey: any) => (
                   <Card key={survey.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                       <div className="flex items-center space-x-3">
@@ -270,50 +330,66 @@ export default function Surveys() {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Active Survey Cycles</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cyclesArray?.map((cycle: any) => (
-                  <Card key={cycle.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <CardTitle className="text-lg">{cycle.title}</CardTitle>
-                        <Badge variant={cycle.status === 'active' ? "default" : "secondary"}>{cycle.status}</Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="p-2 bg-gray-50 rounded text-xs">
-                          <div className="text-gray-600 font-medium">Direct Loop Link:</div>
-                          <div className="font-mono bg-white p-1 rounded border break-all text-blue-600 mt-1">{window.location.origin}/survey/{cycle.inviteCode}</div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">Submissions:</span><span className="font-medium">{cycle.responseCount || 0}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">End Date:</span><span className="font-medium">{new Date(cycle.endDate).toLocaleDateString()}</span></div>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => setRespondentsCycleId(cycle.id)}
-                        >
-                          <Users className="w-4 h-4 mr-2" />
-                          View Respondents ({cycle.responseCount || 0})
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          className="w-full mt-2 bg-amber-600 text-white hover:bg-amber-700 font-medium"
-                          onClick={() => handleDownloadReport(cycle.id, cycle.title)}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download SyncShift Report
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Active Survey Cycles</h2>
+                <div className="hidden md:flex items-center gap-3 text-xs text-gray-500 font-medium">
+                  <span>Sort by:</span>
+                  <button onClick={() => toggleCycleSort('title')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Title <SortIcon_Dir active={cycleSort === 'title'} dir={cycleDir} /></button>
+                  <button onClick={() => toggleCycleSort('status')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Status <SortIcon_Dir active={cycleSort === 'status'} dir={cycleDir} /></button>
+                  <button onClick={() => toggleCycleSort('responses')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">Submissions <SortIcon_Dir active={cycleSort === 'responses'} dir={cycleDir} /></button>
+                  <button onClick={() => toggleCycleSort('endDate')} className="px-2.5 py-1.5 rounded-lg border bg-white flex items-center gap-1 hover:bg-gray-50">End Date <SortIcon_Dir active={cycleSort === 'endDate'} dir={cycleDir} /></button>
+                </div>
               </div>
+
+              {sortedCycles.length === 0 ? (
+                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed text-gray-500">
+                  No survey cycles yet. Click "Start New Survey" to launch your first feedback loop.
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-gray-600">
+                      <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
+                        <tr>
+                          <th className="py-3 px-4 text-left">Cycle Title</th>
+                          <th className="py-3 px-4 text-left">Status</th>
+                          <th className="py-3 px-4 text-center">Submissions</th>
+                          <th className="py-3 px-4 text-left">Direct Loop Link</th>
+                          <th className="py-3 px-4 text-left">End Date</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {sortedCycles.map((cycle: any) => (
+                          <tr key={cycle.id} className="hover:bg-gray-50/50">
+                            <td className="py-3 px-4 font-medium text-gray-900">{cycle.title}</td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${cycle.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-600'}`}>
+                                {cycle.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center font-semibold text-indigo-600">{cycle.responseCount || 0}</td>
+                            <td className="py-3 px-4">
+                              <span className="font-mono text-xs text-blue-600 break-all bg-blue-50 px-1.5 py-0.5 rounded">{window.location.origin}/survey/{cycle.inviteCode}</span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-500">{cycle.endDate ? new Date(cycle.endDate).toLocaleDateString() : '—'}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setRespondentsCycleId(cycle.id)}>
+                                  <Users className="w-4 h-4 mr-1.5" /> Respondents
+                                </Button>
+                                <Button size="sm" className="bg-amber-600 text-white hover:bg-amber-700 font-medium" onClick={() => handleDownloadReport(cycle.id, cycle.title)}>
+                                  <Download className="w-4 h-4 mr-1.5" /> Report
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
