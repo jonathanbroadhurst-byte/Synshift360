@@ -1,9 +1,15 @@
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
-import { Shield, Building2, Coins, Users, PlusCircle, Settings } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Shield, Building2, Coins, Users, PlusCircle, Settings, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function OwnerDashboard() {
+  const queryClient = useQueryClient();
+  // Per-organization pending credit amounts keyed by org id
+  const [creditInputs, setCreditInputs] = useState<Record<number, string>>({});
+
   // 1. Query all provisioned organizations and credit usage across the platform
   const { data: usageData, isLoading: isLoadingOrgs } = useQuery<any[]>({
     queryKey: ['/api/owner/organizations/usage'],
@@ -14,6 +20,21 @@ export default function OwnerDashboard() {
     queryKey: ['/api/owner/users'],
   });
 
+  // 3. Allocate / adjust quantum credits for a specific client organization
+  const allocateCreditsMutation = useMutation({
+    mutationFn: async ({ orgId, amount }: { orgId: number; amount: number }) => {
+      const res = await apiRequest('PATCH', `/api/owner/organizations/${orgId}/credits`, { creditsToAllocate: amount });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      alert(data.message ?? `Credit balance updated successfully. New balance: ${data.newBalance}`);
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
+    },
+    onError: (err: any) => {
+      alert(err?.message ?? 'Failed to update credits. Try again.');
+    },
+  });
+
   const totalOrganizations = usageData?.length || 0;
   const totalUsers = usersData?.length || 0;
   
@@ -21,6 +42,18 @@ export default function OwnerDashboard() {
   const totalActiveCredits = usageData?.reduce(
     (acc: number, org: any) => acc + (org.quantumCredits || 0), 0
   ) || 0;
+
+  // Execute an addition (positive) or deduction (negative) of credits for a client
+  const executeAllocation = (orgId: number, isAddition: boolean) => {
+    const val = parseInt(creditInputs[orgId] || '0', 10);
+    if (!val || isNaN(val) || val <= 0) {
+      alert('Enter a positive number of credits first.');
+      return;
+    }
+    const amount = isAddition ? val : -val;
+    allocateCreditsMutation.mutate({ orgId, amount });
+    setCreditInputs((p) => ({ ...p, [orgId]: '' }));
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -95,6 +128,7 @@ export default function OwnerDashboard() {
                       <th className="py-3 px-4">Domain</th>
                       <th className="py-3 px-4 text-center">Quantum Credits</th>
                       <th className="py-3 px-4 text-center">Active Cycles</th>
+                      <th className="py-3 px-4 text-right">Adjust Credits</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -106,6 +140,39 @@ export default function OwnerDashboard() {
                           {org.quantumCredits ?? 0}
                         </td>
                         <td className="py-3 px-4 text-center">{org.activeCycleCount || 0}</td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                              placeholder="0"
+                              value={creditInputs[org.id] ?? ''}
+                              onChange={(e) => setCreditInputs((p) => ({ ...p, [org.id]: e.target.value }))}
+                            />
+                            <button
+                              type="button"
+                              disabled={allocateCreditsMutation.isPending && allocateCreditsMutation.variables?.orgId === org.id}
+                              onClick={() => executeAllocation(org.id, true)}
+                              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {allocateCreditsMutation.isPending && allocateCreditsMutation.variables?.orgId === org.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <PlusCircle className="h-3.5 w-3.5" />
+                              )}
+                              Add
+                            </button>
+                            <button
+                              type="button"
+                              disabled={allocateCreditsMutation.isPending && allocateCreditsMutation.variables?.orgId === org.id}
+                              onClick={() => executeAllocation(org.id, false)}
+                              className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                            >
+                              Deduct
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
