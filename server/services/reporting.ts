@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { surveyCycles, surveyResponses, users, organizations } from "@shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 
 // 1. UPDATE TO THE NEW 7 EXPLICIT DIMENSIONS
 export const SYNCSHIFT_DIMENSIONS = [
@@ -202,7 +202,12 @@ export async function generateMacroTierReport(
     );
   }
 
-  const activeCycles = await db.select().from(surveyCycles).where(inArray(surveyCycles.leaderId, leaderIds));
+  // Scope to this org's cycles. A cycle belongs to an org via organization_id, so count responses
+  // on ALL of the org's cycles (even if the target leader's user record lives under another org,
+  // which happens with test/migrated data).
+  const activeCycles = await db.select().from(surveyCycles).where(
+    or(eq(surveyCycles.organizationId, orgId), inArray(surveyCycles.leaderId, leaderIds))
+  );
   const cycleIds = activeCycles.map(c => c.id);
 
   let allResponses: any[] = [];
