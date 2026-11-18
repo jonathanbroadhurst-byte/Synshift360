@@ -703,12 +703,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email }).from(users).where(eq(users.role, 'leader')));
   });
 
+  app.get("/api/organizations/:orgId/credits", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
+    const orgId = parseInt(req.params.orgId);
+    // Org-bound admins may only view their own org's credits
+    if (req.user?.role !== 'owner' && req.user?.role !== 'super_admin' && req.user?.organizationId !== orgId) {
+      return res.status(403).json({ message: "You may only view your own organization's credits." });
+    }
+    const balances = await storage.getSurveyCreditBalances(orgId);
+    // Include every active survey template price + balance so the admin knows what each costs
+    const allSurveys = await db.select({ id: surveys.id, title: surveys.title, surveyType: surveys.surveyType, creditPrice: surveys.creditPrice }).from(surveys).where(eq(surveys.isActive, true));
+    return res.json({
+      balances,
+      templates: allSurveys.map((s) => ({
+        id: s.id, title: s.title, surveyType: s.surveyType, creditPrice: s.creditPrice ?? 1,
+        credits: (balances.find((b) => b.surveyType === s.surveyType)?.credits) ?? 0,
+      })),
+    });
+  });
+
   app.post("/api/survey-cycles", requireRole(['admin', 'org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
-    const cycle = await storage.createSurveyCycle(insertSurveyCycleSchema.parse({ ...req.body, endDate: new Date(req.body.endDate) }));
-    const token = Math.random().toString(36).substring(2, 8).toUpperCase();
-    await storage.updateCycleInviteCode(cycle.id, token);
-    cycle.inviteCode = token;
-    return res.status(201).json({ cycle });
+    try {
+      const body = { ...req.body };
+      const orgId = req.user?.organizationId ?? body.organizationId;
+      if (!orgId) return res.status(400).json({ message: "No organization selected for this survey cycle." });
+
+      // Resolve the survey template and its per-target credit price
+      const surveyId = parseInt(body.surveyId, 10);
+      const [surveyRow] = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+      if (!surveyRow) return res.status(404).json({ message: "Survey template not found." });
+      const price = surveyRow.creditPrice ?? 1;
+      const balance = await storage.getSurveyCredit(orgId, surveyRow.surveyType);
+      if (balance < price) {
+        return res.status(402).json({
+          message: `Insufficient ${surveyRow.surveyType} credits. This survey costs ${price} credit(s) and your balance is ${balance}. Contact the platform owner to top up.`,
+          surveyType: surveyRow.surveyType,
+          balance,
+          required: price,
+        });
+      }
+
+      const cycle = await storage.createSurveyCycle(insertSurveyCycleSchema.parse({ ...body, organizationId: orgId, endDate: new Date(body.endDate) }));
+      const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await storage.updateCycleInviteCode(cycle.id, token);
+      cycle.inviteCode = token;
+
+      // Deduct from the survey type's credit wallet now that the cycle exists
+      const remaining = await storage.deductSurveyCredits(orgId, surveyRow.surveyType, price);
+      return res.status(201).json({ cycle, creditsRemaining: remaining, surveyType: surveyRow.surveyType });
+    } catch (error: any) {
+      console.error("Survey cycle creation error:", error);
+      return res.status(500).json({ message: error?.message || "Failed to create survey cycle." });
+    }
   });
 
   // Single clean implementation of /api/survey-cycles

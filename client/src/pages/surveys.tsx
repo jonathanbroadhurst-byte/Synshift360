@@ -37,6 +37,20 @@ export default function Surveys() {
       : { queryKey: ['/api/surveys/organization', user?.organizationId || 1] }
   );
 
+  // Credit balances + template prices for the admin's own org (so they know what's available)
+  const { data: creditInfo } = useQuery<any>({
+    queryKey: ['/api/organizations', user?.organizationId, 'credits'],
+    enabled: !!user?.organizationId,
+    queryFn: async () => {
+      const res = await fetch(`/api/organizations/${user?.organizationId}/credits`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!res.ok) return { templates: [] };
+      return res.json();
+    },
+  });
+  const creditTemplates: any[] = creditInfo?.templates || [];
+
   const { data: cycles, isLoading: cyclesLoading } = useQuery({
     queryKey: ['/api/survey-cycles'],
   });
@@ -127,7 +141,18 @@ export default function Surveys() {
       endDate: Date;
     }) => {
       const response = await apiRequest('POST', '/api/survey-cycles', data);
-      return response.json();
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.message || 'Failed to create the survey cycle.');
+      }
+      return body;
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Could not start survey",
+        description: error?.message || 'There was an error creating the cycle. Try again or contact the platform owner for more credits.',
+        variant: "destructive",
+      });
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/survey-cycles'] });
@@ -308,6 +333,23 @@ export default function Surveys() {
                 <Plus className="w-5 h-5 mr-2" /> Start New Survey
               </Button>
             </div>
+
+            {/* 💳 CREDIT AVAILABILITY — admins see what's available so they know when to request from the owner */}
+            {!isOwnerView && creditTemplates.length > 0 && (
+              <div className="mb-6 p-4 bg-indigo-50/60 border border-indigo-100 rounded-xl">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700 mb-2">Your available survey credits</p>
+                <div className="flex flex-wrap gap-3">
+                  {creditTemplates.map((t: any) => (
+                    <div key={t.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm ${t.credits > 0 ? 'bg-white border-emerald-200' : 'bg-white border-amber-200'}`}>
+                      <span className="font-medium text-gray-800">{t.title}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${t.credits > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{t.credits}</span>
+                      <span className="text-xs text-gray-400">{t.creditPrice} cr/launch</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Runs out? Ask the platform owner to allocate more credits for that questionnaire.</p>
+              </div>
+            )}
 
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
