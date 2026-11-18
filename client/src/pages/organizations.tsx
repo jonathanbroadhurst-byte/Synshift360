@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, Building, Users, Activity } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Building, Users, Activity, KeyRound, Save, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RequireAuth } from '@/lib/auth';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest } from '@/lib/queryClient';
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
 
@@ -17,15 +17,63 @@ export default function Organizations() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDomain, setNewOrgDomain] = useState('');
+  // Editable admin drafts keyed by org id
+  const [adminDrafts, setAdminDrafts] = useState<Record<number, { id: number; firstName: string; lastName: string; email: string }[]>>({});
+  // Reset-password open state keyed by admin user id
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['/api/owner/organizations/usage'],
   });
-  // usage endpoint returns [{ organization, activeSurveys, totalParticipants, completedResponses, pendingResponses }]
+  // usage endpoint returns [{ organization, activeSurveys, totalParticipants, completedResponses, pendingResponses, admins }]
   const orgsArray = Array.isArray(organizations)
     ? organizations.map((item: any) => ({ ...(item.organization ?? item) }))
     : [];
+
+  // Admin draft management — reads drafts if present, else falls back to live admin data
+  const currentAdmin = (orgId: number, item: any, adminId: number, field: 'firstName' | 'lastName' | 'email') => {
+    const drafts = adminDrafts[orgId];
+    const source = drafts ? drafts.find((a) => a.id === adminId) : (item.admins || []).find((a: any) => a.id === adminId);
+    const fallback = (item.admins || []).find((a: any) => a.id === adminId);
+    const val = source ? source[field] : fallback?.[field];
+    return val ?? '';
+  };
+  const setDraftField = (orgId: number, adminId: number, field: 'firstName' | 'lastName' | 'email', value: string) => {
+    const base = adminDrafts[orgId] || (orgsArray.find((o: any) => o.id === orgId)?.admins || []).map((a: any) => ({ id: a.id, firstName: a.firstName, lastName: a.lastName, email: a.email }));
+    setAdminDrafts((p) => ({
+      ...p,
+      [orgId]: (base || []).map((a: any) => (a.id === adminId ? { ...a, [field]: value } : a)),
+    }));
+  };
+
+  const updateAdminMutation = useMutation({
+    mutationFn: async ({ orgId, adminId, data }: { orgId: number; adminId: number; data: { firstName?: string; lastName?: string; email?: string } }) => {
+      const res = await apiRequest('PATCH', `/api/owner/organizations/${orgId}/admins/${adminId}`, data);
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
+      toast({ title: 'Admin updated', description: 'Admin details saved.' });
+      setAdminDrafts((p) => ({ ...p, [vars.orgId]: undefined }));
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e?.message || 'Failed to update admin.', variant: 'destructive' }),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ orgId, adminId, password }: { orgId: number; adminId: number; password: string }) => {
+      const res = await apiRequest('POST', `/api/owner/organizations/${orgId}/admins/${adminId}/reset-password`, { password });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: 'Password reset', description: data.message || 'Password updated.' });
+      setResetUserId(null);
+      setResetPassword('');
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e?.message || 'Failed to reset password.', variant: 'destructive' }),
+  });
 
   const createOrganizationMutation = useMutation({
     mutationFn: async (data: { name: string; domain: string }) => {
@@ -155,6 +203,103 @@ export default function Organizations() {
                     </div>
                     <span className="text-sm font-medium text-green-700">{item.completedResponses ?? 0}</span>
                   </div>
+
+                  {/* 👤 ORGANISATION ADMIN — editable name/email + reset password */}
+                  <div className="pt-1 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                        <UserCog className="w-4 h-4 text-indigo-500" /> Admins
+                      </span>
+                    </div>
+                    {(item.admins && item.admins.length > 0) ? (
+                      <div className="space-y-3">
+                        {item.admins.map((admin: any) => {
+                          const isResetting = resetUserId === admin.id;
+                          const fName = currentAdmin(org.id, item, admin.id, 'firstName');
+                          const lName = currentAdmin(org.id, item, admin.id, 'lastName');
+                          const email = currentAdmin(org.id, item, admin.id, 'email');
+                          return (
+                            <div key={admin.id} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label className="text-[11px] uppercase tracking-wide text-gray-500">First Name</Label>
+                                  <Input
+                                    className="mt-0.5 text-sm"
+                                    value={fName}
+                                    onChange={(e) => setDraftField(org.id, admin.id, 'firstName', e.target.value)}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] uppercase tracking-wide text-gray-500">Last Name</Label>
+                                  <Input
+                                    className="mt-0.5 text-sm"
+                                    value={lName}
+                                    onChange={(e) => setDraftField(org.id, admin.id, 'lastName', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] uppercase tracking-wide text-gray-500">Email</Label>
+                                <Input
+                                  type="email"
+                                  className="mt-0.5 text-sm"
+                                  value={email}
+                                  onChange={(e) => setDraftField(org.id, admin.id, 'email', e.target.value)}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 text-xs"
+                                  disabled={updateAdminMutation.isPending}
+                                  onClick={() => {
+                                    if (!email.trim()) { toast({ title: 'Email required', description: 'Admin must have an email address.', variant: 'destructive' }); return; }
+                                    updateAdminMutation.mutate({ orgId: org.id, adminId: admin.id, data: { firstName: fName, lastName: lName, email } });
+                                  }}
+                                >
+                                  <Save className="w-3.5 h-3.5 mr-1" /> Save
+                                </Button>
+                                {isResetting ? (
+                                  <>
+                                    <Input
+                                      type="password"
+                                      placeholder="New password"
+                                      autoFocus
+                                      className="text-xs flex-1"
+                                      value={resetPassword}
+                                      onChange={(e) => setResetPassword(e.target.value)}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="text-xs bg-amber-600 hover:bg-amber-700"
+                                      disabled={resetPassword.length < 8 || resetPasswordMutation.isPending}
+                                      onClick={() => resetPasswordMutation.mutate({ orgId: org.id, adminId: admin.id, password: resetPassword })}
+                                    >
+                                      Set
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setResetUserId(null); setResetPassword(''); }}>Cancel</Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs text-amber-700 border-amber-200 hover:bg-amber-50"
+                                    onClick={() => { setResetUserId(admin.id); setResetPassword(''); }}
+                                  >
+                                    <KeyRound className="w-3.5 h-3.5 mr-1" /> Reset PW
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 py-1">No admin assigned to this organisation yet.</p>
+                    )}
+                  </div>
+
                   <div className="pt-2">
                     <p className="text-xs text-gray-500">
                       Created {new Date(org.createdAt).toLocaleDateString()}

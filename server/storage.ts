@@ -48,6 +48,9 @@ export interface IStorage {
   updateUserRole(userId: number, role: string): Promise<void>;
   assignUserRoleOrg(userId: number, role: string, organizationId: number): Promise<void>;
   createAdminForOrg(orgId: number, data: { email: string; password: string; firstName?: string; lastName?: string }): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserProfile(userId: number, data: { firstName?: string; lastName?: string; email?: string }): Promise<User>;
+  resetUserPassword(userId: number, hashedPassword: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
 }
@@ -234,6 +237,7 @@ export class DatabaseStorage implements IStorage {
     totalParticipants: number;
     completedResponses: number;
     pendingResponses: number;
+    admins: Array<{ id: number; firstName: string; lastName: string; email: string }>;
   }>> {
     const orgs = await db.select().from(organizations);
     const allUsers = await db.select().from(users);
@@ -261,14 +265,39 @@ export class DatabaseStorage implements IStorage {
       const cycles = cycleByOrg.get(org.id) ?? [];
       const active = cycles.filter(c => c.status === 'active').length;
       const responsesForOrg = allResponses.filter(r => cycleIdToOrg.get(r.cycleId) === org.id);
+      const admins = members
+        .filter(m => m.role === 'org_admin' || m.role === 'admin' || m.role === 'company_admin')
+        .map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName, email: m.email }));
       return {
         organization: org,
         activeSurveys: active,
         totalParticipants: members.length,
         completedResponses: responsesForOrg.length,
         pendingResponses: Math.max(0, cycles.length * 5 - responsesForOrg.length),
+        admins,
       };
     }));
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [u] = await db.select().from(users).where(eq(users.email, email));
+    return u || undefined;
+  }
+
+  async updateUserProfile(userId: number, data: { firstName?: string; lastName?: string; email?: string }): Promise<User> {
+    const patch: any = {};
+    if (data.firstName !== undefined) patch.firstName = data.firstName;
+    if (data.lastName !== undefined) patch.lastName = data.lastName;
+    if (data.email !== undefined) {
+      patch.email = data.email;
+      patch.username = data.email.split('@')[0] + '.' + String(userId);
+    }
+    const [u] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+    return u;
+  }
+
+  async resetUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
   }
 
   async getOrganizationAdmins(orgId: number): Promise<User[]> {

@@ -839,6 +839,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(201).json({ message: `Admin created for ${org.name}.`, user: { id: user.id, email: user.email, role: user.role, organizationId: user.organizationId } });
   });
 
+  // Update an existing admin's profile (name / email) on an org — e.g. when the admin role passes to a new person
+  app.patch("/api/owner/organizations/:orgId/admins/:userId", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    const { firstName, lastName, email } = req.body as { firstName?: string; lastName?: string; email?: string };
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ message: "User not found." });
+    if (email && email !== user.email) {
+      const [existing] = await db.select().from(users).where(and(eq(users.email, email), sql`${users.id} != ${userId}`)).limit(1);
+      if (existing) return res.status(409).json({ message: "That email is already taken by another user." });
+    }
+    const updated = await storage.updateUserProfile(userId, { firstName, lastName, email });
+    return res.json({
+      message: "Admin details updated.",
+      admin: { id: updated.id, firstName: updated.firstName, lastName: updated.lastName, email: updated.email },
+    });
+  });
+
+  // Reset an admin's password (they forgot it)
+  app.post("/api/owner/organizations/:orgId/admins/:userId/reset-password", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    const newPassword = (req.body as { password?: string })?.password;
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters." });
+    }
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ message: "User not found." });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await storage.resetUserPassword(userId, hashed);
+    return res.json({ message: `Password reset for ${user.email}. Pass the new password to them securely.` });
+  });
+
   app.patch("/api/owner/organizations/:orgId/credits", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const orgId = parseInt(req.params.orgId);
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
