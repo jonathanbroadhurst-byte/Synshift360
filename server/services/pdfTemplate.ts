@@ -162,12 +162,192 @@ function getDynamicExplanation(key: string, self: number, ext: number, isSuppres
   return pool.aligned;
 }
 
+const DIMENSION_NAMES: Record<string, string> = {
+  direction: "Direction & Sense-Making",
+  systems: "Systems & Delivery",
+  purpose: "Purpose & Authenticity",
+  skills: "Skills & Agility",
+  team: "Team & Norms",
+  impact: "Impact & Reputation",
+  cross_level: "Cross-Level Alignment",
+};
+
+/**
+ * Concrete, plain-language coaching actions for each dimension, tuned by delta direction.
+ * Returns a short array of recommended behaviors for the leader.
+ */
+function getRecommendedActions(key: string, self: number, ext: number, isSuppressed: boolean): string[] {
+  if (isSuppressed) return ["Collect more stakeholder feedback before acting — fewer than 3 external responses are currently available."];
+  const delta = ext - self;
+
+  const bank: Record<string, { building: string[]; aligned: string[]; bridge: string[] }> = {
+    direction: {
+      building: [
+        "Run one 'why does this matter' briefing per quarter: map every active team goal back to the organisation's top 3 strategic priorities and get the team to restate the connection in their own words.",
+        "Start each 1:1 with 60 seconds on the bigger picture before diving into tasks, so daily work isn't experienced as purely transactional.",
+        "Ask 2–3 trusted stakeholders what 'good direction' looks like to them, and mirror their language when setting priorities."
+      ],
+      aligned: [
+        "Keep your current cadence — it's landing. Formalise it so it survives busy periods, e.g. a short monthly 'strategy to work' recap you reuse.",
+        "Add one deliberate 'sense-making' moment: invite the team to challenge the plan and test whether the direction still holds."
+      ],
+      bridge: [
+        "You're being clear — make sure it's heard. Add a visual one-page 'where we're headed' that the team owns and can re-say to others.",
+        "Consider reversing the flow: ask the team what they think the strategy is first, then correct gaps — this surfaces how well direction actually transmits."
+      ]
+    },
+    systems: {
+      building: [
+        "Audit one core workflow end-to-end with the people who run it; identify the single biggest friction point and remove it in the next two weeks.",
+        "Introduce a lightweight, visible task tracker and a simple weekly 'where are we stuck' loop so teams stop inventing workarounds.",
+        "Delegate end-to-end ownership of one process to a team member and hold them accountable for making it smoother."
+      ],
+      aligned: [
+        "Maintain the guardrails you have — they're holding. Codify the most successful routine so it doesn't depend on you personally.",
+        "Pick one recurring task and map its handoffs to confirm no hidden dependency or single point of failure."
+      ],
+      bridge: [
+        "Your systems work — ensure others know how to use them. A short 'how we deliver' playbook turns your personal routines into shared infrastructure.",
+        "Test one process by removing yourself from it and see whether the team can run it without you."
+      ]
+    },
+    purpose: {
+      building: [
+        "Hold a 'line of sight' session: get each person to say how their role links to the mission, and co-write the missing links together.",
+        "Share a decision you made, plus the values behind it, so the team can see authenticity in action.",
+        "Ask what people genuinely care about at work and reflect it in how you communicate the team's purpose."
+      ],
+      aligned: [
+        "Your purpose messaging is resonating — capitalise by making it more frequent and more personal.",
+        "Capture one example of the mission coming alive in your team and share it internally to reinforce meaning."
+      ],
+      bridge: [
+        "The team already feels purpose — give them credit for it publicly and let them lead the storytelling.",
+        "Check you aren't over-claiming: invite a 'what still feels hollow' conversation to ground the purpose in reality."
+      ]
+    },
+    skills: {
+      building: [
+        "Normalise 'intelligent failure': share one of your own mistakes publicly and what you learned, to signal that failing forward is safe.",
+        "Protect a recurring 'experiment slot' where the team can test an idea with a sandboxed budget and zero blame on negative results.",
+        "Coach one team member through a stretch task rather than doing it for them, reinforcing their capability to iterate."
+      ],
+      aligned: [
+        "Your developmental space is a strength — keep baking it into delivery so experimentation survives deadlines.",
+        "Identify one person who thrives on risk and give them a visible innovation remit."
+      ],
+      bridge: [
+        "The team feels safer than you assume — harness that trust by raising the ambition of the experiments you invite.",
+        "Turn one successful pilot into a repeatable process others can adopt."
+      ]
+    },
+    team: {
+      building: [
+        "Run a team 'norms and safety' check-in: what honestly happens when someone makes a mistake? Co-create a shared rule that removes blame and adds learning.",
+        "Break one silo: pair sub-groups on a shared deliverable and rotate communication, so context stops being hoarded.",
+        "Give explicit, specific praise for risk-taking, not just results, in your next team meeting."
+      ],
+      aligned: [
+        "Your team cohesion is strong — maintain it by making the psychological-safety message explicit and regular.",
+        "Rotate meeting facilitation so ownership of healthy norms spreads beyond you."
+      ],
+      bridge: [
+        "It's working — guard it. Protect the 'no blame' cadence during high-pressure periods when it's most likely to erode.",
+        "Check for hidden sub-groups: extend your open communication loop to quieter corners of the team."
+      ]
+    },
+    impact: {
+      building: [
+        "Re-grade priorities with the team: cut or reprioritise anything ambiguous so effort maps to the agreed milestones.",
+        "Publish a simple 'we committed to X' ladder and track progress visibly each week, so goals can't drift.",
+        "Ask a stakeholder what 'winning' looks like to them, then align your next milestone to it directly."
+      ],
+      aligned: [
+        "Your execution is on-target — make the wins visible to build momentum and external reputation.",
+        "Identify the next level of ambition: what would a step-function improvement look like?"
+      ],
+      bridge: [
+        "You're delivering more than your reputation reflects — amplify it. Share wins proactively with leadership and peers.",
+        "Occasionally widen your circle: let stakeholders see how priorities connect to your results."
+      ]
+    },
+    cross_level: {
+      building: [
+        "Map one joint initiative with a neighbouring team and make everyone's objectives visible to both sides; resolve the biggest boundary friction together.",
+        "Institute a 'dependants board' so handoffs are explicit and neither side drops the ball.",
+        "Set up a monthly or fortnightly check-in with the leaders of adjacent functions to pre-empt resource tension."
+      ],
+      aligned: [
+        "Your cross-functional alignment is a strength — keep objectives visible and shared across boundaries.",
+        "Model the behaviour: volunteer one of your objectives to be jointly owned with a partner team."
+      ],
+      bridge: [
+        "The connection that exists is real — make it explicit and durable rather than personal, so it survives line-drawing.",
+        "Extend the transparent-objectives practice to one more team you touch, to widen the alignment surface."
+      ]
+    }
+  };
+
+  const pool = bank[key] || bank["direction"];
+  if (delta <= -1.0) return pool.building;
+  if (delta >= 1.0) return pool.bridge;
+  return pool.aligned;
+}
+
+function escapeHtml(s: string): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /**
  * Compiles the raw dynamic dashboard HTML string matching the SyncShift brand identity
  */
 export function compileSyncShiftHtmlReport(data: AggregatedReportData, leaderName: string, orgName: string): string {
   const radarSvg = generateRadarSVG(data.dimensions);
   const dims = data.dimensions;
+
+  // Compute an overall posture + strengths/priorities so the report gives real feedback.
+  const dimEntries = Object.keys(dims).map((key) => ({ key, ...dims[key] }));
+  const cleared = dimEntries.filter((d) => !d.isSuppressed);
+  const avgDelta = cleared.length ? cleared.reduce((a, d) => a + (d.externalScore - d.selfScore), 0) / cleared.length : 0;
+  const maxSingle = cleared.length ? Math.max(...cleared.map((d) => Math.abs(d.externalScore - d.selfScore))) : 0;
+
+  let posture: string;
+  let postureTone = "aligned";
+  if (!data.anonymityThresholdCleared) {
+    posture = "Awaiting more stakeholder feedback before a reliable posture can be assigned.";
+  } else if (avgDelta <= -0.8) {
+    posture = `This profile shows a clear self-overestimation pattern — on average stakeholders rate this leader ${Math.abs(avgDelta).toFixed(1)} points below their own self-rating. The leadership intent is present, but it is landing short of its intended impact.`;
+    postureTone = "negative";
+  } else if (avgDelta >= 0.8) {
+    posture = "Stakeholders rate this leader higher than they rate themselves — a history of under-claiming. The capability is real and valued; the work is to own and amplify it.";
+  } else if (maxSingle >= 1.0) {
+    posture = "Generally well-aligned, but with one or two pockets where perception meaningfully diverges. Prioritise the specific dimensions flagged below rather than a broad overhaul.";
+  } else {
+    posture = "Well-aligned overall — self-rating and stakeholder experience are within a healthy margin on most dimensions. Maintain the behaviours that earned this consistency.";
+  }
+
+  // Strengths = top 3 external scores (cleared); priorities = top 3 by |gap| (cleared, gap>0.5).
+  const strengths = [...cleared].sort((a, b) => (b.externalScore || 0) - (a.externalScore || 0)).slice(0, 3);
+  const priorities = [...cleared]
+    .filter((d) => Math.abs(d.externalScore - d.selfScore) >= 0.5)
+    .sort((a, b) => Math.abs(b.externalScore - b.selfScore) - Math.abs(a.externalScore - a.selfScore))
+    .slice(0, 3);
+
+  const execSummary = `
+    <div class="page-break"></div>
+    <div class="page-container">
+      <h1>Executive Summary</h1>
+      <div class="summary-panel">
+        <p>${posture}</p>
+      </div>
+      ${cleared.length ? `
+        <p>Across the 7 SyncShift dimensions the average perception gap is <strong>${avgDelta > 0 ? '+' : ''}${avgDelta.toFixed(2)}</strong> on the 1–7 scale. The largest single gap is <strong>${maxSingle.toFixed(2)}</strong>.</p>
+        <h2>What's working</h2>
+        <p>${strengths.length ? strengths.map((d) => `<strong>${d.name}</strong> (stakeholders ${d.externalScore}/7)`).join(" · ") : "Not enough cleared data to identify strengths yet."}</p>
+        <h2>What to prioritise</h2>
+        <p>${priorities.length ? priorities.map((d, i) => `${i + 1}. <strong>${d.name}</strong> — gap of ${(d.externalScore - d.selfScore) > 0 ? '+' : ''}${(d.externalScore - d.selfScore).toFixed(2)} (${DIMENSION_NAMES[d.key]})`).join("<br/>") : "No significant perception gaps detected — maintain the current approach and re-assess next cycle."}</p>
+      ` : `<p>${posture}</p>`}
+    </div>`;
 
   return `
 <!DOCTYPE html>
@@ -256,6 +436,8 @@ export function compileSyncShiftHtmlReport(data: AggregatedReportData, leaderNam
     <p><strong>2. Your Impact (The Systemic Outcomes):</strong> How your surrounding corporate ecosystem actually experiences your leadership. This tracks whether those actions are translating into true, sustainable organizational alignment.</p>
   </div>
 
+  ${execSummary}
+
   <div class="page-break"></div>
   <div class="page-container">
     <h1>Macro Alignment Profile</h1>
@@ -302,13 +484,47 @@ export function compileSyncShiftHtmlReport(data: AggregatedReportData, leaderNam
           </tr>
         </table>
         <div class="diagnostic-container">
-          <div class="diagnostic-subtitle">The Strategic Conflict:</div>
+          <div class="diagnostic-subtitle">In Plain Terms:</div>
           <div class="diagnostic-text">
             ${getDynamicExplanation(key, item.selfScore, item.externalScore, item.isSuppressed)}
           </div>
         </div>
+        <div class="diagnostic-container">
+          <div class="diagnostic-subtitle">Recommended Focus:</div>
+          <ul style="margin:0; padding-left:5mm; font-size:9.5pt; line-height:1.5; color:#475569;">
+            ${getRecommendedActions(key, item.selfScore, item.externalScore, item.isSuppressed).map((a) => `<li>${a}</li>`).join("")}
+          </ul>
+        </div>
       </div>`;
     }).join("")}
+  </div>
+
+  <div class="page-break"></div>
+  <div class="page-container">
+    <h1>Your Development Plan</h1>
+    <p>This section turns the feedback into an actionable 90-day focus. Work one or two priorities at a time — spreading effort across all dimensions dilutes impact.</p>
+    ${priorities.length ? priorities.map((d, i) => `
+      <div class="pillar-block">
+        <div class="pillar-header">
+          <span class="pillar-title">${i + 1}. ${d.name}</span>
+          <span class="gap-badge ${(d.externalScore - d.selfScore) < 0 ? 'gap-negative' : 'gap-aligned'}">
+            Gap ${(d.externalScore - d.selfScore) > 0 ? '+' : ''}${(d.externalScore - d.selfScore).toFixed(2)}
+          </span>
+        </div>
+        <div class="diagnostic-text" style="margin-bottom:3mm;">
+          ${getDynamicExplanation(d.key, d.selfScore, d.externalScore, d.isSuppressed)}
+        </div>
+        <div class="diagnostic-subtitle">Recommended actions</div>
+        <ul style="margin:0; padding-left:5mm; font-size:9.5pt; line-height:1.5; color:#475569;">
+          ${getRecommendedActions(d.key, d.selfScore, d.externalScore, d.isSuppressed).map((a) => `<li>${a}</li>`).join("")}
+        </ul>
+      </div>`).join("") : `<div class="summary-panel"><p>No significant perception gaps to prioritise right now. Keep the current approach consistent, and re-run the assessment next cycle to confirm alignment holds.</p></div>`}
+    <h2>A simple 90-day rhythm</h2>
+    <ul style="margin:0; padding-left:5mm; font-size:10pt; line-height:1.6; color:#334155;">
+      <li><strong>Days 1–30:</strong> Pick your #1 priority above. Do one of its recommended actions weekly and tell your team what you're working on.</li>
+      <li><strong>Days 31–60:</strong> Check in with one stakeholder on that dimension to gauge whether they can see the change.</li>
+      <li><strong>Days 61–90:</strong> Re-run a lightweight pulse (or full 360) on the dimension and compare the delta with this baseline.</li>
+    </ul>
   </div>
 
 </body>

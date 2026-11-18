@@ -1,5 +1,65 @@
 import { MacroTierReportData } from "./reporting";
 
+const DIMENSION_EXPLANATION: Record<string, string> = {
+  "Direction & Sense-Making": "How clearly leadership direction and the 'why' behind work transmits to teams.",
+  "Systems & Delivery": "Whether the processes, tracking and accountability loops are in place to actually deliver.",
+  "Purpose & Authenticity": "How well the organisation’s purpose and values are felt day-to-day by its people.",
+  "Skills & Agility": "Whether people feel safe to experiment, adapt and grow, and the capability available to do so.",
+  "Team & Norms": "The health of collaboration, psychological safety and shared norms across teams.",
+  "Impact & Reputation": "Whether effort is translating into visible results and a strong external reputation.",
+  "Cross-Level Alignment": "How cleanly goals and handoffs connect across functions and levels.",
+};
+
+/**
+ * Build plain-language, data-driven feedback for a macro (organisation / leadership / function /
+ * team) aggregation so the export is an interpretation, not just a table.
+ */
+function buildMacroFeedback(data: MacroTierReportData): { interpretation: string; orgRecommendations: string[] } {
+  const pillars = Object.values(data.pillars || {});
+  const cleared = pillars;
+  const avgDelta = cleared.length ? cleared.reduce((a, p) => a + (p.blindspotDelta || 0), 0) / cleared.length : 0;
+  const avgSelf = cleared.length ? cleared.reduce((a, p) => a + (p.leaderSelfAvg || 0), 0) / cleared.length : 0;
+  const avgExt = cleared.length ? cleared.reduce((a, p) => a + (p.stakeholderAvg || 0), 0) / cleared.length : 0;
+  const biggestGaps = [...cleared].filter((p) => Math.abs(p.blindspotDelta || 0) >= 0.5).sort((a, b) => Math.abs(b.blindspotDelta || 0) - Math.abs(a.blindspotDelta || 0));
+  const lowestImpact = [...cleared].filter((p) => (p.stakeholderAvg || 0) > 0).sort((a, b) => (a.stakeholderAvg || 0) - (b.stakeholderAvg || 0)).slice(0, 2);
+
+  // Interpretation text depends on the tier scope + average delta.
+  let interpretation: string;
+  if (avgDelta <= -0.5) {
+    interpretation = `Across this ${data.tierName} scope, leaders rate their own leadership ${Math.abs(avgDelta).toFixed(1)} points above how stakeholders experience it (average ${avgSelf.toFixed(1)} vs ${avgExt.toFixed(1)} on a 1–7 scale). This is a perception gap: the intent is real, but it is not translating into the impact people actually feel.`;
+  } else if (avgDelta >= 0.5) {
+    interpretation = `Across this ${data.tierName} scope, stakeholders rate these leaders higher than they rate themselves (average ${avgExt.toFixed(1)} vs ${avgSelf.toFixed(1)}). Capability is under-claimed more than under-delivered.`;
+  } else {
+    interpretation = `Across this ${data.tierName} scope, self-rating and stakeholder experience are closely aligned (averages ${avgSelf.toFixed(1)} vs ${avgExt.toFixed(1)} on a 1–7 scale) — differences are within a healthy margin.`;
+  }
+
+  const recommendations: string[] = [];
+
+  if (biggestGaps.length >= 1) {
+    const label = biggestGaps[0].name;
+    recommendations.push(`Close the perception gap on <strong>${label}</strong> first — it holds the largest self-vs-stakeholder delta (${biggestGaps[0].blindspotDelta > 0 ? '+' : ''}${biggestGaps[0].blindspotDelta.toFixed(2)}). ${DIMENSION_EXPLANATION[label] || ''} Run a targeted pulse on this dimension after one working cycle to confirm the change lands.`);
+  }
+  if (lowestImpact[0] && (lowestImpact[0].stakeholderAvg || 0) > 0 && (lowestImpact[0].stakeholderAvg || 0) < 4.5) {
+    recommendations.push(`The lowest stakeholder-scored dimension is <strong>${lowestImpact[0].name}</strong> (${lowestImpact[0].stakeholderAvg.toFixed(1)}/7). Treat it as the organisation development priority for the next quarter and align leadership attention around it.`);
+  }
+  // Cross-functional / team guidance from friction, where present.
+  if (data.functionalFrictionIndex && data.functionalFrictionIndex.length) {
+    const high = data.functionalFrictionIndex.sort((a, b) => b.frictionDelta - a.frictionDelta).slice(0, 2);
+    const worst = high[0];
+    if (worst && worst.frictionDelta >= 0.8) {
+      recommendations.push(`The most strained cross-functional boundary is <strong>${worst.deptA} ↔ ${worst.deptB}</strong> (friction ${worst.frictionDelta.toFixed(2)}). Broker a joint objective and a shared review cadence between these two functions to reduce handoff-driven drag.`);
+    }
+  }
+  if (avgDelta <= -0.5) {
+    recommendations.push(`Because self-perception runs ahead of stakeholder experience group-wide, start leadership 1:1s with the 'what are you trying to achieve, and how would others know?' framing — it turns the gap into shared, observable goals rather than a confidence issue.`);
+  }
+  if (recommendations.length === 0) {
+    recommendations.push("Alignment is healthy across the measured dimensions. The best next step is to keep the cadence and re-assess on the next cycle so early misalignment is caught before it compounds.");
+  }
+
+  return { interpretation, orgRecommendations: recommendations };
+}
+
 /**
  * Compiles macro tier analytics into a structured, print-ready HTML executive asset.
  */
@@ -107,6 +167,21 @@ export function compileMacroHtmlReport(data: MacroTierReportData, orgName: strin
             <span class="text-sm font-bold text-slate-800">${dateString}</span>
           </div>
         </div>
+
+        ${(() => {
+          const fb = buildMacroFeedback(data);
+          return `
+          <div class="mb-8 border-l-4 border-indigo-600 bg-indigo-50/40 rounded-r-xl p-6">
+            <h3 class="text-sm font-bold text-slate-900 mb-2 uppercase tracking-wider text-xs text-indigo-700">Executive Interpretation</h3>
+            <p class="text-sm text-slate-700 leading-relaxed">${fb.interpretation}</p>
+          </div>
+          <div class="mb-8 border-l-4 border-amber-500 bg-amber-50/40 rounded-r-xl p-6">
+            <h3 class="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider text-xs text-amber-700">Recommended Organisational Focus</h3>
+            <ul class="space-y-3 text-sm text-slate-700">
+              ${fb.orgRecommendations.map((r) => `<li class="flex items-start gap-2"><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"></span><span>${r}</span></li>`).join("")}
+            </ul>
+          </div>`;
+        })()}
 
         <div class="mt-6">
           <h3 class="text-lg font-bold text-slate-900 border-b pb-2 mb-4 uppercase tracking-wider text-xs text-slate-400">Pillar Matrix Vector Alignments</h3>
