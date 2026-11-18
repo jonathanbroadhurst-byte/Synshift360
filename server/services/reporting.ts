@@ -36,6 +36,20 @@ export interface MacroTierReportData {
   leaderCount: number;
   thresholdCleared: boolean;
   totalResponsesCollected: number;
+  highestDiscrepancyDimensions: string[];
+  cohort: Array<{
+    leaderId: number;
+    leaderName: string;
+    email: string;
+    department: string;
+    teamName: string;
+    position: string;
+    cycleId: number | null;
+    responseCount: number;
+    selfAvg: number;
+    stakeholderAvg: number;
+    delta: number;
+  }>;
   pillars: {
     [key: string]: {
       name: string;
@@ -92,6 +106,59 @@ function calculateVariance(values: number[]): number {
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   const sumOfSquares = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0);
   return Number((sumOfSquares / values.length).toFixed(2));
+}
+
+/** Returns the average raw score across a response's answers (skips non-numeric). */
+function averageResponseScores(responses: any): number {
+  const list: Array<{ value: any }> =
+    typeof responses === "string" ? JSON.parse(responses) : (responses as any) || [];
+  const scores = list.map((i) => parseInt(i.value)).filter((v) => !isNaN(v));
+  if (scores.length === 0) return 0;
+  return Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2));
+}
+
+/**
+ * Builds the per-leader roster for a macro tier: one row per assessed leader with their
+ * cycle id (for drill-down), response count, self-average, stakeholder-average and delta.
+ * Uses the leader's most recent cycle in scope for the drill-down link.
+ */
+function buildCohortRoster(targetUsers: any[], cycles: any[], responses: any[]): any[] {
+  const respByCycle: Record<number, any[]> = {};
+  for (const r of responses) {
+    (respByCycle[r.cycleId] = respByCycle[r.cycleId] || []).push(r);
+  }
+  // Per leader: pick the newest cycle in scope so drill-down targets a real report.
+  const newestCyclePerLeader: Record<number, any> = {};
+  for (const c of cycles) {
+    if (!c.leaderId) continue;
+    const cur = newestCyclePerLeader[c.leaderId];
+    if (!cur || new Date(c.createdAt || 0) > new Date(cur.createdAt || 0)) newestCyclePerLeader[c.leaderId] = c;
+  }
+
+  return targetUsers.map((u) => {
+    const cycle = newestCyclePerLeader[u.id];
+    const cycResp = cycle ? respByCycle[cycle.id] || [] : [];
+    let selfSum = 0, extSum = 0, selfN = 0, extN = 0;
+    for (const r of cycResp) {
+      const isSelf = r.respondentRelationship?.toLowerCase() === "self";
+      const score = averageResponseScores(r.responses);
+      if (isSelf) { selfSum += score; selfN++; } else { extSum += score; extN++; }
+      // Only count externally-derived scores toward stakeholder average (self excluded)
+    }
+    return {
+      leaderId: u.id,
+      leaderName: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+      email: u.email,
+      department: u.department || "",
+      teamName: u.teamName || "",
+      position: u.position || "",
+      cycleId: cycle?.id ?? null,
+      responseCount: cycResp.length,
+      selfAvg: selfN > 0 ? Number((selfSum / selfN).toFixed(2)) : 0,
+      stakeholderAvg: extN > 0 ? Number((extSum / extN).toFixed(2)) : 0,
+      delta: extN > 0 && selfN > 0 ? Number(((extSum / extN) - (selfSum / selfN)).toFixed(2)) : 0,
+    };
+  });
 }
 
 /**
@@ -273,6 +340,12 @@ export async function generateMacroTierReport(
     leaderCount: leaderIds.length,
     thresholdCleared,
     totalResponsesCollected: allResponses.length,
+    highestDiscrepancyDimensions: Object.entries(compiledPillars as Record<string, { name: string; blindspotDelta: number }>)
+      .map(([key, p]) => ({ key, abs: Math.abs(p.blindspotDelta ?? 0), name: p.name }))
+      .sort((a, b) => b.abs - a.abs)
+      .slice(0, 3)
+      .map((d) => d.name),
+    cohort: buildCohortRoster(targetUsers, activeCycles, allResponses),
     pillars: compiledPillars
   };
 

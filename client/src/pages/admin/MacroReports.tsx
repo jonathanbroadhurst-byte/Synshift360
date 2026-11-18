@@ -21,6 +21,20 @@ interface MacroReportPayload {
   leaderCount: number;
   thresholdCleared: boolean;
   totalResponsesCollected: number;
+  highestDiscrepancyDimensions?: string[];
+  cohort?: Array<{
+    leaderId: number;
+    leaderName: string;
+    email: string;
+    department: string;
+    teamName: string;
+    position: string;
+    cycleId: number | null;
+    responseCount: number;
+    selfAvg: number;
+    stakeholderAvg: number;
+    delta: number;
+  }>;
   pillars: {
     [key: string]: {
       name: string;
@@ -112,6 +126,29 @@ export default function MacroReportsDashboard() {
     amber: { text: 'text-amber-300', chip: 'bg-amber-500/20 text-amber-100', icon: '↗' },
     rose: { text: 'text-rose-300', chip: 'bg-rose-500/20 text-rose-100', icon: '✕' },
   }[core.tone];
+
+  // Download a single leader's individual report as an HTML file (owner/admin drill-down)
+  const downloadIndividualReport = async (cycleId: number | null, leaderName: string) => {
+    if (!cycleId) { alert("This leader has no survey cycle yet — invite them to complete feedback first."); return; }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/reports/${cycleId}/download`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Report download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safe = (leaderName || "leader").replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+      a.download = `SyncShift_Report_${safe}.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Individual export fail:", e);
+      alert("Could not download this leader's report. Ensure they have a completed survey cycle.");
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -382,6 +419,78 @@ export default function MacroReportsDashboard() {
               </CardContent>
             </Card>
           )}
+
+          {/* 🔍 LEADER-LEVEL DRILL-DOWN — individual reports + exports */}
+          <Card className="shadow-sm border-slate-150 bg-white">
+            <CardHeader className="border-b pb-4">
+              <CardTitle className="text-lg font-bold text-slate-900">Leader-Level Drill-Down</CardTitle>
+              <CardDescription>
+                {report.highestDiscrepancyDimensions?.length
+                  ? <>Biggest perception gaps across this group: <span className="font-semibold text-rose-600">{report.highestDiscrepancyDimensions.join(", ")}</span>. Open a leader below for their full strengths / development report or export it.</>
+                  : "Select a leader to view their full individual report or export it directly."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {report.cohort?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead>
+                      <tr className="text-xs uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                        <th className="py-3 pr-4 font-semibold">Leader</th>
+                        <th className="py-3 pr-4 font-semibold hidden lg:table-cell">Position</th>
+                        <th className="py-3 pr-4 font-semibold hidden md:table-cell">Function / Team</th>
+                        <th className="py-3 pr-4 font-semibold">Self</th>
+                        <th className="py-3 pr-4 font-semibold">Stakeholder</th>
+                        <th className="py-3 pr-4 font-semibold">Gap (Δ)</th>
+                        <th className="py-3 pr-4 font-semibold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.cohort.map((m) => (
+                        <tr key={m.leaderId} className="border-b border-slate-100 hover:bg-slate-50/70">
+                          <td className="py-3 pr-4">
+                            <div className="font-semibold text-slate-900">{m.leaderName}</div>
+                            <div className="text-xs text-slate-500">{m.email}</div>
+                          </td>
+                          <td className="py-3 pr-4 hidden lg:table-cell text-slate-600">{m.position || "—"}</td>
+                          <td className="py-3 pr-4 hidden md:table-cell text-slate-600">{(m.department || m.teamName || "—")}</td>
+                          <td className="py-3 pr-4 font-semibold text-indigo-700">{m.selfAvg > 0 ? m.selfAvg : "—"}</td>
+                          <td className="py-3 pr-4 font-semibold text-emerald-700">{m.stakeholderAvg > 0 ? m.stakeholderAvg : "—"}</td>
+                          <td className="py-3 pr-4">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${Math.abs(m.delta) >= 1.2 ? "bg-rose-50 text-rose-700" : Math.abs(m.delta) >= 0.5 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                              {m.delta === 0 && !m.cycleId ? "no data" : m.delta}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-1 text-right whitespace-nowrap">
+                            {m.cycleId ? (
+                              <>
+                                <a
+                                  href={`/report/${m.cycleId}`}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900 mr-4"
+                                >
+                                  View Report
+                                </a>
+                                <button
+                                  onClick={() => downloadIndividualReport(m.cycleId, m.leaderName)}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg px-2 py-1 shadow-sm"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> Export
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-400">Awaiting survey</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No assessed leaders surfaced for this scope yet.</p>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
         </div>
