@@ -882,20 +882,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // surveyType selects which questionnaire to deploy (defaults to the full SyncShift survey)
       const surveyType = (req.body.surveyType as string) || 'syncshift';
       const { method, participants } = req.body;
-      let targets: Array<{ firstName: string; lastName: string; email: string }> = [];
+      let targets: Array<{ firstName: string; lastName: string; email: string; position?: string; department?: string; teamName?: string }> = [];
       if (method === 'manual' && Array.isArray(participants)) {
         targets = participants.map(p => ({
           firstName: String(p.firstName || '').trim(),
           lastName: String(p.lastName || '').trim(),
-          email: String(p.email || '').trim().toLowerCase()
+          email: String(p.email || '').trim().toLowerCase(),
+          position: p.position ? String(p.position).trim() : undefined,
+          department: p.department ? String(p.department).trim() : undefined,
+          teamName: p.teamName ? String(p.teamName).trim() : undefined,
         })).filter(p => p.firstName && p.email);
       }
       if (targets.length === 0) return res.status(400).json({ message: "No valid targets discovered." });
+      // Org-bound admins can only deploy to their own org
+      if ((req.user?.role !== 'owner' && req.user?.role !== 'super_admin') && req.user?.organizationId !== orgId) {
+        return res.status(403).json({ message: "You may only deploy surveys to your own organization." });
+      }
+      const effectiveOrgId = orgId;
       const [surveyRow] = await db.select().from(surveys).where(eq(surveys.surveyType, surveyType)).limit(1);
       if (!surveyRow) return res.status(404).json({ message: `No survey template of type '${surveyType}' exists.` });
       const price = surveyRow.creditPrice ?? 1;
       const needed = targets.length * price;
-      const balance = await storage.getSurveyCredit(orgId, surveyType);
+      const balance = await storage.getSurveyCredit(effectiveOrgId, surveyType);
       if (balance < needed) return res.status(402).json({ message: `Insufficient ${surveyType} credits. Need ${needed}, balance ${balance}.` });
 
       for (const target of targets) {
@@ -908,7 +916,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: target.lastName,
             password: await bcrypt.hash(Math.random().toString(36).substring(2, 12), 10),
             role: 'leader',
-            organizationId: orgId,
+            organizationId: effectiveOrgId,
+            position: target.position || null,
+            department: target.department || null,
+            teamName: target.teamName || null,
             isActive: true
           });
         }
@@ -916,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const cycle = await storage.createSurveyCycle({
           surveyId: surveyRow.id,
           leaderId: leaderUser.id,
-          organizationId: orgId,
+          organizationId: effectiveOrgId,
           title: (surveyType === 'quantum' ? "Quantum Leadership evaluation - " : surveyType === 'eq360' ? "EQ 360 evaluation - " : "SyncShift Organisation evaluation - ") + target.firstName + " " + target.lastName,
           status: 'active',
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -931,7 +942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (e) { console.error("Email send failed for deployed survey:", e); }
       }
-      const remaining = await storage.deductSurveyCredits(orgId, surveyType, needed);
+      const remaining = await storage.deductSurveyCredits(effectiveOrgId, surveyType, needed);
       return res.json({ success: true, remainingCredits: remaining, surveyType, deployed: targets.length });
     } catch (error) {
       console.error("Deployment error:", error);
