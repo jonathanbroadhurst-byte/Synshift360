@@ -75,6 +75,19 @@ async function ensureSchemaUpToDate() {
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`ALTER TABLE eq_responses ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await db.execute(sql`ALTER TABLE eq_commitments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;`);
+
+    // Per-survey credit pricing + independent per-org/per-survey credit wallets
+    await db.execute(sql`ALTER TABLE surveys ADD COLUMN IF NOT EXISTS credit_price INTEGER DEFAULT 1;`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS survey_credit_balances (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id),
+        survey_type TEXT NOT NULL,
+        credits INTEGER DEFAULT 0 NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(organization_id, survey_type)
+      );
+    `);
     console.log("⚡ Column structures and EQ tables verified or injected successfully into PostgreSQL cells.");
   } catch (error) {
     console.error("⚠️ Schema auto-alignment encountered an issue:", error);
@@ -104,6 +117,86 @@ async function ensureQuantumTemplateExists() {
     }
   } catch (error) {
     console.error("Fault encountered during template pre-seeder execution:", error);
+  }
+}
+
+// ⭐ THE FULL 27-QUESTION SYNCSHIFT ORGANISATION ALIGNMENT TEMPLATE
+// Mirrors the question set the ignite-me test data actually used (IDs 1-26 rating + 27-29 text)
+async function ensureSyncShiftTemplateExists() {
+  try {
+    const [existing] = await db.select().from(surveys).where(eq(surveys.surveyType, "syncshift")).limit(1);
+    if (existing) return;
+    await db.insert(surveys).values({
+      title: "SyncShift Organisation Alignment",
+      surveyType: "syncshift",
+      isActive: true,
+      scaleMax: 7,
+      creditPrice: 1,
+      questions: [
+        { id: 1, type: "rating", category: "Leadership", text: "Communicates a clear vision and direction for the team/organization", scale: 7 },
+        { id: 2, type: "rating", category: "Leadership", text: "Makes sense of complex situations and provides clarity", scale: 7 },
+        { id: 3, type: "rating", category: "Leadership", text: "Demonstrates strategic thinking and planning", scale: 7 },
+        { id: 4, type: "rating", category: "Leadership", text: "Inspires confidence and trust in their leadership", scale: 7 },
+        { id: 5, type: "rating", category: "Leadership", text: "Effectively leads through change and uncertainty", scale: 7 },
+        { id: 6, type: "rating", category: "Infrastructure", text: "Builds and maintains effective systems and processes", scale: 7 },
+        { id: 7, type: "rating", category: "Infrastructure", text: "Ensures consistent delivery of results", scale: 7 },
+        { id: 8, type: "rating", category: "Infrastructure", text: "Creates structure that enables team effectiveness", scale: 7 },
+        { id: 9, type: "rating", category: "Infrastructure", text: "Manages resources and priorities effectively", scale: 7 },
+        { id: 10, type: "rating", category: "Motives", text: "Demonstrates authentic leadership style", scale: 7 },
+        { id: 11, type: "rating", category: "Motives", text: "Shows genuine care for team members and stakeholders", scale: 7 },
+        { id: 12, type: "rating", category: "Motives", text: "Acts with integrity and ethical principles", scale: 7 },
+        { id: 13, type: "rating", category: "Motives", text: "Drives purpose and meaning in work", scale: 7 },
+        { id: 14, type: "rating", category: "Capabilities", text: "Demonstrates relevant technical/functional expertise", scale: 7 },
+        { id: 15, type: "rating", category: "Capabilities", text: "Adapts quickly to new situations and challenges", scale: 7 },
+        { id: 16, type: "rating", category: "Capabilities", text: "Continuously learns and develops new skills", scale: 7 },
+        { id: 17, type: "rating", category: "Capabilities", text: "Applies sound judgment in decision-making", scale: 7 },
+        { id: 18, type: "rating", category: "Culture", text: "Builds strong, collaborative relationships", scale: 7 },
+        { id: 19, type: "rating", category: "Culture", text: "Creates an inclusive and psychologically safe environment", scale: 7 },
+        { id: 20, type: "rating", category: "Culture", text: "Develops and mentors team members effectively", scale: 7 },
+        { id: 21, type: "rating", category: "Culture", text: "Promotes positive team dynamics and culture", scale: 7 },
+        { id: 22, type: "rating", category: "Personal Brand", text: "Has a strong professional reputation", scale: 7 },
+        { id: 23, type: "rating", category: "Personal Brand", text: "Communicates effectively across all levels", scale: 7 },
+        { id: 24, type: "rating", category: "Personal Brand", text: "Creates positive impact and influence", scale: 7 },
+        { id: 25, type: "rating", category: "Alignment", text: "Aligns actions with organizational goals and values", scale: 7 },
+        { id: 26, type: "rating", category: "Alignment", text: "Delivers outcomes that meet stakeholder expectations", scale: 7 },
+        { id: 27, type: "text", text: "What are this leader's greatest strengths?" },
+        { id: 28, type: "text", text: "What are some small shifts this leader could make to create better alignment with team/organizational goals?" },
+        { id: 29, type: "text", text: "Any additional feedback or comments?" }
+      ]
+    });
+    await db.execute(sql`UPDATE surveys SET credit_price = 1 WHERE survey_type = 'syncshift';`);
+    console.log("⭐ SyncShift Organisation Alignment (27-question) template seeded.");
+  } catch (error) {
+    console.error("Fault during SyncShift template seeder:", error);
+  }
+}
+
+// 🧠 EQ 360 TEMPLATE — deployable emotional-intelligence 360 via the same credit + reporting flow
+async function ensureEQ360TemplateExists() {
+  try {
+    const [existing] = await db.select().from(surveys).where(eq(surveys.surveyType, "eq360")).limit(1);
+    if (existing) return;
+    console.log("🧠 Seeding EQ 360 template...");
+    const eqQ = await db.select().from(eqQuestions).orderBy(eqQuestions.id);
+    const questions = eqQ.map((q, idx) => ({
+      id: idx + 1,
+      type: "rating",
+      category: q.domainName.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+      text: q.questionText,
+      scale: 5,
+    }));
+    await db.insert(surveys).values({
+      title: "EQ 360 Leadership Assessment",
+      surveyType: "eq360",
+      isActive: true,
+      scaleMax: 5,
+      creditPrice: 1,
+      questions,
+    });
+    await db.execute(sql`UPDATE surveys SET credit_price = 1 WHERE survey_type = 'eq360';`);
+    console.log("🧠 EQ 360 template seeded (" + questions.length + " questions).");
+  } catch (error) {
+    console.error("Fault during EQ 360 template seeder:", error);
   }
 }
 
@@ -224,7 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   ensureSchemaUpToDate()
     .then(() => ensureQuantumTemplateExists())
+    .then(() => ensureSyncShiftTemplateExists())
     .then(() => ensureEQQuestionsExist())
+    .then(() => ensureEQ360TemplateExists())
     .catch(err => console.error("Background DB alignment exception:", err));
 
   // -------------------------------------------------------------------------
@@ -739,6 +834,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/organizations/:orgId/deploy-surveys", requireRole(['org_admin', 'company_admin', 'owner', 'super_admin']), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const orgId = parseInt(req.params.orgId);
+      // surveyType selects which questionnaire to deploy (defaults to the full SyncShift survey)
+      const surveyType = (req.body.surveyType as string) || 'syncshift';
       const { method, participants } = req.body;
       let targets: Array<{ firstName: string; lastName: string; email: string }> = [];
       if (method === 'manual' && Array.isArray(participants)) {
@@ -749,10 +846,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })).filter(p => p.firstName && p.email);
       }
       if (targets.length === 0) return res.status(400).json({ message: "No valid targets discovered." });
-      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-      const currentCredits = org.quantumCredits ?? 0;
-      if (currentCredits < targets.length) return res.status(402).json({ message: "Insufficient credits." });
-      const [quantumSurvey] = await db.select().from(surveys).where(eq(surveys.surveyType, "quantum")).limit(1);
+      const [surveyRow] = await db.select().from(surveys).where(eq(surveys.surveyType, surveyType)).limit(1);
+      if (!surveyRow) return res.status(404).json({ message: `No survey template of type '${surveyType}' exists.` });
+      const price = surveyRow.creditPrice ?? 1;
+      const needed = targets.length * price;
+      const balance = await storage.getSurveyCredit(orgId, surveyType);
+      if (balance < needed) return res.status(402).json({ message: `Insufficient ${surveyType} credits. Need ${needed}, balance ${balance}.` });
 
       for (const target of targets) {
         let leaderUser = await storage.getUserByEmail(target.email);
@@ -770,20 +869,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const uniqueInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const cycle = await storage.createSurveyCycle({
-          surveyId: quantumSurvey.id,
+          surveyId: surveyRow.id,
           leaderId: leaderUser.id,
           organizationId: orgId,
-          title: "Quantum Leadership evaluation - " + target.firstName + " " + target.lastName,
+          title: (surveyType === 'quantum' ? "Quantum Leadership evaluation - " : surveyType === 'eq360' ? "EQ 360 evaluation - " : "SyncShift Organisation evaluation - ") + target.firstName + " " + target.lastName,
           status: 'active',
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         });
         await storage.updateCycleInviteCode(cycle.id, uniqueInviteCode);
         const hostBaseDomain = req.protocol + "://" + req.get('host');
-        await sendQuantumEmail(target.email, target.firstName, quantumSurvey.title, target.firstName + " " + target.lastName, uniqueInviteCode, hostBaseDomain);
+        try {
+          if (surveyType === 'quantum') {
+            await sendQuantumEmail(target.email, target.firstName, surveyRow.title, target.firstName + " " + target.lastName, uniqueInviteCode, hostBaseDomain);
+          } else {
+            await sendSurveyEmail(target.email, target.firstName, surveyRow.title, target.firstName + " " + target.lastName, uniqueInviteCode, hostBaseDomain);
+          }
+        } catch (e) { console.error("Email send failed for deployed survey:", e); }
       }
-      await db.update(organizations).set({ quantumCredits: currentCredits - targets.length }).where(eq(organizations.id, orgId));
-      return res.json({ success: true, remainingCredits: currentCredits - targets.length });
+      const remaining = await storage.deductSurveyCredits(orgId, surveyType, needed);
+      return res.json({ success: true, remainingCredits: remaining, surveyType, deployed: targets.length });
     } catch (error) {
+      console.error("Deployment error:", error);
       return res.status(500).json({ message: "Deployment crash." });
     }
   });
@@ -893,9 +999,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/owner/organizations/:orgId/credits", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const orgId = parseInt(req.params.orgId);
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-    const updatedCredits = (org.quantumCredits ?? 0) + req.body.creditsToAllocate;
-    await db.update(organizations).set({ quantumCredits: updatedCredits }).where(eq(organizations.id, orgId));
-    return res.json({ success: true, newBalance: updatedCredits });
+    if (!org) return res.status(404).json({ message: "Organization not found." });
+    // Allocate to a specific survey type (default 'syncshift') — independent wallets per questionnaire.
+    const surveyType = (req.body.surveyType as string) || 'syncshift';
+    const newBalance = await storage.addSurveyCredits(orgId, surveyType, req.body.creditsToAllocate);
+    return res.json({ success: true, newBalance, surveyType });
   });
 
   app.post("/api/owner/organizations", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {

@@ -1,5 +1,5 @@
 import { 
-  users, organizations, surveys, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog,
+  users, organizations, surveys, surveyCycles, surveyInvitations, surveyResponses, reports, auditLog, surveyCreditBalances,
   type User, type InsertUser, type Organization, type InsertOrganization, 
   type Survey, type InsertSurvey, type SurveyCycle, type InsertSurveyCycle,
   type SurveyInvitation, type InsertSurveyInvitation, type SurveyResponse, type InsertSurveyResponse,
@@ -52,6 +52,10 @@ export interface IStorage {
   updateUserProfile(userId: number, data: { firstName?: string; lastName?: string; email?: string }): Promise<User>;
   resetUserPassword(userId: number, hashedPassword: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
+  getSurveyCreditBalances(orgId: number): Promise<Array<{ surveyType: string; credits: number }>>;
+  getSurveyCredit(orgId: number, surveyType: string): Promise<number>;
+  addSurveyCredits(orgId: number, surveyType: string, amount: number): Promise<number>;
+  deductSurveyCredits(orgId: number, surveyType: string, amount: number): Promise<number>;
   logActivity(insertAudit: InsertAuditLog): Promise<AuditLog>;
 }
 
@@ -238,6 +242,7 @@ export class DatabaseStorage implements IStorage {
     completedResponses: number;
     pendingResponses: number;
     admins: Array<{ id: number; firstName: string; lastName: string; email: string }>;
+    creditBalances: Array<{ surveyType: string; credits: number }>;
   }>> {
     const orgs = await db.select().from(organizations);
     const allUsers = await db.select().from(users);
@@ -260,6 +265,15 @@ export class DatabaseStorage implements IStorage {
     const cycleIdToOrg = new Map<number, number>();
     for (const c of allCycles) if (c.organizationId != null) cycleIdToOrg.set(c.id, c.organizationId);
 
+    // Index per-org credit balances once
+    const allCreditRows = await db.select().from(surveyCreditBalances);
+    const creditRowsByOrg = new Map<number, typeof allCreditRows>();
+    for (const r of allCreditRows) {
+      const arr = creditRowsByOrg.get(r.organizationId) ?? [];
+      arr.push(r);
+      creditRowsByOrg.set(r.organizationId, arr);
+    }
+
     return Promise.resolve(orgs.map((org) => {
       const members = userByOrg.get(org.id) ?? [];
       const cycles = cycleByOrg.get(org.id) ?? [];
@@ -268,6 +282,11 @@ export class DatabaseStorage implements IStorage {
       const admins = members
         .filter(m => m.role === 'org_admin' || m.role === 'admin' || m.role === 'company_admin')
         .map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName, email: m.email }));
+      const creditBalances: Array<{ surveyType: string; credits: number }> = [];
+      // Seed a zero balance row for every known survey type + any existing balance rows
+      const allCreditRows = new Map<string, number>();
+      for (const row of creditRowsByOrg.get(org.id) ?? []) allCreditRows.set(row.surveyType, row.credits);
+      for (const [st, c] of allCreditRows) creditBalances.push({ surveyType: st, credits: c });
       return {
         organization: org,
         activeSurveys: active,
@@ -275,6 +294,7 @@ export class DatabaseStorage implements IStorage {
         completedResponses: responsesForOrg.length,
         pendingResponses: Math.max(0, cycles.length * 5 - responsesForOrg.length),
         admins,
+        creditBalances,
       };
     }));
   }
@@ -298,6 +318,32 @@ export class DatabaseStorage implements IStorage {
 
   async resetUserPassword(userId: number, hashedPassword: string): Promise<void> {
     await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
+  }
+
+  async getSurveyCreditBalances(orgId: number): Promise<Array<{ surveyType: string; credits: number }>> {
+    return await db.select({ surveyType: surveyCreditBalances.surveyType, credits: surveyCreditBalances.credits })
+      .from(surveyCreditBalances)
+      .where(eq(surveyCreditBalances.organizationId, orgId));
+  }
+
+  async getSurveyCredit(orgId: number, surveyType: string): Promise<number> {
+    const [row] = await db.select().from(surveyCreditBalances).where(
+      and(eq(surveyCreditBalances.organizationId, orgId), eq(surveyCreditBalances.surveyType, surveyType))
+    ).limit(1);
+    return row?.credits ?? 0;
+  }
+
+  async addSurveyCredits(orgId: number, surveyType: string, amount: number): Promise<number> {
+    const existing = await this.getSurveyCredit(orgId, surveyType);
+    const newTotal = Math.max(0, existing + amount);
+    const [row] = await db.insert(surveyCreditBalances).values({ organizationId: orgId, surveyType, credits: newTotal })
+      .onConflictDoUpdate({ target: [surveyCreditBalances.organizationId, surveyCreditBalances.surveyType], set: { credits: newTotal, updatedAt: new Date() } })
+      .returning();
+    return row.credits;
+  }
+
+  async deductSurveyCredits(orgId: number, surveyType: string, amount: number): Promise<number> {
+    return await this.addSurveyCredits(orgId, surveyType, -amount);
   }
 
   async getOrganizationAdmins(orgId: number): Promise<User[]> {

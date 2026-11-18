@@ -41,10 +41,20 @@ export const surveys = pgTable("surveys", {
   scaleMax: integer("scale_max").default(7),
   questions: jsonb("questions").notNull(), // Array of question objects
   maturityCategories: jsonb("maturity_categories"), // For Quantum: scoring ranges to maturity levels
+  creditPrice: integer("credit_price").default(1), // credits consumed per deployed target for this survey
   organizationId: integer("organization_id").references(() => organizations.id),
   createdBy: integer("created_by").references(() => users.id),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Per-organization, per-survey-type credit balances (independent wallets per questionnaire)
+export const surveyCreditBalances = pgTable("survey_credit_balances", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  surveyType: text("survey_type").notNull(), // 'syncshift' | 'quantum' | <future questionnaires>
+  credits: integer("credits").default(0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Survey cycles/instances for specific leaders

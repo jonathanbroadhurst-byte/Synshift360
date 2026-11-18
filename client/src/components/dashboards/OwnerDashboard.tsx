@@ -9,6 +9,8 @@ export default function OwnerDashboard() {
   const queryClient = useQueryClient();
   // Per-organization pending credit amounts keyed by org id
   const [creditInputs, setCreditInputs] = useState<Record<number, string>>({});
+  // Which survey type the owner is topping up / adjusting (independent wallets per questionnaire)
+  const [creditSurveyType, setCreditSurveyType] = useState('syncshift');
   // Admin-assignment row selectors keyed by user id: { role, orgId }
   const [assignState, setAssignState] = useState<Record<number, { role: string; orgId: string }>>({});
   // Create-admin per org modal state
@@ -30,14 +32,14 @@ export default function OwnerDashboard() {
     queryKey: ['/api/organizations'],
   });
 
-  // 3. Allocate / adjust quantum credits for a specific client organization
+  // 3. Allocate / adjust credits for a specific survey type on a client organization
   const allocateCreditsMutation = useMutation({
-    mutationFn: async ({ orgId, amount }: { orgId: number; amount: number }) => {
-      const res = await apiRequest('PATCH', `/api/owner/organizations/${orgId}/credits`, { creditsToAllocate: amount });
+    mutationFn: async ({ orgId, amount, surveyType }: { orgId: number; amount: number; surveyType: string }) => {
+      const res = await apiRequest('PATCH', `/api/owner/organizations/${orgId}/credits`, { creditsToAllocate: amount, surveyType });
       return res.json();
     },
     onSuccess: (data: any) => {
-      alert(data.message ?? `Credit balance updated successfully. New balance: ${data.newBalance}`);
+      alert(data.message ?? `Credit balance updated successfully. ${data.surveyType} balance: ${data.newBalance}`);
       queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
     },
     onError: (err: any) => {
@@ -87,10 +89,17 @@ export default function OwnerDashboard() {
   const totalOrganizations = usageData?.length || 0;
   const totalUsers = usersData?.length || 0;
   
-  // Calculate total Quantum Credits across all provisioned client organizations
-  const totalActiveCredits = usageData?.reduce(
-    (acc: number, item: any) => acc + ((item.organization?.quantumCredits as number) || 0), 0
-  ) || 0;
+  // Resolve the balance for an org for the selected survey type
+  const creditBalanceFor = (item: any, surveyType: string): number => {
+    const list: Array<{ surveyType: string; credits: number }> = item.creditBalances || [];
+    const row = list.find((b) => b.surveyType === surveyType);
+    return row ? row.credits : 0;
+  };
+
+  // Total credits across all orgs for the currently-selected survey type
+  const totalActiveCredits = usageData?.reduce((acc: number, item: any) => {
+    return acc + creditBalanceFor(item, creditSurveyType);
+  }, 0) || 0;
 
   // Execute an addition (positive) or deduction (negative) of credits for a client
   const executeAllocation = (orgId: number, isAddition: boolean) => {
@@ -100,7 +109,7 @@ export default function OwnerDashboard() {
       return;
     }
     const amount = isAddition ? val : -val;
-    allocateCreditsMutation.mutate({ orgId, amount });
+    allocateCreditsMutation.mutate({ orgId, amount, surveyType: creditSurveyType });
     setCreditInputs((p) => ({ ...p, [orgId]: '' }));
   };
 
@@ -140,7 +149,7 @@ export default function OwnerDashboard() {
                 <Coins className="h-6 w-6" />
               </div>
               <div>
-                <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Allocated Quantum Credits</span>
+                <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Allocated Credits · {creditSurveyType}</span>
                 <p className="text-2xl font-bold text-gray-900">{isLoadingOrgs ? '...' : totalActiveCredits}</p>
               </div>
             </div>
@@ -160,6 +169,18 @@ export default function OwnerDashboard() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4">
               <h2 className="text-lg font-semibold text-gray-900">Provisioned Client Organizations</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium">Adjust credits for:</span>
+                <select
+                  value={creditSurveyType}
+                  onChange={(e) => setCreditSurveyType(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 bg-white"
+                >
+                  <option value="syncshift">SyncShift 360</option>
+                  <option value="eq360">EQ 360</option>
+                  <option value="quantum">Quantum</option>
+                </select>
+              </div>
             </div>
 
             {isLoadingOrgs ? (
@@ -175,7 +196,7 @@ export default function OwnerDashboard() {
                     <tr>
                       <th className="py-3 px-4">Organization Name</th>
                       <th className="py-3 px-4">Domain</th>
-                      <th className="py-3 px-4 text-center">Quantum Credits</th>
+                      <th className="py-3 px-4 text-center">Credits ({creditSurveyType})</th>
                       <th className="py-3 px-4 text-center">Active Cycles</th>
                       <th className="py-3 px-4 text-right">Adjust Credits</th>
                     </tr>
@@ -188,7 +209,7 @@ export default function OwnerDashboard() {
                         <td className="py-3 px-4 font-medium text-gray-900">{org.name}</td>
                         <td className="py-3 px-4 text-gray-500">{org.domain || 'N/A'}</td>
                         <td className="py-3 px-4 text-center font-semibold text-amber-600">
-                          {org.quantumCredits ?? 0}
+                          {creditBalanceFor(item, creditSurveyType)}
                         </td>
                         <td className="py-3 px-4 text-center">{item.activeSurveys ?? item.activeCycleCount ?? 0}</td>
                         <td className="py-3 px-4 text-right">
