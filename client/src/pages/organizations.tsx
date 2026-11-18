@@ -4,7 +4,7 @@ import { Plus, Building, Users, Activity, KeyRound, Save, UserCog } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,8 @@ export default function Organizations() {
   const [newOrgDomain, setNewOrgDomain] = useState('');
   // Editable admin drafts keyed by org id
   const [adminDrafts, setAdminDrafts] = useState<Record<number, { id: number; firstName: string; lastName: string; email: string }[]>>({});
+  // Editable org name/domain drafts keyed by org id
+  const [orgDrafts, setOrgDrafts] = useState<Record<number, { name: string; domain: string }>>({});
   // Reset-password open state keyed by admin user id
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [resetPassword, setResetPassword] = useState('');
@@ -73,6 +75,20 @@ export default function Organizations() {
       setResetPassword('');
     },
     onError: (e: any) => toast({ title: 'Error', description: e?.message || 'Failed to reset password.', variant: 'destructive' }),
+  });
+
+  const updateOrgMutation = useMutation({
+    mutationFn: async ({ orgId, name, domain }: { orgId: number; name: string; domain: string }) => {
+      const res = await apiRequest('PATCH', `/api/owner/organizations/${orgId}`, { name, domain });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
+      if (data.user) queryClient.invalidateQueries({ queryKey: ['/api/owner/users'] });
+      toast({ title: 'Organization updated', description: data.message || 'Saved.' });
+      setOrgDrafts((p) => ({ ...p, [data.organization?.id]: undefined }));
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e?.message || 'Failed to update organization.', variant: 'destructive' }),
   });
 
   const createOrganizationMutation = useMutation({
@@ -170,9 +186,36 @@ export default function Organizations() {
                     <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                       <Building className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <CardTitle className="text-lg">{org.name}</CardTitle>
-                      <p className="text-sm text-gray-500">{org.domain}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          className="text-md font-bold text-slate-900 !py-1 !h-8 max-w-[180px]"
+                          value={orgDrafts[org.id]?.name ?? org.name}
+                          aria-label={`Edit name for ${org.name}`}
+                          onChange={(e) => setOrgDrafts((p) => ({ ...p, [org.id]: { name: e.target.value, domain: orgDrafts[org.id]?.domain ?? org.domain } }))}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs px-2"
+                          disabled={updateOrgMutation.isPending}
+                          onClick={() => {
+                            const d = orgDrafts[org.id];
+                            const name = d?.name !== undefined ? d.name : org.name;
+                            const domain = d?.domain !== undefined ? d.domain : org.domain;
+                            if (!name.trim() || !domain.trim()) { toast({ title: 'Required', description: 'Name and domain are required.', variant: 'destructive' }); return; }
+                            updateOrgMutation.mutate({ orgId: org.id, name, domain });
+                          }}
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      <Input
+                        className="text-sm !py-1 !h-7 text-gray-500 mt-1 max-w-[220px]"
+                        value={orgDrafts[org.id]?.domain ?? org.domain}
+                        aria-label={`Edit domain for ${org.name}`}
+                        onChange={(e) => setOrgDrafts((p) => ({ ...p, [org.id]: { name: orgDrafts[org.id]?.name ?? org.name, domain: e.target.value } }))}
+                      />
                     </div>
                   </div>
                   <Badge variant={org.isActive ? "default" : "secondary"}>

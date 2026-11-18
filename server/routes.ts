@@ -870,6 +870,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ message: `Password reset for ${user.email}. Pass the new password to them securely.` });
   });
 
+  // Update an organisation's name / domain (owner-only)
+  app.patch("/api/owner/organizations/:orgId", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
+    const orgId = parseInt(req.params.orgId);
+    const { name, domain } = req.body as { name?: string; domain?: string };
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    if (!org) return res.status(404).json({ message: "Organization not found." });
+    if (domain !== undefined && domain !== null && domain !== '') {
+      const normalized = domain.trim().replace(/^https?:\/\//, '').replace(/^www\./, '').toLowerCase();
+      const [existing] = await db.select().from(organizations).where(and(eq(organizations.domain, normalized), sql`${organizations.id} != ${orgId}`)).limit(1);
+      if (existing) return res.status(409).json({ message: "Another organization already uses that domain." });
+      await db.update(organizations).set({ name: name?.trim() || org.name, domain: normalized }).where(eq(organizations.id, orgId));
+    } else if (name !== undefined) {
+      await db.update(organizations).set({ name: name.trim() }).where(eq(organizations.id, orgId));
+    } else {
+      return res.status(400).json({ message: "Provide a name and/or domain to update." });
+    }
+    const [updated] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    return res.json({ message: "Organization updated.", organization: updated });
+  });
+
   app.patch("/api/owner/organizations/:orgId/credits", requireOwner(), async (req: AuthenticatedRequest, res: Response) => {
     const orgId = parseInt(req.params.orgId);
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
