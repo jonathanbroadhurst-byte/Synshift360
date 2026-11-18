@@ -328,7 +328,7 @@ export default function Surveys() {
 
   const handleDownloadReport = async (cycleId: number, title: string) => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = localStorage.getItem("token");
       
       if (!token) {
         alert("Authentication session missing. Please log in again.");
