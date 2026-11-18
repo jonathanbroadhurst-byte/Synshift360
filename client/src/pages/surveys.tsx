@@ -27,6 +27,13 @@ export default function Surveys() {
   const [inviteEmails, setInviteEmails] = useState('');
   const [participantData, setParticipantData] = useState<Array<{name: string, jobTitle: string, department: string, email: string, relationship: string}>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Bulk-deploy panel state
+  const [isDeployDialogOpen, setIsDeployDialogOpen] = useState(false);
+  const [deployOrgId, setDeployOrgId] = useState('');
+  const [deploySurveyType, setDeploySurveyType] = useState('syncshift');
+  const [deployParticipants, setDeployParticipants] = useState<Array<{firstName: string; lastName: string; email: string; position: string; department: string; teamName: string}>>([]);
+  const [manualRow, setManualRow] = useState({ firstName: '', lastName: '', email: '', position: '', department: '', teamName: '' });
+  const deployFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -191,6 +198,79 @@ export default function Surveys() {
     } catch (e) { console.error(e); }
   };
 
+  // Bulk deploy a questionnaire to many leaders at once (creates cycles + charges credits)
+  const deploySurveysMutation = useMutation({
+    mutationFn: async ({ orgId, surveyType, participants }: { orgId: number; surveyType: string; participants: typeof deployParticipants }) => {
+      const res = await apiRequest('POST', `/api/organizations/${orgId}/deploy-surveys`, { method: 'manual', surveyType, participants });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.message || 'Deployment failed.');
+      return body;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Surveys deployed",
+        description: `${data.deployed} leader(s) received the ${data.surveyType} survey. ${data.remainingCredits} credits remaining.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/survey-cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/organizations/usage'] });
+      if (user?.organizationId) queryClient.invalidateQueries({ queryKey: ['/api/organizations', user.organizationId, 'credits'] });
+      setIsDeployDialogOpen(false);
+      setDeployParticipants([]);
+      setManualRow({ firstName: '', lastName: '', email: '', position: '', department: '', teamName: '' });
+    },
+    onError: (e: any) => {
+      toast({ title: "Deployment failed", description: e?.message || 'There was an error. Check credits and try again.', variant: "destructive" });
+    },
+  });
+
+  const downloadDeployTemplate = () => {
+    const csvContent = `firstName,lastName,email,position,department,teamName\nJohn,Doe,john@company.com,Line Manager,Operations,Alpha\nJane,Smith,jane@company.com,Executive,Finance,Beta`;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'survey_participants_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDeployFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        try {
+          const rows = results.data
+            .map((row: any) => {
+              const m = (keys: string[]) => {
+                const key = Object.keys(row).find(k => keys.includes(k.trim()));
+                return key ? String(row[key] || '').trim() : '';
+              };
+              return {
+                firstName: m(['firstName', 'first_name', 'First name', 'First Name', 'name', 'Name']),
+                lastName: m(['lastName', 'last_name', 'Last name', 'Last Name', 'surname', 'Surname']),
+                email: m(['email', 'Email', 'EMAIL']),
+                position: m(['position', 'Position', 'jobTitle', 'Job Title', 'role', 'Role']),
+                department: m(['department', 'Department', 'dept', 'Dept', 'function', 'Function']),
+                teamName: m(['teamName', 'team_name', 'Team', 'team', 'TEAM']),
+              };
+            })
+            .filter((p: any) => p.email && p.email.length > 0);
+          if (rows.length === 0) {
+            toast({ title: "Import Warning", description: "No rows found. Ensure the spreadsheet has an 'email' column.", variant: "destructive" });
+            return;
+          }
+          setDeployParticipants(rows);
+        } catch (error) {
+          console.error(error);
+          toast({ title: "Import failed", description: "Could not read the spreadsheet.", variant: "destructive" });
+        }
+      }
+    });
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -329,9 +409,18 @@ export default function Surveys() {
                 <h1 className="text-3xl font-bold text-gray-900">Survey Management</h1>
                 <p className="text-gray-600 mt-2">Create and manage 360 feedback survey cycles</p>
               </div>
-              <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3">
-                <Plus className="w-5 h-5 mr-2" /> Start New Survey
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setIsDeployDialogOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-3"
+                  title="Deploy a survey to many leaders at once (manual or spreadsheet)"
+                >
+                  <Upload className="w-5 h-5 mr-2" /> Deploy Survey
+                </Button>
+                <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3">
+                  <Plus className="w-5 h-5 mr-2" /> Start New Survey
+                </Button>
+              </div>
             </div>
 
             {/* 💳 CREDIT AVAILABILITY — admins see what's available so they know when to request from the owner */}
@@ -573,6 +662,159 @@ export default function Surveys() {
                   </div>
 
                 </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* 📤 BULK DEPLOY DIALOG — manual add OR spreadsheet upload */}
+            <Dialog open={isDeployDialogOpen} onOpenChange={setIsDeployDialogOpen}>
+              <DialogContent className="max-w-3xl bg-white max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
+                <DialogHeader>
+                  <DialogTitle>Deploy Survey to Many Leaders</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                  <p className="text-gray-600">
+                    Choose a questionnaire, then add participants either one by one or by uploading the spreadsheet your client supplies.
+                    Each leader gets their own survey cycle and the credits for that questionnaire type are charged automatically.
+                  </p>
+
+                  {/* Config: org + survey type */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Organization</Label>
+                      {isOwnerView ? (
+                        <Select value={deployOrgId} onValueChange={setDeployOrgId}>
+                          <SelectTrigger className="w-full bg-white"><SelectValue placeholder="Select organization" /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {orgsArray.map((org: any) => <SelectItem key={org.id} value={org.id.toString()}>{org.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="text-sm text-gray-700 bg-gray-50 border rounded-lg px-3 py-2 font-medium">
+                          {orgsArray.find((o: any) => o.id === user?.organizationId)?.name || 'Your organization'}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Survey Template</Label>
+                      <Select value={deploySurveyType} onValueChange={setDeploySurveyType}>
+                        <SelectTrigger className="w-full bg-white"><SelectValue placeholder="Select survey" /></SelectTrigger>
+                        <SelectContent className="bg-white">
+                          {surveysArray.map((survey: any) => (
+                            <SelectItem key={survey.id} value={survey.surveyType}>{survey.title} ({survey.surveyType})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    Credit cost: 
+                    <span className="font-semibold text-gray-800">{deployParticipants.length} leader(s) × 1 credit</span>
+                    {!isOwnerView && creditTemplates.find((t: any) => t.surveyType === deploySurveyType) && (
+                      <span className="ml-1">
+                        — balance: <span className="font-semibold">{creditTemplates.find((t: any) => t.surveyType === deploySurveyType)?.credits ?? 0}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Manual add */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Add participant manually</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <Input placeholder="First name" value={manualRow.firstName} onChange={(e) => setManualRow({ ...manualRow, firstName: e.target.value })} className="text-sm" />
+                      <Input placeholder="Last name" value={manualRow.lastName} onChange={(e) => setManualRow({ ...manualRow, lastName: e.target.value })} className="text-sm" />
+                      <Input placeholder="Email" type="email" value={manualRow.email} onChange={(e) => setManualRow({ ...manualRow, email: e.target.value })} className="text-sm" />
+                      <Input placeholder="Position / level" value={manualRow.position} onChange={(e) => setManualRow({ ...manualRow, position: e.target.value })} className="text-sm" />
+                      <Input placeholder="Department / function" value={manualRow.department} onChange={(e) => setManualRow({ ...manualRow, department: e.target.value })} className="text-sm" />
+                      <Input placeholder="Team name" value={manualRow.teamName} onChange={(e) => setManualRow({ ...manualRow, teamName: e.target.value })} className="text-sm" />
+                    </div>
+                    <Button
+                      type="button" size="sm" variant="outline"
+                      onClick={() => {
+                        if (!manualRow.firstName.trim() || !manualRow.email.trim()) {
+                          toast({ title: "Missing details", description: "First name and email are required.", variant: "destructive" });
+                          return;
+                        }
+                        if (deployParticipants.some(p => p.email.toLowerCase() === manualRow.email.trim().toLowerCase())) {
+                          toast({ title: "Duplicate", description: "That email is already in the deploy list.", variant: "destructive" });
+                          return;
+                        }
+                        setDeployParticipants((prev) => [...prev, {
+                          firstName: manualRow.firstName.trim(),
+                          lastName: manualRow.lastName.trim(),
+                          email: manualRow.email.trim().toLowerCase(),
+                          position: manualRow.position.trim(),
+                          department: manualRow.department.trim(),
+                          teamName: manualRow.teamName.trim(),
+                        }]);
+                        setManualRow({ firstName: '', lastName: '', email: '', position: '', department: '', teamName: '' });
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" /> Add
+                    </Button>
+                  </div>
+
+                  {/* Spreadsheet upload */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-gray-50/50">
+                    <p className="text-xs text-gray-500 mb-2">Upload the client's spreadsheet of managers/participants</p>
+                    <div className="flex justify-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => deployFileRef.current?.click()}>
+                        <Upload className="w-4 h-4 mr-1.5" /> Choose CSV / Excel
+                      </Button>
+                      <Button type="button" variant="link" size="sm" onClick={downloadDeployTemplate} className="text-xs text-gray-400 p-0 h-auto">
+                        (Download template format)
+                      </Button>
+                    </div>
+                    <input ref={deployFileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleDeployFileUpload} className="hidden" />
+                    <p className="text-[11px] text-gray-400 mt-2">Headers: <span className="font-mono">firstName,lastName,email,position,department,teamName</span></p>
+                  </div>
+
+                  {/* Participant preview */}
+                  {deployParticipants.length > 0 ? (
+                    <div className="bg-emerald-50/50 border border-emerald-200 rounded-lg p-3">
+                      <p className="text-sm font-medium text-emerald-800 mb-2">{deployParticipants.length} participant(s) ready</p>
+                      <div className="max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs text-left text-gray-700">
+                          <thead className="text-emerald-800 sticky top-0 bg-emerald-50"><tr>
+                            <th className="py-1 pr-2">Name</th><th className="py-1 pr-2">Email</th><th className="py-1 pr-2">Position</th><th className="py-1 pr-2">Dept</th><th className="py-1 pr-2">Team</th><th></th>
+                          </tr></thead>
+                          <tbody>
+                            {deployParticipants.map((p, i) => (
+                              <tr key={i} className="border-t border-emerald-100">
+                                <td className="py-1 pr-2">{p.firstName} {p.lastName}</td>
+                                <td className="py-1 pr-2">{p.email}</td>
+                                <td className="py-1 pr-2">{p.position || '—'}</td>
+                                <td className="py-1 pr-2">{p.department || '—'}</td>
+                                <td className="py-1 pr-2">{p.teamName || '—'}</td>
+                                <td className="py-1 text-right">
+                                  <button type="button" className="text-rose-500 hover:text-rose-700 font-semibold" onClick={() => setDeployParticipants(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-2">No participants added yet — add manually or upload a spreadsheet.</p>
+                  )}
+
+                  <div className="flex justify-end space-x-3 pt-3 border-t">
+                    <Button type="button" variant="outline" onClick={() => setIsDeployDialogOpen(false)}>Cancel</Button>
+                    <Button
+                      type="button"
+                      disabled={deployParticipants.length === 0 || deploySurveysMutation.isPending}
+                      onClick={() => {
+                        const orgIdNum = parseInt(isOwnerView ? deployOrgId : String(user?.organizationId), 10);
+                        if (!orgIdNum) { toast({ title: "Select organization", description: "Choose the organization to deploy to.", variant: "destructive" }); return; }
+                        deploySurveysMutation.mutate({ orgId: orgIdNum, surveyType: deploySurveyType, participants: deployParticipants });
+                      }}
+                      className="bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                      {deploySurveysMutation.isPending ? "Deploying..." : `Deploy ${deployParticipants.length} survey(s)`}
+                    </Button>
+                  </div>
+                </div>
               </DialogContent>
             </Dialog>
 
