@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { 
@@ -67,6 +67,30 @@ export default function MacroReportsDashboard() {
 
   // Owner/super_admin picks the target client organization; org-bound admins are locked to their own.
   const { data: organizations } = useQuery<any[]>({ queryKey: ['/api/organizations'] });
+  // Per-org data richness (owner only) so the first load lands on an org with real numbers.
+  const { data: usageRows } = useQuery<any[]>({
+    queryKey: ['/api/owner/organizations/usage'],
+    enabled: !!isOwner,
+  });
+
+  // Auto-select the best organization for owners/super-admins once the list loads:
+  // prefer an org that already has assessed-leader data, else the first org.
+  useEffect(() => {
+    if (isOwner && !orgId) {
+      const source = (usageRows && usageRows.length ? usageRows : organizations) as any[] | undefined;
+      if (source && source.length > 0) {
+        const withData = source
+          .map((row: any) => {
+            const org = row?.organization ?? row;
+            const cycles = row?.activeSurveys ?? (Number(org?.activeSurveys ?? 0) || 0);
+            return { id: org?.id, score: Number(cycles) || Number(org?.totalParticipants ?? 0) || 0 };
+          })
+          .filter((r: any) => r.id);
+        withData.sort((a: any, b: any) => b.score - a.score);
+        setOrgId((withData[0] ?? { id: source[0]?.id }).id.toString());
+      }
+    }
+  }, [isOwner, orgId, usageRows, organizations]);
 
   // Dynamic team/function/leadership-group options for the selected org
   const activeOrgId = isOwner ? orgId : (user?.organizationId?.toString() || '');
@@ -244,6 +268,7 @@ export default function MacroReportsDashboard() {
                 }).catch(err => console.error("Download fail:", err));
             }}
             disabled={!report?.thresholdCleared}
+            title={!report?.thresholdCleared ? "Export is enabled once this scope has at least 5 assessed leaders with cleared data. Select an organisation and a scope with enough data." : "Download the executive brief"}
             className="bg-slate-900 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             <Download className="h-4 w-4" />
