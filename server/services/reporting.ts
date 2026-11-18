@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { surveyCycles, surveyResponses, users, organizations } from "@shared/schema";
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 // 1. UPDATE TO THE NEW 7 EXPLICIT DIMENSIONS
 export const SYNCSHIFT_DIMENSIONS = [
@@ -202,13 +202,22 @@ export async function generateMacroTierReport(
     );
   }
 
-  // Scope to this org's cycles. A cycle belongs to an org via organization_id, so count responses
-  // on ALL of the org's cycles (even if the target leader's user record lives under another org,
-  // which happens with test/migrated data).
-  const activeCycles = await db.select().from(surveyCycles).where(
-    or(eq(surveyCycles.organizationId, orgId), inArray(surveyCycles.leaderId, leaderIds))
-  );
-  const cycleIds = activeCycles.map(c => c.id);
+  // Scope cycles correctly per tier:
+  // - 'organisation': all of the org's cycles (org-wide aggregation)
+  // - 'function'/'team'/'leadership': only the cycles of the filtered leaders, so a
+  //   department/team report aggregates only that group's responses, not the whole org.
+  const isOrgWide = tierType === "organisation";
+  const activeCycles = isOrgWide
+    ? await db.select().from(surveyCycles).where(eq(surveyCycles.organizationId, orgId))
+    : await db.select().from(surveyCycles).where(inArray(surveyCycles.leaderId, leaderIds));
+  // Include cycles where the leader record belongs to this org but the cycle references a leader
+  // whose user row lives under another org (legacy/migrated data) — counted for org-wide only.
+  const cycleIdsSet = new Set(activeCycles.map(c => c.id));
+  if (isOrgWide && leaderIds.length > 0) {
+    const extra = await db.select().from(surveyCycles).where(inArray(surveyCycles.leaderId, leaderIds));
+    for (const c of extra) cycleIdsSet.add(c.id);
+  }
+  const cycleIds = Array.from(cycleIdsSet);
 
   let allResponses: any[] = [];
   if (cycleIds.length > 0) {
