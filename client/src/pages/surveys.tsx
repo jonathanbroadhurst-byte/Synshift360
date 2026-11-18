@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, FileText, Users, Calendar, Clock, Upload, Download, SortAsc, SortDesc, Building2 } from 'lucide-react';
+import { Plus, FileText, Users, Calendar, Clock, Upload, Download, SortAsc, SortDesc, Building2, CheckCircle2 } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -425,6 +425,7 @@ export default function Surveys() {
                           <th className="py-3 px-4 text-center">Submissions</th>
                           <th className="py-3 px-4 text-left">Direct Loop Link</th>
                           <th className="py-3 px-4 text-left">End Date</th>
+                          <th className="py-3 px-4 text-center">360 Mix</th>
                           <th className="py-3 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -443,6 +444,17 @@ export default function Surveys() {
                               <span className="font-mono text-xs text-blue-600 break-all bg-blue-50 px-1.5 py-0.5 rounded">{window.location.origin}/survey/{cycle.inviteCode}</span>
                             </td>
                             <td className="py-3 px-4 text-gray-500">{cycle.endDate ? new Date(cycle.endDate).toLocaleDateString() : '—'}</td>
+                            <td className="py-3 px-4 text-center">
+                              {cycle.ready360 ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Complete
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200" title="Needs a self rating, a line manager, and at least one other reviewer">
+                                  <Clock className="w-3.5 h-3.5" /> Needs reviewers
+                                </span>
+                              )}
+                            </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center justify-end gap-2">
                                 <Button variant="outline" size="sm" onClick={() => setRespondentsCycleId(cycle.id)}>

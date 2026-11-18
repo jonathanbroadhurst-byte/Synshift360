@@ -531,23 +531,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/survey-responses", async (req: Request, res: Response) => {
     try {
-      const { inviteCode, responses, relationship, respondentRelationship } = req.body;
+      const { inviteCode, responses, relationship, respondentRelationship, respondentName, respondentEmail } = req.body;
       const cycle = await storage.getSurveyCycleByInviteCode(inviteCode);
       if (!cycle || cycle.status !== "active") return res.status(400).json({ message: "Survey inactive" });
 
-      const finalRelationship = relationship || respondentRelationship || 'Stakeholder';
+      const finalRelationship = (relationship || respondentRelationship || 'Stakeholder') as string;
+      const existing = await storage.getResponsesByCycle(cycle.id);
 
-      await storage.createSurveyResponse({ 
-        cycleId: cycle.id, 
-        invitationId: null, 
-        responses: responses, 
-        respondentRelationship: finalRelationship, 
-        responseHash: generateResponseHash("anonymous-" + Date.now(), cycle.id), 
-        disabled: false 
+      // 🛡️ 360 ROLE INTEGRITY GUARDS
+      // A survey cycle is a real 360 only if the reviewer mix is valid:
+      // exactly one Self assessment, at most one line Manager, and at least one
+      // other reviewer (Peer / Direct Report / Other).
+      const roleCounts: Record<string, number> = {};
+      for (const r of existing) {
+        const role = (r.respondentRelationship || 'Stakeholder').toLowerCase();
+        roleCounts[role] = (roleCounts[role] || 0) + 1;
+      }
+      const hasSelf = (roleCounts['self'] || 0) >= 1;
+      const hasManager = (roleCounts['manager'] || 0) >= 1;
+      const hasOtherReviewer = (roleCounts['peer'] || 0) + (roleCounts['direct report'] || 0) + (roleCounts['other'] || 0) >= 1;
+
+      const normalized = finalRelationship.toLowerCase();
+      if (normalized === 'self' && hasSelf) {
+        return res.status(409).json({ message: "A self-assessment has already been submitted for this leader. Only one self rating is allowed." });
+      }
+      if (normalized === 'manager' && hasManager) {
+        return res.status(409).json({ message: "A line-manager rating has already been submitted for this leader. One manager rating is allowed." });
+      }
+      if (normalized === 'self' && hasSelf === false && !responses) {
+        return res.status(400).json({ message: "Responses are required." });
+      }
+
+      // Prevent a reviewer submitting twice for the same relationship role
+      if (respondentEmail) {
+        const dup = existing.find((r: any) =>
+          (r.respondentEmail || '').toLowerCase() === String(respondentEmail).toLowerCase() &&
+          (r.respondentRelationship || '').toLowerCase() === normalized
+        );
+        if (dup) {
+          return res.status(409).json({ message: "This reviewer has already submitted for this role. Each person may provide feedback once per role." });
+        }
+      }
+
+      const submittedCount = existing.length + 1;
+      await storage.createSurveyResponse({
+        cycleId: cycle.id,
+        invitationId: null,
+        responses: responses,
+        respondentRelationship: finalRelationship,
+        respondentName: respondentName || null,
+        respondentEmail: respondentEmail || null,
+        responseHash: generateResponseHash((respondentEmail || 'anonymous-' + Date.now()), cycle.id),
+        disabled: false
       });
 
       await storage.updateSurveyCycleStats(cycle.id);
-      return res.status(201).json({ message: "Submitted successfully" });
+
+      // Determine the cycle's 360 readiness after this submission
+      const newRoleCounts = { ...roleCounts, [normalized]: (roleCounts[normalized] || 0) + 1 };
+      const selfNow = newRoleCounts['self'] || 0;
+      const managerNow = newRoleCounts['manager'] || 0;
+      const othersNow = (newRoleCounts['peer'] || 0) + (newRoleCounts['direct report'] || 0) + (newRoleCounts['other'] || 0);
+      const ready = selfNow >= 1 && managerNow >= 1 && othersNow >= 1;
+
+      return res.status(201).json({
+        message: ready ? "Submitted. This leader's 360 is now complete." : "Submitted.",
+        ready,
+        mix: { self: selfNow, manager: managerNow, peers: othersNow },
+      });
     } catch (error) {
       console.error("Error saving survey response:", error);
       return res.status(500).json({ message: "Submission failed" });
@@ -767,7 +818,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate: surveyCycles.endDate, 
         organizationId: surveyCycles.organizationId,
         leaderId: surveyCycles.leaderId,
-        responseCount: sql<number>`count(${surveyResponses.id})::int`
+        responseCount: sql<number>`count(${surveyResponses.id})::int`,
+        responseMix: sql<string>`json_build_object(
+          'self', count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) = 'self' OR ${surveyResponses.respondentRelationship} IS NULL),
+          'manager', count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) = 'manager'),
+          'others', count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) IN ('peer','direct report','other','stakeholder'))
+        )`,
+        ready360: sql<boolean>`count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) = 'self' OR ${surveyResponses.respondentRelationship} IS NULL) >= 1
+          AND count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) = 'manager') >= 1
+          AND count(*) FILTER (WHERE lower(${surveyResponses.respondentRelationship}) IN ('peer','direct report','other','stakeholder')) >= 1`
       })
       .from(surveyCycles)
       .leftJoin(surveyResponses, eq(surveyResponses.cycleId, surveyCycles.id))
